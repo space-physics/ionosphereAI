@@ -17,9 +17,10 @@ from numpy import (isnan,empty,uint32,delete,mgrid,vstack,int32,arctan2,
                    hypot,inf, logical_and)
 from scipy.signal import wiener
 import sys
-from matplotlib.pylab import draw, pause, figure, hist
+from matplotlib.pylab import draw, pause, figure, hist, show
+from matplotlib.colors import LogNorm
+from matplotlib.cm import get_cmap
 from pdb import set_trace
-#from matplotlib.pyplot import figure,show
 #
 from walktree import walktree
 from sixteen2eight import sixteen2eight
@@ -27,6 +28,8 @@ sys.path.append('../hist-utils')
 from rawDMCreader import getDMCparam,getDMCframe
 
 #plot disable
+showraw=False #often not useful due to no autoscale
+showrawscaled=True
 showhist=False
 showflowvec = False
 showflowhsv = False
@@ -58,6 +61,9 @@ def main(flist,params,verbose):
             cvref =  cv.CreateMat(ypix, xpix, cv.CV_8UC1)
             cvgray = cv.CreateMat(ypix, xpix, cv.CV_8UC1)
 
+        lcmap = get_cmap('jet')
+        lcmap.set_under('white')
+
         with open(f, 'rb') as dfid:
             jfrm = 0
             #%% mag plots setup
@@ -65,15 +71,17 @@ def main(flist,params,verbose):
                 figure(30).clf()
                 figom = figure(30)
                 axom = figom.gca()
-                hiom = axom.imshow(zeros((ypix,xpix)),vmin=0, vmax=1, origin='bottom') #arbitrary limits
+                hiom = axom.imshow(zeros((ypix,xpix)),vmin=1e-4, vmax=10,
+                                   origin='bottom', norm=LogNorm(), cmap=lcmap) #arbitrary limits
                 axom.set_title('optical flow magnitude')
+
                 figom.colorbar(hiom,ax=axom)
 
             for ifrm in finf['frameind']:
 #%% load and filter
                 if twoframe:
                     frameref = getDMCframe(dfid,ifrm,finf)[0]
-                    #frameref = getDMCframe(dfid,ifrm,finf)[0]
+
                     if dowiener:
                         frameref = wiener(frameref,cparam['wienernhood'])
                     frameref = sixteen2eight(frameref, rawlim)
@@ -83,32 +91,28 @@ def main(flist,params,verbose):
                     delete(rawframeind,s_[jfrm:])
                     break
                 framegray,rawframeind[jfrm] = (fg, rfi)
-                #framegray,rawframeind[jfrm] = (fg, rfi)
 
                 if dowiener:
                     framegray = wiener(framegray,cparam['wienernhood'])
-                framegray = sixteen2eight(framegray, rawlim)
-#%% image histograms (to help verify proper scaling to uint8)
-                if showhist:
-                    figure(1).clf()
-                    ax=figure(1).gca(); hist(fg.flatten(), bins=128, fc='w',ec='k', log=True)
 
-                    figure(2).clf()
-                    ax=figure(2).gca(); hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
-                    ax.set_xlim((0,255))
-                    draw(); pause(0.1)
+                if showraw:
+                    #this just divides by 256, NOT autoscaled!
+                    # http://docs.opencv.org/modules/highgui/doc/user_interface.html
+                    cv2.imshow('raw wiener filtered', framegray)
+                framegray = sixteen2eight(framegray, rawlim)
 
 #%% compute optical flow
                 if ofmethod == 'hs':
                     cvref = cv.fromarray(frameref)
                     cvgray = cv.fromarray(framegray)
                     #result is placed in u,v
-                    # matlab vision.OpticalFlow has default maxiter=10, terminate=eps, smoothness=1
+                    # matlab vision.OpticalFlow Horn-Shunck has default maxiter=10, terminate=eps, smoothness=1
+                    # in TrackingOF7.m I used maxiter=8, terminate=0.1, smaothness=0.1
                     cv.CalcOpticalFlowHS(cvref, cvgray,
                                                 False,
                                                 umat, vmat,
                                                 1.0,
-                                                (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 10, 0.0001))
+                                                (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
                     flow = dstack((asarray(umat), asarray(vmat)))
 
                 elif ofmethod == 'farneback':
@@ -125,11 +129,27 @@ def main(flist,params,verbose):
 
 
 #%% compute median and magnitude
-                ofmag = hypot(flow[...,0], flow[...,1])
-                medianflow = median(ofmag)
-                thres = dothres(ofmag,medianflow,thresmode,cparam['ofthresmin'],cparam['ofthresmax'])
+                ofmag = hypot(flow[...,0], flow[...,1])**2
+                ofmed = median(ofmag)
+                print(ofmed)
+
+                thres = dothres(ofmag, ofmed , thresmode, cparam['ofthresmin'],cparam['ofthresmax'])
+
                 despeck = cv2.medianBlur(thres,ksize=cparam['medfiltsize'])
 #%% plotting in loop
+                if showrawscaled:
+                    cv2.imshow('raw video, scaled to 8-bit', framegray)
+                # image histograms (to help verify proper scaling to uint8)
+                if showhist:
+                    figure(1).clf()
+                    ax=figure(1).gca(); hist(fg.flatten(), bins=128, fc='w',ec='k', log=True)
+
+                    figure(2).clf()
+                    ax=figure(2).gca(); hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
+                    ax.set_xlim((0,255))
+                    draw(); pause(0.1)
+
+
                 """
                 http://docs.opencv.org/modules/highgui/doc/user_interface.html
                 """
@@ -143,7 +163,7 @@ def main(flist,params,verbose):
                     draw(); pause(0.01)
 
                     cv2.imshow('thresholded ', thres)
-                    cv2.imshow('despeck', despeck)
+                    #cv2.imshow('despeck', despeck)
 
                 if cv2.waitKey(1) == 27: # MANDATORY FOR PLOTTING TO WORK!
                     break
@@ -223,7 +243,10 @@ def loadvid(fn,cparam,params,verbose):
 
     xypix=(cparam['xpix'],cparam['ypix'])
     xybin=(cparam['xbin'],cparam['ybin'])
-    finf = getDMCparam(fn,xypix,xybin,params['framestep'],verbose)
+    if params['startstop'][0] is None:
+        finf = getDMCparam(fn,xypix,xybin,params['framestep'],verbose)
+    else:
+        finf = getDMCparam(fn,xypix,xybin,(params['startstop'][0], params['startstop'][1], params['framestep']))
     return finf
 
 def getserialnum(flist):
@@ -242,7 +265,8 @@ if __name__=='__main__':
     p = ArgumentParser(description='detects aurora in raw video files')
     p.add_argument('indir',help='top directory over which to recursively find video files',type=str)
     p.add_argument('vidext',help='extension of raw video file',nargs='?',type=str,default='DMCdata')
-    p.add_argument('-k','--step',help='frame step skip increment (default 10000)',type=int,default=10)
+    p.add_argument('-k','--step',help='frame step skip increment (default 10000)',type=int,default=1)
+    p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,None))
     p.add_argument('-o','--outdir',help='directory to put output files in',type=str,default=None)
     p.add_argument('--ms',help='keogram/montage step [1000] dont make it too small like 1 or output is as big as original file!',type=int,default=1000)
     p.add_argument('-c','--contrast',help='[low high] data numbers to bound video contrast',type=int,nargs=2,default=(None,None))
@@ -253,7 +277,9 @@ if __name__=='__main__':
     p.add_argument('--profile',help='profile debug',action='store_true')
     a = p.parse_args()
 
-    params = {'rejvid':a.rejectvid,'framestep':a.step,
+    params = {'rejvid':a.rejectvid,
+              'framestep':a.step,
+              'startstop':a.frames,
               'montstep':a.ms,'clim':a.contrast,
               'paramfn':a.paramfn,'rejdet':a.rejectdet,'outdir':a.outdir}
 
@@ -268,4 +294,4 @@ if __name__=='__main__':
         goCprofile(profFN)
     else:
         main(flist,params,a.verbose)
-        #show()
+        show()
