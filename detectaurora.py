@@ -62,9 +62,12 @@ def main(flist,params,verbose):
             jfrm = 0
             #%% mag plots setup
             if showofmag:
+                figure(30).clf()
                 figom = figure(30)
                 axom = figom.gca()
-                hiom = axom.imshow(zeros((ypix,xpix)),vmin=0, vmax=10)
+                hiom = axom.imshow(zeros((ypix,xpix)),vmin=0, vmax=1, origin='bottom') #arbitrary limits
+                axom.set_title('optical flow magnitude')
+                figom.colorbar(hiom,ax=axom)
 
             for ifrm in finf['frameind']:
 #%% load and filter
@@ -108,12 +111,6 @@ def main(flist,params,verbose):
                                                 (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 10, 0.0001))
                     flow = dstack((asarray(umat), asarray(vmat)))
 
- #                    http://docs.opencv.org/trunk/doc/py_tutorials/py_gui/py_drawing_functions/py_drawing_functions.html
-                #    for i in range(0, xpix, flowskip):
-                #        for j in range(0, ypix, flowskip):
-                #            dx = int(cv.GetReal2D (umat, j, i))
-                #            dy = int(cv.GetReal2D (vmat, j, i))
-               #             cv2.line(desImageHS,(i, j),(i + dx, j + dy), (255, 0, 0), 1, cv2.CV_AA, 0)
                 elif ofmethod == 'farneback':
                     flow = cv2.calcOpticalFlowFarneback(frameref, framegray,
                                                        pyr_scale=0.5,
@@ -141,13 +138,7 @@ def main(flist,params,verbose):
                 if showflowhsv:
                     cv2.imshow('flowHSV', draw_hsv(flow) )
                 if showthres:
-                    #cv2.imshow('flowMag', ofmag)
-
-                    #figure(3).clf()
-                    #fig3 = figure(3)
-                    #ax3 = fig3.gca()
-                    #hi= ax3.imshow(ofmag,cmap='jet',origin='bottom')
-                    #fig3.colorbar(hi, ax=ax3)
+                    #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
                     hiom.set_data(ofmag)
                     draw(); pause(0.01)
 
@@ -189,7 +180,10 @@ def dothres(ofmag,medianflow,thresmode,thmin,thmax):
     #return (ofmag > lowthres).astype(uint8) * 255
 
 def draw_flow(img, flow, step=16):
-    """ need to attribute where this came from """
+    """
+    this came from opencv/examples directory
+    another way: http://docs.opencv.org/trunk/doc/py_tutorials/py_gui/py_drawing_functions/py_drawing_functions.html
+    """
     #scaleFact = 1. #arbitary factor to make flow visible
     canno = (0, 65535, 0)  # 65535 since it's 16-bit images
     h, w = img.shape[:2]
@@ -221,7 +215,6 @@ def draw_hsv(flow):
     bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
     return bgr
 
-
 def loadvid(fn,cparam,params,verbose):
     print('using ' + cparam['ofmethod'] + ' for ' + fn)
     print('minBlob='+str(cparam['minblobarea']) + ' maxBlob='+
@@ -243,7 +236,6 @@ def getcamparam(paramfn):
     camser = getserialnum(flist)
     camparam = read_excel(paramfn,index_col=0,header=0)
     return camser, camparam
-
 
 if __name__=='__main__':
     from argparse import ArgumentParser
