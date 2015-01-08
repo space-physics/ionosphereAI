@@ -7,14 +7,14 @@ It is a major cleanup of the processDrive.sh, filelooper.m, TrackingOF7.m Franke
 0) recursively find all .DMCdata files under requested root directory
 1)
 """
-from __future__ import division
+from __future__ import division, print_function
 import cv2, cv
 from re import search
 from pandas import read_excel
 from os.path import join,isfile
 from numpy import (isnan,empty,uint32,delete,mgrid,vstack,int32,arctan2,
                    sqrt,zeros,pi,uint8,minimum,s_,asarray, median, dstack,
-                   hypot,inf, logical_and)
+                   hypot,inf, logical_and,nan)
 from scipy.signal import wiener
 import sys
 from matplotlib.pylab import draw, pause, figure, hist, show
@@ -34,7 +34,8 @@ showhist=False
 showflowvec = False
 showflowhsv = False
 showthres = True
-showofmag = True
+showofmag = False
+showmeanmedian = False
 
 
 def main(flist,params,verbose):
@@ -55,6 +56,9 @@ def main(flist,params,verbose):
         rawlim = (cparam['cmin'], cparam['cmax'])
         xpix = finf['superx']; ypix = finf['supery']
         thresmode = cparam['thresholdmode'].lower()
+        trimedge = cparam['trimedgeof']
+        openrad = cparam['openradius']
+
         if ofmethod == 'hs':
             umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
@@ -64,6 +68,10 @@ def main(flist,params,verbose):
         lcmap = get_cmap('jet')
         lcmap.set_under('white')
 
+        openkernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad,openrad))
+        erodekernel = openkernel
+        closekernel = cv2.getStructuringElement(cv2.MORPH_RECT, (cparam['closewidth'],cparam['closeheight']))
+
         with open(f, 'rb') as dfid:
             jfrm = 0
             #%% mag plots setup
@@ -71,11 +79,25 @@ def main(flist,params,verbose):
                 figure(30).clf()
                 figom = figure(30)
                 axom = figom.gca()
-                hiom = axom.imshow(zeros((ypix,xpix)),vmin=1e-4, vmax=10,
+                hiom = axom.imshow(zeros((ypix,xpix)),vmin=1e-4, vmax=0.1,
                                    origin='bottom', norm=LogNorm(), cmap=lcmap) #arbitrary limits
                 axom.set_title('optical flow magnitude')
-
                 figom.colorbar(hiom,ax=axom)
+
+            if showmeanmedian:
+                figure(31).clf()
+                figmm = figure(31)
+                axmm = figmm.gca()
+                axmm.set_title('mean and median optical flow')
+                axmm.set_xlabel('frame index #')
+                axmm.set_ylim((0,0.002))
+
+
+                medpl = zeros(finf['frameind'].size) #don't use nan, it won't plot
+                meanpl = medpl.copy()
+                hpmn = axmm.plot(meanpl, label='mean')
+                hpmd = axmm.plot(medpl, label='median')
+                axmm.legend(loc='best')
 
             for ifrm in finf['frameind']:
 #%% load and filter
@@ -108,10 +130,16 @@ def main(flist,params,verbose):
                     #result is placed in u,v
                     # matlab vision.OpticalFlow Horn-Shunck has default maxiter=10, terminate=eps, smoothness=1
                     # in TrackingOF7.m I used maxiter=8, terminate=0.1, smaothness=0.1
+                    """
+                    ***************************
+                    Note that smoothness parameter for cv.CalcOpticalFlowHS needs to be SMALLER than matlab
+                    to get similar result. Useless when smoothness was 1 in python, but it's 1 in Matlab!
+                    *****************************
+                    """
                     cv.CalcOpticalFlowHS(cvref, cvgray,
                                                 False,
                                                 umat, vmat,
-                                                1.0,
+                                                0.001,
                                                 (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
                     flow = dstack((asarray(umat), asarray(vmat)))
 
@@ -127,27 +155,51 @@ def main(flist,params,verbose):
                 else:
                     exit('*** OF method ' + ofmethod + ' not implemented')
 
+                # zero out edges of image (which have very high flow, unnaturally)
+
+                '''
+                maybe this can be done more elegantly, maybe via pad or take?
+                http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
+                '''
+                flow[:trimedge,...] = 0
+                flow[-trimedge:,...] = 0
+                flow[:,:trimedge,:] = 0
+                flow[:,-trimedge:,:] = 0
+
+                flow /= 255 #trying to make like matlab, which has normalized data input (opencv requires uint8)
 
 #%% compute median and magnitude
-                ofmag = hypot(flow[...,0], flow[...,1])**2
+                ofmag = hypot(flow[...,0], flow[...,1])
                 ofmed = median(ofmag)
-                print(ofmed)
 
+                if showmeanmedian:
+                    medpl[jfrm] = ofmed
+                    meanpl[jfrm] = ofmag.mean()
+                    hpmd[0].set_ydata(medpl)
+                    hpmn[0].set_ydata(meanpl)
+#%% threshold
                 thres = dothres(ofmag, ofmed , thresmode, cparam['ofthresmin'],cparam['ofthresmax'])
-
+#%% despeckle
                 despeck = cv2.medianBlur(thres,ksize=cparam['medfiltsize'])
+#%% morphological ops
+                """
+                http://docs.opencv.org/master/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+                """
+                opened = cv2.morphologyEx(despeck, cv2.MORPH_OPEN, openkernel)
 #%% plotting in loop
                 if showrawscaled:
                     cv2.imshow('raw video, scaled to 8-bit', framegray)
                 # image histograms (to help verify proper scaling to uint8)
                 if showhist:
-                    figure(1).clf()
-                    ax=figure(1).gca(); hist(fg.flatten(), bins=128, fc='w',ec='k', log=True)
+                    figure(321).clf()
+                    ax=figure(321).gca(); hist(fg.flatten(), bins=128, fc='w',ec='k', log=True)
+                    ax.set_title('raw uint16 values')
 
-                    figure(2).clf()
-                    ax=figure(2).gca(); hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
+                    figure(322).clf()
+                    ax=figure(322).gca(); hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
                     ax.set_xlim((0,255))
-                    draw(); pause(0.1)
+                    ax.set_title('normalized video into opt flow')
+                    draw(); pause(0.01)
 
 
                 """
@@ -157,13 +209,15 @@ def main(flist,params,verbose):
                     cv2.imshow('flow vectors ', draw_flow(framegray,flow) )
                 if showflowhsv:
                     cv2.imshow('flowHSV', draw_hsv(flow) )
-                if showthres:
+                if showofmag:
                     #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
                     hiom.set_data(ofmag)
-                    draw(); pause(0.01)
+                    draw(); pause(0.001)
 
+                if showthres:
                     cv2.imshow('thresholded ', thres)
-                    #cv2.imshow('despeck', despeck)
+                    cv2.imshow('despeck', despeck)
+                    cv2.imshow('opened', opened)
 
                 if cv2.waitKey(1) == 27: # MANDATORY FOR PLOTTING TO WORK!
                     break
