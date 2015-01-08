@@ -36,6 +36,7 @@ showflowhsv = False
 showthres = True
 showofmag = False
 showmeanmedian = False
+showmorph = True
 
 
 def main(flist,params,verbose):
@@ -58,7 +59,20 @@ def main(flist,params,verbose):
         thresmode = cparam['thresholdmode'].lower()
         trimedge = cparam['trimedgeof']
         openrad = cparam['openradius']
+#%% setup blob
+        params = cv2.SimpleBlobDetector_Params()
+        params.filterByArea = True
+        params.filterByColor = False
+        params.filterByCircularity = False
+        params.filterByInertia = False
+        params.filterByConvexity = False
 
+        params.minDistBetweenBlobs = 50.0
+        params.minArea = cparam['minblobarea']
+        params.maxArea = cparam['maxblobarea']
+        #params.minThreshold = 40 #we have already made a binary image
+        blobdetect = cv2.SimpleBlobDetector(params)
+#%%
         if ofmethod == 'hs':
             umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
@@ -185,7 +199,22 @@ def main(flist,params,verbose):
                 """
                 http://docs.opencv.org/master/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
                 """
-                opened = cv2.morphologyEx(despeck, cv2.MORPH_OPEN, openkernel)
+               # opened = cv2.morphologyEx(despeck, cv2.MORPH_OPEN, openkernel)
+                eroded = cv2.erode(despeck,erodekernel)
+                closed = cv2.morphologyEx(eroded, cv2.MORPH_CLOSE, closekernel)
+#%% blob detection
+                """
+                http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
+                """
+                keypoints = blobdetect.detect(closed)
+                final = cv2.drawKeypoints(framegray, keypoints, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                cv2.putText(final, text=str(len(keypoints)), org=(10,500),
+                            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                            fontScale=18,
+                            color=(0,255,0),)
+                 #           lineType=cv2.LINE_AA)
+                #font = cv2.FONT_HERSHEY_SIMPLEX
+                #cv2.putText(final,'OpenCV',(10,500), font, 4,(255,255,255),2)
 #%% plotting in loop
                 if showrawscaled:
                     cv2.imshow('raw video, scaled to 8-bit', framegray)
@@ -217,7 +246,13 @@ def main(flist,params,verbose):
                 if showthres:
                     cv2.imshow('thresholded ', thres)
                     cv2.imshow('despeck', despeck)
-                    cv2.imshow('opened', opened)
+
+                if showmorph:
+                    #cv2.imshow('opened', opened)
+                    cv2.imshow('morphed',closed)
+
+                cv2.imshow('final',final)
+
 
                 if cv2.waitKey(1) == 27: # MANDATORY FOR PLOTTING TO WORK!
                     break
