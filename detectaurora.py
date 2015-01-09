@@ -11,16 +11,15 @@ from __future__ import division, print_function
 import cv2, cv
 from re import search
 from pandas import read_excel
-from os.path import join,isfile
+from os.path import join,isfile, splitext
 from numpy import (isnan,empty,uint32,delete,mgrid,vstack,int32,arctan2,
                    sqrt,zeros,pi,uint8,minimum,s_,asarray, median, dstack,
-                   hypot,inf, logical_and,nan)
+                   hypot,inf, logical_and)
 from scipy.signal import wiener
 import sys
-from matplotlib.pylab import draw, pause, figure, hist, show
-from matplotlib.colors import LogNorm
-from matplotlib.cm import get_cmap
-from pdb import set_trace
+from time import time
+import h5py
+#from pdb import set_trace
 #
 from walktree import walktree
 from sixteen2eight import sixteen2eight
@@ -29,19 +28,29 @@ from rawDMCreader import getDMCparam,getDMCframe
 
 #plot disable
 showraw=False #often not useful due to no autoscale
-showrawscaled=True
+showrawscaled=False      #True
 showhist=False
 showflowvec = False
 showflowhsv = False
-showthres = True
+showthres = False      #True
 showofmag = False
 showmeanmedian = False
-showmorph = True
+showmorph = False      #True
+showfinal = True
+plotdet = False
+savedet = True
+
+if savedet or plotdet or showhist or showofmag or showmeanmedian:
+    from matplotlib.pylab import draw, pause, figure, hist
+    from matplotlib.colors import LogNorm
+    #from matplotlib.cm import get_cmap
 
 
 def main(flist,params,verbose):
     camser,camparam = getcamparam(params['paramfn'])
+
     for f,s in zip(flist,camser):
+        tic = time()
         detfn = join(params['outdir'],f +'_detections.h5')
         if isfile(detfn):
             print('** overwriting existing ' + detfn)
@@ -59,19 +68,20 @@ def main(flist,params,verbose):
         thresmode = cparam['thresholdmode'].lower()
         trimedge = cparam['trimedgeof']
         openrad = cparam['openradius']
+        hssmooth = cparam['hssmooth']
 #%% setup blob
-        params = cv2.SimpleBlobDetector_Params()
-        params.filterByArea = True
-        params.filterByColor = False
-        params.filterByCircularity = False
-        params.filterByInertia = False
-        params.filterByConvexity = False
+        blobparam = cv2.SimpleBlobDetector_Params()
+        blobparam.filterByArea = True
+        blobparam.filterByColor = False
+        blobparam.filterByCircularity = False
+        blobparam.filterByInertia = False
+        blobparam.filterByConvexity = False
 
-        params.minDistBetweenBlobs = 50.0
-        params.minArea = cparam['minblobarea']
-        params.maxArea = cparam['maxblobarea']
-        #params.minThreshold = 40 #we have already made a binary image
-        blobdetect = cv2.SimpleBlobDetector(params)
+        blobparam.minDistBetweenBlobs = 50.0
+        blobparam.minArea = cparam['minblobarea']
+        blobparam.maxArea = cparam['maxblobarea']
+        #blobparam.minThreshold = 40 #we have already made a binary image
+        blobdetect = cv2.SimpleBlobDetector(blobparam)
 #%%
         if ofmethod == 'hs':
             umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
@@ -79,8 +89,8 @@ def main(flist,params,verbose):
             cvref =  cv.CreateMat(ypix, xpix, cv.CV_8UC1)
             cvgray = cv.CreateMat(ypix, xpix, cv.CV_8UC1)
 
-        lcmap = get_cmap('jet')
-        lcmap.set_under('white')
+        #lcmap = get_cmap('jet')
+        #lcmap.set_under('white')
 
         openkernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad,openrad))
         erodekernel = openkernel
@@ -89,29 +99,9 @@ def main(flist,params,verbose):
         with open(f, 'rb') as dfid:
             jfrm = 0
             #%% mag plots setup
-            if showofmag:
-                figure(30).clf()
-                figom = figure(30)
-                axom = figom.gca()
-                hiom = axom.imshow(zeros((ypix,xpix)),vmin=1e-4, vmax=0.1,
-                                   origin='bottom', norm=LogNorm(), cmap=lcmap) #arbitrary limits
-                axom.set_title('optical flow magnitude')
-                figom.colorbar(hiom,ax=axom)
-
-            if showmeanmedian:
-                figure(31).clf()
-                figmm = figure(31)
-                axmm = figmm.gca()
-                axmm.set_title('mean and median optical flow')
-                axmm.set_xlabel('frame index #')
-                axmm.set_ylim((0,0.002))
-
-
-                medpl = zeros(finf['frameind'].size) #don't use nan, it won't plot
-                meanpl = medpl.copy()
-                hpmn = axmm.plot(meanpl, label='mean')
-                hpmd = axmm.plot(medpl, label='median')
-                axmm.legend(loc='best')
+            hiom, hpmn, hpmd,medpl,meanpl,fgdt,hpdt,detect = setupfigs(showmeanmedian,
+                                                            showofmag,
+                                                            plotdet, savedet, finf,f)
 
             for ifrm in finf['frameind']:
 #%% load and filter
@@ -150,11 +140,10 @@ def main(flist,params,verbose):
                     to get similar result. Useless when smoothness was 1 in python, but it's 1 in Matlab!
                     *****************************
                     """
-                    cv.CalcOpticalFlowHS(cvref, cvgray,
-                                                False,
-                                                umat, vmat,
-                                                0.001,
-                                                (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
+                    cv.CalcOpticalFlowHS(cvref, cvgray, False,
+                                         umat, vmat,
+                                         hssmooth,
+                                         (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
                     flow = dstack((asarray(umat), asarray(vmat)))
 
                 elif ofmethod == 'farneback':
@@ -207,14 +196,12 @@ def main(flist,params,verbose):
                 http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
                 """
                 keypoints = blobdetect.detect(closed)
+                nkey = len(keypoints)
                 final = cv2.drawKeypoints(framegray, keypoints, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                cv2.putText(final, text=str(len(keypoints)), org=(10,500),
-                            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                            fontScale=18,
-                            color=(0,255,0),)
-                 #           lineType=cv2.LINE_AA)
-                #font = cv2.FONT_HERSHEY_SIMPLEX
-                #cv2.putText(final,'OpenCV',(10,500), font, 4,(255,255,255),2)
+                cv2.putText(final, text=str(nkey), org=(10,510),
+                            fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5,
+                            color=(0,255,0), thickness=2)
+
 #%% plotting in loop
                 if showrawscaled:
                     cv2.imshow('raw video, scaled to 8-bit', framegray)
@@ -228,8 +215,6 @@ def main(flist,params,verbose):
                     ax=figure(322).gca(); hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
                     ax.set_xlim((0,255))
                     ax.set_title('normalized video into opt flow')
-                    draw(); pause(0.01)
-
 
                 """
                 http://docs.opencv.org/modules/highgui/doc/user_interface.html
@@ -241,7 +226,6 @@ def main(flist,params,verbose):
                 if showofmag:
                     #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
                     hiom.set_data(ofmag)
-                    draw(); pause(0.001)
 
                 if showthres:
                     cv2.imshow('thresholded ', thres)
@@ -251,16 +235,33 @@ def main(flist,params,verbose):
                     #cv2.imshow('opened', opened)
                     cv2.imshow('morphed',closed)
 
-                cv2.imshow('final',final)
+                if showfinal:
+                    cv2.imshow('final',final)
+
+                if plotdet or savedet:
+                    detect[jfrm] = nkey
+                    hpdt[0].set_ydata(detect)
+
 
 
                 if cv2.waitKey(1) == 27: # MANDATORY FOR PLOTTING TO WORK!
                     break
-
+                if plotdet or showhist or showofmag or showmeanmedian:
+                    draw(); pause(0.001)
                 jfrm+=1
+            print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
+            if savedet:
+                stem = splitext(f)[0]
+                detfn = stem + '_det.h5'
+                detpltfn = stem + '_det.png'
+                print('saving detections to ' + detfn)
+                with h5py.File(detfn,libver='latest') as h5fid:
+                    h5fid.create_dataset("/det", data=detect)
+                print('saving detection plot to ' + detpltfn)
+                fgdt.savefig(detpltfn,dpi=100,bbox_inches='tight')
 
-        #ax = figure().gca()
-        #ax.imshow(frameref,cmap = 'gray', origin='lower',vmin=cparam['cmin'],vmax=cparam['cmax'])
+
+
 
 def dothres(ofmag,medianflow,thresmode,thmin,thmax):
     if thresmode == 'median':
@@ -287,6 +288,46 @@ def dothres(ofmag,medianflow,thresmode,thmin,thmax):
     """
     return logical_and(ofmag < hithres, ofmag > lowthres).astype(uint8) * 255
     #return (ofmag > lowthres).astype(uint8) * 255
+
+def setupfigs(showmeanmedian,showofmag,plotdet,savedet,finf,fn):
+    hiom = None
+    if showofmag:
+        figure(30).clf()
+        figom = figure(30)
+        axom = figom.gca()
+        hiom = axom.imshow(zeros((finf['supery'],finf['superx'])),vmin=1e-4, vmax=0.1,
+                           origin='bottom', norm=LogNorm())#, cmap=lcmap) #arbitrary limits
+        axom.set_title('optical flow magnitude')
+        figom.colorbar(hiom,ax=axom)
+
+    hpmn = None; hpmd = None; medpl = None; meanpl = None
+    if showmeanmedian:
+        medpl = zeros(finf['frameind'].size, dtype=float) #don't use nan, it won't plot
+        meanpl = medpl.copy()
+        figure(31).clf()
+        figmm = figure(31)
+        axmm = figmm.gca()
+        axmm.set_title('mean and median optical flow')
+        axmm.set_xlabel('frame index #')
+        axmm.set_ylim((0,0.002))
+
+        hpmn = axmm.plot(meanpl, label='mean')
+        hpmd = axmm.plot(medpl, label='median')
+        axmm.legend(loc='best')
+
+    detect = None; hpdt = None
+    if plotdet or savedet:
+        detect = zeros(finf['frameind'].size, dtype=int)
+        figure(40).clf()
+        fgdt = figure(40)
+        axdt = fgdt.gca()
+        axdt.set_title('Detections of Aurora: ' + fn,fontsize =10)
+        axdt.set_xlabel('frame index #')
+        axdt.set_ylabel('number of detections')
+        axdt.set_ylim((0,10))
+        hpdt = axdt.plot(detect)
+
+    return hiom, hpmn, hpmd,medpl,meanpl,fgdt,hpdt,detect
 
 def draw_flow(img, flow, step=16):
     """
@@ -383,4 +424,4 @@ if __name__=='__main__':
         goCprofile(profFN)
     else:
         main(flist,params,a.verbose)
-        show()
+        #show()
