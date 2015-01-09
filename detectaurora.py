@@ -36,9 +36,9 @@ showthres = False      #True
 showofmag = False
 showmeanmedian = False
 showmorph = False      #True
-showfinal = True
+showfinal = False
 plotdet = False
-savedet = True
+savedet = False
 
 if savedet or plotdet or showhist or showofmag or showmeanmedian:
     from matplotlib.pylab import draw, pause, figure, hist
@@ -82,7 +82,7 @@ def main(flist,params,verbose):
         blobparam.maxArea = cparam['maxblobarea']
         #blobparam.minThreshold = 40 #we have already made a binary image
         blobdetect = cv2.SimpleBlobDetector(blobparam)
-#%%
+#%% kernel setup
         if ofmethod == 'hs':
             umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
@@ -98,7 +98,7 @@ def main(flist,params,verbose):
 
         with open(f, 'rb') as dfid:
             jfrm = 0
-            #%% mag plots setup
+#%% mag plots setup
             hiom, hpmn, hpmd,medpl,meanpl,fgdt,hpdt,detect = setupfigs(showmeanmedian,
                                                             showofmag,
                                                             plotdet, savedet, finf,f)
@@ -164,12 +164,10 @@ def main(flist,params,verbose):
                 maybe this can be done more elegantly, maybe via pad or take?
                 http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
                 '''
-                flow[:trimedge,...] = 0
-                flow[-trimedge:,...] = 0
-                flow[:,:trimedge,:] = 0
-                flow[:,-trimedge:,:] = 0
+                flow[:trimedge,...] = 0.; flow[-trimedge:,...] = 0.
+                flow[:,:trimedge,:] = 0.; flow[:,-trimedge:,:] = 0.
 
-                flow /= 255 #trying to make like matlab, which has normalized data input (opencv requires uint8)
+                flow /= 255. #trying to make like matlab, which has normalized data input (opencv requires uint8)
 
 #%% compute median and magnitude
                 ofmag = hypot(flow[...,0], flow[...,1])
@@ -315,7 +313,7 @@ def setupfigs(showmeanmedian,showofmag,plotdet,savedet,finf,fn):
         hpmd = axmm.plot(medpl, label='median')
         axmm.legend(loc='best')
 
-    detect = None; hpdt = None
+    detect = None; hpdt = None; fgdt = None
     if plotdet or savedet:
         detect = zeros(finf['frameind'].size, dtype=int)
         figure(40).clf()
