@@ -29,7 +29,7 @@ git clone https://github.com/scienceopen/hist-utils.git
 Many thanks to Amber Baurley for testing and improving the original, messy Matlab code I came up with.
 
 Tested with:
-Python 2.7.8 (Anaconda)
+Python 2.7.9 (Anaconda)
 OpenCV 2.4.10
 Numpy 1.9.1
 Matplotlib 1.4.2
