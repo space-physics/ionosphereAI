@@ -97,7 +97,7 @@ def main(flist,params,verbose):
         erodekernel = openkernel
         closekernel = cv2.getStructuringElement(cv2.MORPH_RECT, (cparam['closewidth'],cparam['closeheight']))
 
-        with open(f, 'rb') as dfid:
+        with open(f, 'rb') as dfid: #TODO need to use the "old-fashioned" syntax and dfid.close()
             jfrm = 0
 #%% mag plots setup
             hiom, hpmn, hpmd,medpl,meanpl,fgdt,hpdt,detect = setupfigs(showmeanmedian,
