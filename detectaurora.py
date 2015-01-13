@@ -51,6 +51,7 @@ def main(flist,params,verbose):
 
     for f,s in zip(flist,camser):
         tic = time()
+        stem,ext = splitext(f)
         detfn = join(params['outdir'],f +'_detections.h5')
         if isfile(detfn):
             print('** overwriting existing ' + detfn)
@@ -249,7 +250,6 @@ def main(flist,params,verbose):
                 jfrm+=1
             print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
             if savedet:
-                stem = splitext(f)[0]
                 detfn = stem + '_det.h5'
                 detpltfn = stem + '_det.png'
                 print('saving detections to ' + detfn)
