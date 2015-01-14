@@ -29,15 +29,15 @@ from rawDMCreader import getDMCparam,getDMCframe
 
 #plot disable
 showraw=False #often not useful due to no autoscale
-showrawscaled=False      #True
+showrawscaled=False      #True  #why not just showfinal
 showhist=False
 showflowvec = False
 showflowhsv = False
-showthres = False      #True
+showthres = True      #True
 showofmag = False
 showmeanmedian = False
 showmorph = False      #True
-showfinal = False
+showfinal = True
 plotdet = False
 savedet = False
 
@@ -108,7 +108,7 @@ def main(flist,params,verbose):
             for ifrm in finf['frameind']:
 #%% load and filter
                 if twoframe:
-                    frameref = getDMCframe(dfid,ifrm,finf)[0]
+                    frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
 
                     if dowiener:
                         frameref = wiener(frameref,cparam['wienernhood'])
@@ -396,7 +396,7 @@ if __name__=='__main__':
     p.add_argument('vidext',help='extension of raw video file',nargs='?',type=str,default='DMCdata')
     p.add_argument('-k','--step',help='frame step skip increment (default 10000)',type=int,default=1)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,None))
-    p.add_argument('-o','--outdir',help='directory to put output files in',type=str,default=None)
+    p.add_argument('-o','--outdir',help='directory to put output files in',type=str,default='') #None doesn't work with Windows
     p.add_argument('--ms',help='keogram/montage step [1000] dont make it too small like 1 or output is as big as original file!',type=int,default=1000)
     p.add_argument('-c','--contrast',help='[low high] data numbers to bound video contrast',type=int,nargs=2,default=(None,None))
     p.add_argument('--rejectvid',help='reject raw video files with less than this many frames',type=int,default=10)
@@ -411,16 +411,18 @@ if __name__=='__main__':
               'startstop':a.frames,
               'montstep':a.ms,'clim':a.contrast,
               'paramfn':a.paramfn,'rejdet':a.rejectdet,'outdir':a.outdir}
+    try:
+        flist = walktree(a.indir,'*.' + a.vidext)
 
-    flist = walktree(a.indir,'*.' + a.vidext)
-
-    if a.profile:
-        import cProfile
-        from profilerun import goCprofile
-        profFN = 'profstats.pstats'
-        print('saving profile results to ' + profFN)
-        cProfile.run('main(flist,params,a.verbose)',profFN)
-        goCprofile(profFN)
-    else:
-        main(flist,params,a.verbose)
-        #show()
+        if a.profile:
+            import cProfile
+            from profilerun import goCprofile
+            profFN = 'profstats.pstats'
+            print('saving profile results to ' + profFN)
+            cProfile.run('main(flist,params,a.verbose)',profFN)
+            goCprofile(profFN)
+        else:
+            main(flist,params,a.verbose)
+            #show()
+    except KeyboardInterrupt:
+        exit('aborting per user request')
