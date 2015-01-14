@@ -35,7 +35,7 @@ showflowvec = False
 showflowhsv = False
 showthres = True      #True
 showofmag = False
-showmeanmedian = False
+showmeanmedian = True
 showmorph = False      #True
 showfinal = True
 plotdet = False
@@ -69,7 +69,6 @@ def main(flist,params,verbose):
         xpix = finf['superx']; ypix = finf['supery']
         thresmode = cparam['thresholdmode'].lower()
         trimedge = cparam['trimedgeof']
-        openrad = cparam['openradius']
         hssmooth = cparam['hssmooth']
 #%% setup blob
         blobparam = cv2.SimpleBlobDetector_Params()
@@ -94,9 +93,19 @@ def main(flist,params,verbose):
         #lcmap = get_cmap('jet')
         #lcmap.set_under('white')
 
-        openkernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad,openrad))
+        if not cparam['openradius'] % 2:
+            exit('*** detectaurora: openRadius must be ODD')
+        openkernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, 
+                                               (cparam['openradius'], cparam['openradius']))
         erodekernel = openkernel
         closekernel = cv2.getStructuringElement(cv2.MORPH_RECT, (cparam['closewidth'],cparam['closeheight']))
+        #cv2.imshow('open kernel',openkernel)
+        print('open kernel')
+        print(openkernel)
+        print('close kernel')
+        print(closekernel)
+        print('erode kernel')
+        print(erodekernel)
 
         with open(f, 'rb') as dfid: #TODO need to use the "old-fashioned" syntax and dfid.close()
             jfrm = 0
@@ -248,7 +257,15 @@ def main(flist,params,verbose):
                     break
                 if plotdet or showhist or showofmag or showmeanmedian:
                     draw(); pause(0.001)
+                    
+                if not jfrm % 100:
+                    print('iteration ' + str(jfrm))
+                    if (framegray == 255).sum() > 4: #arbitrarily allowing up to 4 pixels to be saturated at 255
+                        print('* Warning: video may be saturated at 255, missed detections can result')
+                    if (framegray == 0).sum() > 4: 
+                        print('* Warning: video may be saturated at 0, missed detections can result')
                 jfrm+=1
+#%% done looping                
             print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
             if savedet:
                 detfn = stem + '_det.h5'
@@ -308,7 +325,7 @@ def setupfigs(showmeanmedian,showofmag,plotdet,savedet,finf,fn):
         axmm = figmm.gca()
         axmm.set_title('mean and median optical flow')
         axmm.set_xlabel('frame index #')
-        axmm.set_ylim((0,0.002))
+        axmm.set_ylim((0,5e-4))
 
         hpmn = axmm.plot(meanpl, label='mean')
         hpmd = axmm.plot(medpl, label='median')
