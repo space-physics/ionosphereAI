@@ -8,7 +8,8 @@ It is a major cleanup of the processDrive.sh, filelooper.m, TrackingOF7.m Franke
 1)
 """
 from __future__ import division, print_function
-import cv2, cv
+import cv2
+from cv2 import cv #necessary for Windows, "import cv" doesn't work
 from re import search
 from pandas import read_excel
 from os.path import join,isfile, splitext
@@ -21,9 +22,9 @@ from time import time
 import h5py
 #from pdb import set_trace
 #
+sys.path.append('../hist-utils')
 from walktree import walktree
 from sixteen2eight import sixteen2eight
-sys.path.append('../hist-utils')
 from rawDMCreader import getDMCparam,getDMCframe
 
 #plot disable
