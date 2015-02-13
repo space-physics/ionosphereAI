@@ -35,7 +35,7 @@ showflowvec = False
 showflowhsv = False
 showthres = True      #True
 showofmag = False
-showmeanmedian = True
+showmeanmedian = False
 showmorph = False      #True
 showfinal = True
 plotdet = False
@@ -47,10 +47,12 @@ if savedet or plotdet or showhist or showofmag or showmeanmedian:
     #from matplotlib.cm import get_cmap
 
 
-def main(flist,params,verbose):
+def main(flist, params, savevideo, verbose):
     camser,camparam = getcamparam(params['paramfn'])
 
     for f,s in zip(flist,camser):
+        svh = svsetup(savevideo)
+
         tic = time()
         stem,ext = splitext(f)
         detfn = join(params['outdir'],f +'_detections.h5')
@@ -95,7 +97,7 @@ def main(flist,params,verbose):
 
         if not cparam['openradius'] % 2:
             exit('*** detectaurora: openRadius must be ODD')
-        openkernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, 
+        openkernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                (cparam['openradius'], cparam['openradius']))
         erodekernel = openkernel
         closekernel = cv2.getStructuringElement(cv2.MORPH_RECT, (cparam['closewidth'],cparam['closeheight']))
@@ -191,6 +193,8 @@ def main(flist,params,verbose):
                     hpmn[0].set_ydata(meanpl)
 #%% threshold
                 thres = dothres(ofmag, ofmed , thresmode, cparam['ofthresmin'],cparam['ofthresmax'])
+                if savevideo:
+                    svh['thres'].write(thres)
 #%% despeckle
                 despeck = cv2.medianBlur(thres,ksize=cparam['medfiltsize'])
 #%% morphological ops
@@ -246,6 +250,9 @@ def main(flist,params,verbose):
 
                 if showfinal:
                     cv2.imshow('final',final)
+                if savevideo:
+                    print('saving frame',ifrm)
+                    svh['detect'].write(final)
 
                 if plotdet or savedet:
                     detect[jfrm] = nkey
@@ -257,15 +264,15 @@ def main(flist,params,verbose):
                     break
                 if plotdet or showhist or showofmag or showmeanmedian:
                     draw(); pause(0.001)
-                    
+
                 if not jfrm % 100:
                     print('iteration ' + str(jfrm))
                     if (framegray == 255).sum() > 4: #arbitrarily allowing up to 4 pixels to be saturated at 255
                         print('* Warning: video may be saturated at 255, missed detections can result')
-                    if (framegray == 0).sum() > 4: 
+                    if (framegray == 0).sum() > 4:
                         print('* Warning: video may be saturated at 0, missed detections can result')
                 jfrm+=1
-#%% done looping                
+#%% done looping
             print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
             if savedet:
                 detfn = stem + '_det.h5'
@@ -276,7 +283,26 @@ def main(flist,params,verbose):
                 print('saving detection plot to ' + detpltfn)
                 fgdt.savefig(detpltfn,dpi=100,bbox_inches='tight')
 
+            if savevideo:
+                svh['thres'].release()
+                svh['detect'].release()
 
+def svsetup(savevideo):
+    """ does this need to be RGB to work?
+    http://stackoverflow.com/questions/9280653/writing-numpy-arrays-using-cv2-videowriter
+    """
+
+    fourcc = cv2.cv.FOURCC('M','J','P','G')
+    #fourcc = cv2.cv.FOURCC('F','F','V','1') #openCV2
+    #fourcc = cv2.VideoWriter_fourcc(*'FFV1') #OpenCV3
+    svh = {}
+    if savevideo:
+        svh['thres']  = cv2.VideoWriter('~/thres.ffv',fourcc,fps=25,frameSize=(512,512))#,isColor=0)
+        print(svh['thres'].isOpened())
+        #svh['thres'].open()
+        svh['detect'] = cv2.VideoWriter('/tmp/detect.ffv',fourcc,fps=2,frameSize=(512,512))#,isColor=0)
+        #svh['detect'].open()
+    return svh
 
 
 def dothres(ofmag,medianflow,thresmode,thmin,thmax):
@@ -411,6 +437,7 @@ if __name__=='__main__':
     p = ArgumentParser(description='detects aurora in raw video files')
     p.add_argument('indir',help='top directory over which to recursively find video files',type=str)
     p.add_argument('vidext',help='extension of raw video file',nargs='?',type=str,default='DMCdata')
+    p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
     p.add_argument('-k','--step',help='frame step skip increment (default 10000)',type=int,default=1)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,None))
     p.add_argument('-o','--outdir',help='directory to put output files in',type=str,default='') #None doesn't work with Windows
@@ -436,10 +463,10 @@ if __name__=='__main__':
             from profilerun import goCprofile
             profFN = 'profstats.pstats'
             print('saving profile results to ' + profFN)
-            cProfile.run('main(flist,params,a.verbose)',profFN)
+            cProfile.run('main(flist, params, a.savevideo, a.verbose)',profFN)
             goCprofile(profFN)
         else:
-            main(flist,params,a.verbose)
+            main(flist, params, a.savevideo, a.verbose)
             #show()
     except KeyboardInterrupt:
         exit('aborting per user request')
