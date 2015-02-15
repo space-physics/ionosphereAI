@@ -12,7 +12,7 @@ The outputs include:
 * PNG figure plot of the number of auroral detections per video frame sampled
 * HDF5 file of the data in the PNG plot (so that you can use another program to extract the GB of interesting data from TB file
 
-This program is specifically designed for .DMCdata video files in a proprietary binary format from the HiST project. It is trivial to adapt the program to ingest AVI, NetCDF, and many other formats--just email mhirsch@bu.edu.
+This program is specifically designed for .DMCdata video files in a proprietary binary format from the HiST project. It is trivial to adapt the program to ingest AVI, NetCDF, and many other formats--just contact me.
 
 Prerequisities:
 Python 2.7, suggest Anaconda or Miniconda for ease of installing prereqs, but any Python 2.7 should be fine on any operating system.
