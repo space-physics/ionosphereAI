@@ -47,7 +47,7 @@ if savedet or plotdet or showhist or showofmag or showmeanmedian:
     #from matplotlib.cm import get_cmap
 
 
-def main(flist, params, savevideo, verbose):
+def main(flist, params, savevideo, framebyframe, verbose):
     camser,camparam = getcamparam(params['paramfn'])
 
     for f,s in zip(flist,camser):
@@ -94,7 +94,8 @@ def main(flist, params, savevideo, verbose):
 
             for ifrm in finf['frameind']:
 #%% load and filter
-                framegray,frameref,rawframeind = getraw(dfid,ifrm,jfrm,finf,svh,rawlim,twoframe,rawframeind,cparam['wienernhood'],verbose)
+                framegray,frameref,rawframeind = getraw(dfid,ifrm,jfrm,finf,svh,
+                                                        rawlim,twoframe,rawframeind,cparam['wienernhood'],verbose)
                 if framegray is None: break
 #%% compute optical flow
                 flow,ofmag, ofmed,medpl,meanpl = dooptflow(framegray,frameref,ofmethod,
@@ -112,9 +113,19 @@ def main(flist, params, savevideo, verbose):
                 """
                 http://docs.opencv.org/modules/highgui/doc/user_interface.html
                 """
-
-                if cv2.waitKey(1) == 27: # MANDATORY FOR PLOTTING TO WORK!
-                    break
+                if framebyframe: #wait indefinitely for spacebar press
+                    keypressed = cv2.waitKey(0)
+                    if keypressed == 1048608: #space
+                        framebyframe = not framebyframe
+                    elif keypressed == 1048603: #escape
+                        break
+                else:
+                    keypressed = cv2.waitKey(1)
+                    if keypressed == 1048608: #space
+                        framebyframe = not framebyframe
+                    elif keypressed == 1048603: #escape
+                        break
+                    
                 if plotdet or showhist or showofmag or showmeanmedian:
                     draw(); pause(0.001)
 
@@ -163,7 +174,7 @@ def svsetup(savevideo,xpix,ypix,dowiener):
             if v is not None and not v.isOpened(): 
                 exit('*** trouble writing video for ' + k)
     else:
-        svh = {'wiener':None,'thres':None,'detect':None}
+        svh = {'wiener':None,'thres':None,'despeck':None,'erode':None,'close':None,'detect':None}
 
     return svh
     
@@ -487,6 +498,7 @@ if __name__=='__main__':
     p = ArgumentParser(description='detects aurora in raw video files')
     p.add_argument('indir',help='top directory over which to recursively find video files',type=str)
     p.add_argument('vidext',help='extension of raw video file',nargs='?',type=str,default='DMCdata')
+    p.add_argument('-p','--framebyframe',help='space bar toggles play/pause', action='store_true')
     p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
     p.add_argument('-k','--step',help='frame step skip increment (default 10000)',type=int,default=1)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,None))
@@ -504,7 +516,8 @@ if __name__=='__main__':
               'framestep':a.step,
               'startstop':a.frames,
               'montstep':a.ms,'clim':a.contrast,
-              'paramfn':a.paramfn,'rejdet':a.rejectdet,'outdir':a.outdir}
+              'paramfn':a.paramfn,'rejdet':a.rejectdet,'outdir':a.outdir,
+              }
     try:
         flist = walktree(a.indir,'*.' + a.vidext)
 
@@ -513,10 +526,10 @@ if __name__=='__main__':
             from profilerun import goCprofile
             profFN = 'profstats.pstats'
             print('saving profile results to ' + profFN)
-            cProfile.run('main(flist, params, a.savevideo, a.verbose)',profFN)
+            cProfile.run('main(flist, params, a.savevideo, a.framebyframe, a.verbose)',profFN)
             goCprofile(profFN)
         else:
-            final = main(flist, params, a.savevideo, a.verbose)
+            final = main(flist, params, a.savevideo, a.framebyframe, a.verbose)
             #show()
     except KeyboardInterrupt:
         exit('aborting per user request')
