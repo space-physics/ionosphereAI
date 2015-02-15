@@ -13,7 +13,7 @@ from cv2 import cv #necessary for Windows, "import cv" doesn't work
 from re import search
 from pandas import read_excel
 from os.path import join,isfile, splitext
-from numpy import (isnan,empty,uint32,delete,mgrid,vstack,int32,arctan2,
+from numpy import (isfinite,empty,uint32,delete,mgrid,vstack,int32,arctan2,
                    sqrt,zeros,pi,uint8,minimum,s_,asarray, median, dstack,
                    hypot,inf, logical_and)
 from scipy.signal import wiener
@@ -51,8 +51,6 @@ def main(flist, params, savevideo, verbose):
     camser,camparam = getcamparam(params['paramfn'])
 
     for f,s in zip(flist,camser):
-        svh = svsetup(savevideo)
-
         tic = time()
         stem,ext = splitext(f)
         detfn = join(params['outdir'],f +'_detections.h5')
@@ -64,36 +62,17 @@ def main(flist, params, savevideo, verbose):
         finf = loadvid(f,cparam,params,verbose)
 #%% ingest parameters and preallocate
         twoframe = bool(cparam['twoframe'])
-        dowiener = not isnan(cparam['wienernhood'])
         ofmethod = cparam['ofmethod'].lower()
         rawframeind = empty(finf['nframe'],dtype=uint32)
         rawlim = (cparam['cmin'], cparam['cmax'])
         xpix = finf['superx']; ypix = finf['supery']
         thresmode = cparam['thresholdmode'].lower()
-        trimedge = cparam['trimedgeof']
-        hssmooth = cparam['hssmooth']
+#%% setup avi writing
+        svh = svsetup(savevideo, xpix, ypix, isfinite(cparam['wienernhood']))
 #%% setup blob
-        blobparam = cv2.SimpleBlobDetector_Params()
-        blobparam.filterByArea = True
-        blobparam.filterByColor = False
-        blobparam.filterByCircularity = False
-        blobparam.filterByInertia = False
-        blobparam.filterByConvexity = False
-
-        blobparam.minDistBetweenBlobs = 50.0
-        blobparam.minArea = cparam['minblobarea']
-        blobparam.maxArea = cparam['maxblobarea']
-        #blobparam.minThreshold = 40 #we have already made a binary image
-        blobdetect = cv2.SimpleBlobDetector(blobparam)
+        blobdetect = setupblob(cparam['minblobarea'],cparam['maxblobarea'])
 #%% kernel setup
-        if ofmethod == 'hs':
-            umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
-            vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
-            cvref =  cv.CreateMat(ypix, xpix, cv.CV_8UC1)
-            cvgray = cv.CreateMat(ypix, xpix, cv.CV_8UC1)
-
-        #lcmap = get_cmap('jet')
-        #lcmap.set_under('white')
+        umat, vmat, cvref, cvgray = setupof(ofmethod,xpix,ypix)
 
         if not cparam['openradius'] % 2:
             exit('*** detectaurora: openRadius must be ODD')
@@ -102,12 +81,9 @@ def main(flist, params, savevideo, verbose):
         erodekernel = openkernel
         closekernel = cv2.getStructuringElement(cv2.MORPH_RECT, (cparam['closewidth'],cparam['closeheight']))
         #cv2.imshow('open kernel',openkernel)
-        print('open kernel')
-        print(openkernel)
-        print('close kernel')
-        print(closekernel)
-        print('erode kernel')
-        print(erodekernel)
+        print('open kernel');  print(openkernel)
+        print('close kernel'); print(closekernel)
+        print('erode kernel'); print(erodekernel)
 
         with open(f, 'rb') as dfid: #TODO need to use the "old-fashioned" syntax and dfid.close()
             jfrm = 0
@@ -118,147 +94,24 @@ def main(flist, params, savevideo, verbose):
 
             for ifrm in finf['frameind']:
 #%% load and filter
-                if twoframe:
-                    frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
-
-                    if dowiener:
-                        frameref = wiener(frameref,cparam['wienernhood'])
-                    frameref = sixteen2eight(frameref, rawlim)
-
-                fg,rfi = getDMCframe(dfid,ifrm+1,finf)
-                if fg is None or rfi is None:
-                    delete(rawframeind,s_[jfrm:])
-                    break
-                framegray,rawframeind[jfrm] = (fg, rfi)
-
-                if dowiener:
-                    framegray = wiener(framegray,cparam['wienernhood'])
-
-                if showraw:
-                    #this just divides by 256, NOT autoscaled!
-                    # http://docs.opencv.org/modules/highgui/doc/user_interface.html
-                    cv2.imshow('raw wiener filtered', framegray)
-                framegray = sixteen2eight(framegray, rawlim)
-
+                framegray,frameref,rawframeind = getraw(dfid,ifrm,jfrm,finf,svh,rawlim,twoframe,rawframeind,cparam['wienernhood'],verbose)
+                if framegray is None: break
 #%% compute optical flow
-                if ofmethod == 'hs':
-                    cvref = cv.fromarray(frameref)
-                    cvgray = cv.fromarray(framegray)
-                    #result is placed in u,v
-                    # matlab vision.OpticalFlow Horn-Shunck has default maxiter=10, terminate=eps, smoothness=1
-                    # in TrackingOF7.m I used maxiter=8, terminate=0.1, smaothness=0.1
-                    """
-                    ***************************
-                    Note that smoothness parameter for cv.CalcOpticalFlowHS needs to be SMALLER than matlab
-                    to get similar result. Useless when smoothness was 1 in python, but it's 1 in Matlab!
-                    *****************************
-                    """
-                    cv.CalcOpticalFlowHS(cvref, cvgray, False,
-                                         umat, vmat,
-                                         hssmooth,
-                                         (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
-                    flow = dstack((asarray(umat), asarray(vmat)))
-
-                elif ofmethod == 'farneback':
-                    flow = cv2.calcOpticalFlowFarneback(frameref, framegray,
-                                                       pyr_scale=0.5,
-                                                       levels=1,
-                                                       winsize=3,
-                                                       iterations=5,
-                                                       poly_n = 3,
-                                                       poly_sigma=1.5,
-                                                       flags=1)
-                else:
-                    exit('*** OF method ' + ofmethod + ' not implemented')
-
-                # zero out edges of image (which have very high flow, unnaturally)
-
-                '''
-                maybe this can be done more elegantly, maybe via pad or take?
-                http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
-                '''
-                flow[:trimedge,...] = 0.; flow[-trimedge:,...] = 0.
-                flow[:,:trimedge,:] = 0.; flow[:,-trimedge:,:] = 0.
-
-                flow /= 255. #trying to make like matlab, which has normalized data input (opencv requires uint8)
-
-#%% compute median and magnitude
-                ofmag = hypot(flow[...,0], flow[...,1])
-                ofmed = median(ofmag)
-
-                if showmeanmedian:
-                    medpl[jfrm] = ofmed
-                    meanpl[jfrm] = ofmag.mean()
-                    hpmd[0].set_ydata(medpl)
-                    hpmn[0].set_ydata(meanpl)
+                flow,ofmag, ofmed,medpl,meanpl = dooptflow(framegray,frameref,ofmethod,
+                                              cparam['trimedgeof'], cparam['hssmooth'],
+                                              umat, vmat, cvref, cvgray, medpl, meanpl, jfrm,hpmd,hpmn,hiom)
 #%% threshold
-                thres = dothres(ofmag, ofmed , thresmode, cparam['ofthresmin'],cparam['ofthresmax'])
-                if savevideo:
-                    svh['thres'].write(thres)
+                thres = dothres(ofmag, ofmed , thresmode, cparam['ofthresmin'],cparam['ofthresmax'],svh)
 #%% despeckle
-                despeck = cv2.medianBlur(thres,ksize=cparam['medfiltsize'])
+                despeck = dodespeck(thres,cparam['medfiltsize'],svh)
 #%% morphological ops
-                """
-                http://docs.opencv.org/master/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
-                """
-               # opened = cv2.morphologyEx(despeck, cv2.MORPH_OPEN, openkernel)
-                eroded = cv2.erode(despeck,erodekernel)
-                closed = cv2.morphologyEx(eroded, cv2.MORPH_CLOSE, closekernel)
+                morphed = domorph(despeck,erodekernel,closekernel,svh)
 #%% blob detection
-                """
-                http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
-                """
-                keypoints = blobdetect.detect(closed)
-                nkey = len(keypoints)
-                final = cv2.drawKeypoints(framegray, keypoints, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                cv2.putText(final, text=str(nkey), org=(10,510),
-                            fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5,
-                            color=(0,255,0), thickness=2)
-
+                final = doblob(morphed,blobdetect,framegray,detect,jfrm,svh,hpdt,savevideo)
 #%% plotting in loop
-                if showrawscaled:
-                    cv2.imshow('raw video, scaled to 8-bit', framegray)
-                # image histograms (to help verify proper scaling to uint8)
-                if showhist:
-                    figure(321).clf()
-                    ax=figure(321).gca(); hist(fg.flatten(), bins=128, fc='w',ec='k', log=True)
-                    ax.set_title('raw uint16 values')
-
-                    figure(322).clf()
-                    ax=figure(322).gca(); hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
-                    ax.set_xlim((0,255))
-                    ax.set_title('normalized video into opt flow')
-
                 """
                 http://docs.opencv.org/modules/highgui/doc/user_interface.html
                 """
-                if showflowvec:
-                    cv2.imshow('flow vectors ', draw_flow(framegray,flow) )
-                if showflowhsv:
-                    cv2.imshow('flowHSV', draw_hsv(flow) )
-                if showofmag:
-                    #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
-                    hiom.set_data(ofmag)
-
-                if showthres:
-                    cv2.imshow('thresholded ', thres)
-                    cv2.imshow('despeck', despeck)
-
-                if showmorph:
-                    #cv2.imshow('opened', opened)
-                    cv2.imshow('morphed',closed)
-
-                if showfinal:
-                    cv2.imshow('final',final)
-                if savevideo:
-                    print('saving frame',ifrm)
-                    svh['detect'].write(final)
-
-                if plotdet or savedet:
-                    detect[jfrm] = nkey
-                    hpdt[0].set_ydata(detect)
-
-
 
                 if cv2.waitKey(1) == 27: # MANDATORY FOR PLOTTING TO WORK!
                     break
@@ -283,29 +136,171 @@ def main(flist, params, savevideo, verbose):
                 print('saving detection plot to ' + detpltfn)
                 fgdt.savefig(detpltfn,dpi=100,bbox_inches='tight')
 
-            if savevideo:
-                svh['thres'].release()
-                svh['detect'].release()
+            svrelease(svh)
+            
+            return final
 
-def svsetup(savevideo):
-    """ does this need to be RGB to work?
+def svsetup(savevideo,xpix,ypix,dowiener):
+    """ if grayscale video, isColor=False
     http://stackoverflow.com/questions/9280653/writing-numpy-arrays-using-cv2-videowriter
     """
-
-    fourcc = cv2.cv.FOURCC('M','J','P','G')
-    #fourcc = cv2.cv.FOURCC('F','F','V','1') #openCV2
-    #fourcc = cv2.VideoWriter_fourcc(*'FFV1') #OpenCV3
+    wfps=3
+    fourcc = cv2.cv.FOURCC(*'FFV1')
     svh = {}
     if savevideo:
-        svh['thres']  = cv2.VideoWriter('~/thres.ffv',fourcc,fps=25,frameSize=(512,512))#,isColor=0)
-        print(svh['thres'].isOpened())
-        #svh['thres'].open()
-        svh['detect'] = cv2.VideoWriter('/tmp/detect.ffv',fourcc,fps=2,frameSize=(512,512))#,isColor=0)
-        #svh['detect'].open()
+        if dowiener:
+            svh['wiener'] = cv2.VideoWriter('/tmp/wiener.avi',fourcc, wfps,(ypix,xpix),False)
+        else:
+            svh['wiener'] = None
+        
+        svh['thres']  = cv2.VideoWriter('/tmp/thres.avi',fourcc,wfps,(ypix,xpix),False)
+        svh['despeck']= cv2.VideoWriter('/tmp/despeck.avi',fourcc,wfps,(ypix,xpix),False)   
+        svh['erode']  = cv2.VideoWriter('/tmp/eroded.avi',fourcc,wfps,(ypix,xpix),False)
+        svh['close']  = cv2.VideoWriter('/tmp/closed.avi',fourcc,wfps,(ypix,xpix),False)
+        svh['detect'] = cv2.VideoWriter('/tmp/detect.avi',fourcc,wfps,(ypix,xpix),True) #the annotation is color!
+        
+        for k,v in svh.items():
+            if v is not None and not v.isOpened(): 
+                exit('*** trouble writing video for ' + k)
+    else:
+        svh = {'wiener':None,'thres':None,'detect':None}
+
     return svh
+    
+def svrelease(svh):
+        for k,v in svh.items():
+            if v is not None:
+                v.release()
+                
+def setupof(ofmethod,xpix,ypix):
+    if ofmethod == 'hs':
+        umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
+        vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
+        cvref =  cv.CreateMat(ypix, xpix, cv.CV_8UC1)
+        cvgray = cv.CreateMat(ypix, xpix, cv.CV_8UC1)
+    return umat, vmat, cvref, cvgray
+    
+def setupblob(minblobarea,maxblobarea):
+    blobparam = cv2.SimpleBlobDetector_Params()
+    blobparam.filterByArea = True
+    blobparam.filterByColor = False
+    blobparam.filterByCircularity = False
+    blobparam.filterByInertia = False
+    blobparam.filterByConvexity = False
 
+    blobparam.minDistBetweenBlobs = 50.0
+    blobparam.minArea = minblobarea
+    blobparam.maxArea = maxblobarea
+    #blobparam.minThreshold = 40 #we have already made a binary image
+    return cv2.SimpleBlobDetector(blobparam)
+                
+def getraw(dfid,ifrm,jfrm,finf,svh,rawlim,twoframe,rawframeind,wienernhood,verbose):
+    dowiener = isfinite(wienernhood)
+    
+    if twoframe:
+        frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
 
-def dothres(ofmag,medianflow,thresmode,thmin,thmax):
+        if dowiener:
+            frameref = wiener(frameref,wienernhood)
+        frameref = sixteen2eight(frameref, rawlim)
+
+    frame16,rfi = getDMCframe(dfid,ifrm+1,finf)
+    if frame16 is None or rfi is None:
+        delete(rawframeind,s_[jfrm:])
+        return None, None, rawframeind
+        
+    framegray,rawframeind[jfrm] = (frame16, rfi)
+
+    if dowiener:
+        framegray = wiener(framegray,wienernhood)
+
+    if showraw:
+        #this just divides by 256, NOT autoscaled!
+        # http://docs.opencv.org/modules/highgui/doc/user_interface.html
+        cv2.imshow('video', framegray)
+    framegray = sixteen2eight(framegray, rawlim)
+#%% plotting
+    if showrawscaled:
+        cv2.imshow('raw video, scaled to 8-bit', framegray)
+    # image histograms (to help verify proper scaling to uint8)
+    if showhist:
+        figure(321).clf()
+        ax=figure(321).gca() 
+        hist(frame16.flatten(), bins=128, fc='w',ec='k', log=True)
+        ax.set_title('raw uint16 values')
+
+        figure(322).clf()
+        ax=figure(322).gca()
+        hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
+        ax.set_xlim((0,255))
+        ax.set_title('normalized video into opt flow')
+
+    return framegray,frameref,rawframeind
+    
+def dooptflow(framegray,frameref,ofmethod,trimedge,
+              hssmooth,umat, vmat, cvref, cvgray, medpl, meanpl,jfrm,hpmd,hpmn,hiom):
+
+    if ofmethod == 'hs':
+        cvref = cv.fromarray(frameref)
+        cvgray = cv.fromarray(framegray)
+        #result is placed in u,v
+        # matlab vision.OpticalFlow Horn-Shunck has default maxiter=10, terminate=eps, smoothness=1
+        # in TrackingOF7.m I used maxiter=8, terminate=0.1, smaothness=0.1
+        """
+        ***************************
+        Note that smoothness parameter for cv.CalcOpticalFlowHS needs to be SMALLER than matlab
+        to get similar result. Useless when smoothness was 1 in python, but it's 1 in Matlab!
+        *****************************
+        """
+        cv.CalcOpticalFlowHS(cvref, cvgray, False,
+                             umat, vmat,
+                             hssmooth,
+                             (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
+        flow = dstack((asarray(umat), asarray(vmat)))
+
+    elif ofmethod == 'farneback':
+        flow = cv2.calcOpticalFlowFarneback(frameref, framegray,
+                                           pyr_scale=0.5,
+                                           levels=1,
+                                           winsize=3,
+                                           iterations=5,
+                                           poly_n = 3,
+                                           poly_sigma=1.5,
+                                           flags=1)
+    else:
+        exit('*** OF method ' + ofmethod + ' not implemented')
+
+    # zero out edges of image (which have very high flow, unnaturally)
+
+    '''
+    maybe this can be done more elegantly, maybe via pad or take?
+    http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
+    '''
+    flow[:trimedge,...] = 0.; flow[-trimedge:,...] = 0.
+    flow[:,:trimedge,:] = 0.; flow[:,-trimedge:,:] = 0.
+
+    flow /= 255. #trying to make like matlab, which has normalized data input (opencv requires uint8)
+
+#%% compute median and magnitude
+    ofmag = hypot(flow[...,0], flow[...,1])
+    ofmed = median(ofmag)
+    if showofmag:
+        medpl[jfrm] = ofmed
+        meanpl[jfrm] = ofmag.mean()
+        hpmd[0].set_ydata(medpl)
+        hpmn[0].set_ydata(meanpl)
+        
+    if showflowvec:
+        cv2.imshow('flow vectors', draw_flow(framegray,flow) )
+    if showflowhsv:
+        cv2.imshow('flowHSV', draw_hsv(flow) )
+    if showofmag:
+        #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
+        hiom.set_data(ofmag)
+       
+    return flow,ofmag, ofmed, medpl, meanpl
+
+def dothres(ofmag,medianflow,thresmode,thmin,thmax,svh):
     if thresmode == 'median':
         if medianflow>1e-6:  #median is scalar
             lowthres = thmin * medianflow #median is scalar!
@@ -318,18 +313,72 @@ def dothres(ofmag,medianflow,thresmode,thmin,thmax):
         exit('*** ' + thresmode + ' not yet implemented')
     else:
         exit('*** ' + thresmode + ' not yet implemented')
+    
+    thres = logical_and(ofmag < hithres, ofmag > lowthres).astype(uint8) * 255
+        
+    if svh['thres'] is not None:
+        svh['thres'].write(thres)
+        
+    if showthres:
+        cv2.imshow('thresholded', thres)
     """ threshold image by lowThres < abs(OptFlow) < highThres
     the low threshold helps elimate a lot of "false" OptFlow from camera
     noise
     the high threshold helps eliminate star "twinkling," which appears to
     make very large Optical Flow magnitude
-    """
 
-    """
     we multiply boolean by 255 because cv2.imshow expects only values on [0,255] and does not autoscale
     """
-    return logical_and(ofmag < hithres, ofmag > lowthres).astype(uint8) * 255
+    return thres
     #return (ofmag > lowthres).astype(uint8) * 255
+    
+def dodespeck(thres,medfiltsize,svh):
+    despeck = cv2.medianBlur(thres,ksize=medfiltsize)
+    if svh['despeck'] is not None:
+        svh['despeck'].write(despeck)
+    if showthres:
+        cv2.imshow('despeck', despeck)
+    return despeck
+    
+def domorph(despeck,erodekernel,closekernel,svh):
+    """
+    http://docs.opencv.org/master/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+    """
+   # opened = cv2.morphologyEx(despeck, cv2.MORPH_OPEN, openkernel)
+    eroded = cv2.erode(despeck,erodekernel)
+    closed = cv2.morphologyEx(eroded, cv2.MORPH_CLOSE, closekernel)
+    
+    if svh['erode'] is not None:
+        svh['erode'].write(eroded)
+    if svh['close'] is not None:
+        svh['close'].write(closed)
+    
+    if showmorph:
+        #cv2.imshow('opened', opened)
+        cv2.imshow('morphed',closed)
+    
+    return closed
+    
+def doblob(morphed,blobdetect,framegray,detect,jfrm,svh,hpdt,savevideo):
+    """
+    http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
+    """
+    keypoints = blobdetect.detect(morphed)
+    nkey = len(keypoints)
+    final = cv2.drawKeypoints(framegray, keypoints, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    cv2.putText(final, text=str(nkey), org=(10,510),
+                fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5,
+                color=(0,255,0), thickness=2)
+                
+    if showfinal:
+        cv2.imshow('final',final)
+    if savevideo:
+        #print('saving frame',ifrm)
+        svh['detect'].write(final)
+
+    if plotdet or savedet:
+        detect[jfrm] = nkey
+        hpdt[0].set_ydata(detect)
 
 def setupfigs(showmeanmedian,showofmag,plotdet,savedet,finf,fn):
     hiom = None
@@ -409,7 +458,8 @@ def draw_hsv(flow):
 
 def loadvid(fn,cparam,params,verbose):
     print('using ' + cparam['ofmethod'] + ' for ' + fn)
-    print('minBlob='+str(cparam['minblobarea']) + ' maxBlob='+
+    if verbose:
+        print('minBlob='+str(cparam['minblobarea']) + ' maxBlob='+
           str(cparam['maxblobarea']) + ' maxNblob=' +
           str(cparam['maxblobcount']) )
 
@@ -466,7 +516,7 @@ if __name__=='__main__':
             cProfile.run('main(flist, params, a.savevideo, a.verbose)',profFN)
             goCprofile(profFN)
         else:
-            main(flist, params, a.savevideo, a.verbose)
+            final = main(flist, params, a.savevideo, a.verbose)
             #show()
     except KeyboardInterrupt:
         exit('aborting per user request')
