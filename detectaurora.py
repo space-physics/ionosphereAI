@@ -113,29 +113,25 @@ def main(flist, params, savevideo, framebyframe, verbose):
                 """
                 http://docs.opencv.org/modules/highgui/doc/user_interface.html
                 """
-                if framebyframe: #wait indefinitely for spacebar press
-                    keypressed = cv2.waitKey(0)
-                    if keypressed == 1048608: #space
-                        framebyframe = not framebyframe
-                    elif keypressed == 1048603: #escape
-                        break
-                else:
-                    keypressed = cv2.waitKey(1)
-                    if keypressed == 1048608: #space
-                        framebyframe = not framebyframe
-                    elif keypressed == 1048603: #escape
-                        break
-                    
+                   
                 if plotdet or showhist or showofmag or showmeanmedian:
                     draw(); pause(0.001)
 
-                if not jfrm % 100:
-                    print('iteration ' + str(jfrm))
-                    if (framegray == 255).sum() > 4: #arbitrarily allowing up to 4 pixels to be saturated at 255
+                if not jfrm % 10:
+                    print('iteration ' + str(jfrm) + '  frame ' + str(ifrm))
+                    if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                         print('* Warning: video may be saturated at 255, missed detections can result')
                     if (framegray == 0).sum() > 4:
                         print('* Warning: video may be saturated at 0, missed detections can result')
-                jfrm+=1
+                
+                if framebyframe: #wait indefinitely for spacebar press
+                    keypressed = cv2.waitKey(0)
+                    framebyframe,dobreak = keyhandler(keypressed,framebyframe)
+                else:
+                    keypressed = cv2.waitKey(1)
+                    framebyframe, dobreak = keyhandler(keypressed,framebyframe)
+                if dobreak:
+                    break
 #%% done looping
             print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
             if savedet:
@@ -150,6 +146,17 @@ def main(flist, params, savevideo, framebyframe, verbose):
             svrelease(svh)
             
             return final
+            
+def keyhandler(keypressed,framebyframe):
+    if keypressed == -1:
+        return (framebyframe,False)
+    elif keypressed == 1048608: #space
+        return (not framebyframe, False)
+    elif keypressed == 1048603: #escape
+        return (None, True)
+    else:
+        print('keypress code: ' + str(keypressed))
+        return (framebyframe,False)
 
 def svsetup(savevideo,xpix,ypix,dowiener):
     """ if grayscale video, isColor=False
@@ -164,6 +171,7 @@ def svsetup(savevideo,xpix,ypix,dowiener):
         else:
             svh['wiener'] = None
         
+        svh['video']  = cv2.VideoWriter('/tmp/video.avi',fourcc,wfps,(ypix,xpix),False)
         svh['thres']  = cv2.VideoWriter('/tmp/thres.avi',fourcc,wfps,(ypix,xpix),False)
         svh['despeck']= cv2.VideoWriter('/tmp/despeck.avi',fourcc,wfps,(ypix,xpix),False)   
         svh['erode']  = cv2.VideoWriter('/tmp/eroded.avi',fourcc,wfps,(ypix,xpix),False)
@@ -245,6 +253,9 @@ def getraw(dfid,ifrm,jfrm,finf,svh,rawlim,twoframe,rawframeind,wienernhood,verbo
         hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
         ax.set_xlim((0,255))
         ax.set_title('normalized video into opt flow')
+        
+    if svh['video'] is not None:
+        svh['video'].write(framegray)
 
     return framegray,frameref,rawframeind
     
