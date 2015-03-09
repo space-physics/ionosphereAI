@@ -44,7 +44,7 @@ Tested with:
 ------------
 Python 3.4.3 / 2.7.9 
 
-OpenCV 3.0 beta / 2.4.10
+OpenCV 3.0 beta / 2.4.{8-10}
 
 Numpy 1.9.2
 

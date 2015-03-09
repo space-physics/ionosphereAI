@@ -8,8 +8,21 @@ It is a major cleanup of the processDrive.sh, filelooper.m, TrackingOF7.m Franke
 1)
 """
 from __future__ import division, print_function
-import cv2
-from cv2 import cv #necessary for Windows, "import cv" doesn't work
+try:
+    import cv2
+except ImportError as e:
+    print('*** This program requires OpenCV2 or OpenCV3 installed into your Python')
+    exit(str(e))
+try:
+    from cv2 import cv #necessary for Windows, "import cv" doesn't work
+    from cv import FOURCC as fourcc
+    from cv2 import SimpleBlobDetector as SimpleBlobDetector
+except ImportError:
+    from cv2 import VideoWriter_fourcc as fourcc
+    from cv2 import SimpleBlobDetector_create as SimpleBlobDetector
+    #print('legacy OpenCV functions not available, Horn-Schunck method not available')
+    #print('legacy OpenCV functions are available in OpenCV2, but not OpenCV3.')
+print('OpenCV '+str(cv2.__version__))
 from re import search
 from pandas import read_excel
 from os.path import join,isfile, splitext
@@ -67,7 +80,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
 #%% setup blob
         blobdetect = setupblob(cp['minblobarea'], cp['maxblobarea'], cp['minblobdist'])
 #%% cv opt. flow matrix setup
-        uv = setupof(ap)
+        uv,lastflow = setupof(ap)
 #%% kernel setup
         kern = setupkern(ap,cp)
 #%% mag plots setup
@@ -85,7 +98,8 @@ def main(flist, up, savevideo, framebyframe, verbose):
             framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
             if framegray is None: break
 #%% compute optical flow
-            flow,ofmag, ofmed,pl = dooptflow(framegray,frameref,uv,ifrm, ap,cp,pl)
+            flow,ofmag, ofmed,pl = dooptflow(framegray,frameref,lastflow,uv,ifrm, ap,cp,pl)
+            lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
 #%% threshold
             thres = dothres(ofmag, ofmed, ap,cp,svh)
 #%% despeckle
@@ -169,16 +183,6 @@ def svsetup(savevideo,ap, cp, up):
     if wfps<3:
         print('* note: VLC media player had trouble with video slower than about 3 fps')
 
-    """ if grayscale video, isColor=False
-    http://stackoverflow.com/questions/9280653/writing-numpy-arrays-using-cv2-videowriter
-
-    These videos are casually dumped to the temporary directory.
-    """
-    fourcc = cv2.cv.FOURCC(*'FFV1')
-    """
-    try 'MJPG' or 'XVID' if FFV1 doesn't work.
-    see https://github.com/scienceopen/python-test-functions/blob/master/videowritetest.py for more info
-    """
     tdir = gettempdir()
     svh = {}
     if savevideo == 'tif':
@@ -199,17 +203,28 @@ def svsetup(savevideo,ap, cp, up):
 
 
     elif savevideo == 'vid':
+
+        """ if grayscale video, isColor=False
+        http://stackoverflow.com/questions/9280653/writing-numpy-arrays-using-cv2-videowriter
+
+        These videos are casually dumped to the temporary directory.
+        """
+        cc4 = fourcc(*'FFV1')
+        """
+        try 'MJPG' or 'XVID' if FFV1 doesn't work.
+        see https://github.com/scienceopen/python-test-functions/blob/master/videowritetest.py for more info
+        """
         if dowiener:
-            svh['wiener'] = cv2.VideoWriter(join(tdir,'wiener.avi'),fourcc, wfps,(ypix,xpix),False)
+            svh['wiener'] = cv2.VideoWriter(join(tdir,'wiener.avi'),cc4, wfps,(ypix,xpix),False)
         else:
             svh['wiener'] = None
 
-        svh['video']  = cv2.VideoWriter(join(tdir,'video.avi'), fourcc,wfps, (ypix,xpix),False) if showrawscaled else None
-        svh['thres']  = cv2.VideoWriter(join(tdir,'thres.avi'), fourcc,wfps, (ypix,xpix),False) if showthres else None
-        svh['despeck']= cv2.VideoWriter(join(tdir,'despk.avi'), fourcc,wfps, (ypix,xpix),False) if showthres else None
-        svh['erode']  = cv2.VideoWriter(join(tdir,'erode.avi'), fourcc,wfps, (ypix,xpix),False) if showmorph else None
-        svh['close']  = cv2.VideoWriter(join(tdir,'close.avi'), fourcc,wfps, (ypix,xpix),False) if showmorph else None
-        svh['detect'] = cv2.VideoWriter(join(tdir,'detct.avi'), fourcc,wfps, (ypix,xpix),True) if showfinal else None
+        svh['video']  = cv2.VideoWriter(join(tdir,'video.avi'), cc4,wfps, (ypix,xpix),False) if showrawscaled else None
+        svh['thres']  = cv2.VideoWriter(join(tdir,'thres.avi'), cc4,wfps, (ypix,xpix),False) if showthres else None
+        svh['despeck']= cv2.VideoWriter(join(tdir,'despk.avi'), cc4,wfps, (ypix,xpix),False) if showthres else None
+        svh['erode']  = cv2.VideoWriter(join(tdir,'erode.avi'), cc4,wfps, (ypix,xpix),False) if showmorph else None
+        svh['close']  = cv2.VideoWriter(join(tdir,'close.avi'), cc4,wfps, (ypix,xpix),False) if showmorph else None
+        svh['detect'] = cv2.VideoWriter(join(tdir,'detct.avi'), cc4,wfps, (ypix,xpix),True) if showfinal else None
 
         for k,v in svh.items():
             if v is not None and not v.isOpened():
@@ -233,14 +248,18 @@ def svrelease(svh,savevideo):
 def setupof(ap):
     xpix = ap['xpix']; ypix = ap['ypix']
 
+    umat = None; vmat = None; lastflow = None
     if ap['ofmethod'] == 'hs':
-        umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
-        vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
-#        cvref =  cv.CreateMat(ypix, xpix, cv.CV_8UC1)
-#        cvgray = cv.CreateMat(ypix, xpix, cv.CV_8UC1)
-        return umat, vmat#, cvref, cvgray
-    else:
-        return None, None#, None, None
+        try:
+            umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
+            vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
+        except NameError as e:
+            print("*** OpenCV 3 doesnt have legacy cv functions. You're using OpenCV " +str(cv2.__version__))
+            exit(str(e))
+    elif ap['ofmethod'] == 'farneback':
+        lastflow = np.zeros((ypix,xpix,2))
+
+    return (umat, vmat), lastflow
 
 def setupblob(minblobarea, maxblobarea, minblobdist):
     blobparam = cv2.SimpleBlobDetector_Params()
@@ -254,7 +273,7 @@ def setupblob(minblobarea, maxblobarea, minblobdist):
     blobparam.minArea = minblobarea
     blobparam.maxArea = maxblobarea
     #blobparam.minThreshold = 40 #we have already made a binary image
-    return cv2.SimpleBlobDetector(blobparam)
+    return SimpleBlobDetector(blobparam)
 
 def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
     dowiener = np.isfinite(cp['wienernhood'])
@@ -306,9 +325,12 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
 
     return framegray,frameref,ap
 
-def dooptflow(framegray,frameref,uv,ifrm,ap,cp,pl):
+def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl):
 
     if ap['ofmethod'] == 'hs':
+        """
+        http://docs.opencv.org/modules/legacy/doc/motion_analysis.html
+        """
         cvref = cv.fromarray(frameref)
         cvgray = cv.fromarray(framegray)
         #result is placed in u,v
@@ -324,10 +346,14 @@ def dooptflow(framegray,frameref,uv,ifrm,ap,cp,pl):
                              cp['hssmooth'],
                              (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
 
-        flow = np.dstack((np.asarray(uv[0]), np.asarray(uv[1]))) #float32
+        # reshape to numpy float32, xpix x ypix x 2
+        flow = np.dstack((np.asarray(uv[0]), np.asarray(uv[1])))
 
     elif ap['ofmethod'] == 'farneback':
-        flow = cv2.calcOpticalFlowFarneback(frameref, framegray,
+        """
+        http://docs.opencv.org/trunk/modules/video/doc/motion_analysis_and_object_tracking.html
+        """
+        flow = cv2.calcOpticalFlowFarneback(frameref, framegray, lastflow,
                                            pyr_scale=0.5,
                                            levels=1,
                                            winsize=3,
@@ -348,7 +374,7 @@ def dooptflow(framegray,frameref,uv,ifrm,ap,cp,pl):
     flow[:te,...] = 0.; flow[-te:,...] = 0.
     flow[:,:te,:] = 0.; flow[:,-te:,:] = 0.
 
-    flow /= 255. #trying to make like matlab, which has normalized data input (opencv requires uint8)
+    flow /= 255. #make like matlab, which has normalized data input (opencv requires uint8)
 
 #%% compute median and magnitude
     ofmag = np.hypot(flow[...,0], flow[...,1])
@@ -455,11 +481,13 @@ def domorph(despeck,kern,svh):
 def doblob(morphed,blobdetect,framegray,ifrm,svh,pl,savevideo):
     """
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
+    http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     """
     keypoints = blobdetect.detect(morphed)
     nkey = len(keypoints)
+    final = framegray.copy() # is the .copy necessary?
 
-    final = cv2.drawKeypoints(framegray, keypoints,
+    final = cv2.drawKeypoints(framegray, keypoints,final,
                               flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
     cv2.putText(final, text=str(nkey), org=(10,510),
@@ -575,7 +603,7 @@ def getvidinfo(fn,cp,up,verbose):
 #%% extract analysis parameters
     ap = {'twoframe':bool(cp['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
           'ofmethod':cp['ofmethod'].lower(),
-          'rawframeind': np.empty(finf['nframe'],dtype=long), #long for very large files on Windows Python 2.7
+          'rawframeind': np.empty(finf['nframe'],dtype='int64'), #int64 for very large files on Windows Python 2.7, long is not available on Python3
           'rawlim': (cp['cmin'], cp['cmax']),
           'xpix': finf['superx'], 'ypix':finf['supery'],
           'thresmode':cp['thresholdmode'].lower()}
