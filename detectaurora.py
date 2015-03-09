@@ -280,8 +280,23 @@ def setupof(ap,cp):
         except AttributeError as e:
             gmm = cv2.createBackgroundSubtractorMOG2(history=cp['nhistory'],
                                                      varThreshold=cp['varThreshold'],
-                                                     )
+                                                     detectShadows=True)
             gmm.setNMixtures(cp['nmixtures'])
+            gmm.setComplexityReductionThreshold(cp['CompResThres'])
+    elif ap['ofmethod'] == 'knn':
+        try:
+            gmm = cv2.createBackgroundSubtractorKNN(history=cp['nhistory'],
+                                                    detectShadows=True)
+        except AttributeError as e:
+            exit('KNN is for OpenCV3 only. ' + str(e))
+    elif ap['ofmethod'] == 'gmg':
+        try:
+            gmm = cv2.createBackgroundSubtractorGMG(initializationFrames=cp['nhistory'])
+        except AttributeError as e:
+            exit('GMG is for OpenCV3 only, but is currently part of opencv_contrib. ' + str(e))
+
+    else:
+        exit('*** unknown method ' + ap['ofmethod'])
 
     return (umat, vmat), lastflow, ofmed, gmm
 
