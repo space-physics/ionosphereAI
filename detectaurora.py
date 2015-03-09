@@ -38,6 +38,7 @@ showmorph = False      #True
 showfinal = True
 plotdet = False
 savedet = False
+cmplvl = 4 #tradeoff b/w speed and filesize for TIFF
 
 #only import matplotlib if needed to save time
 if savedet or plotdet or showhist or showofmag or showmeanmedian:
@@ -188,12 +189,13 @@ def svsetup(savevideo,ap, cp, up):
         else:
             svh['wiener'] = None
 
-        svh['video']  = TiffWriter(join(tdir,'video.tif'))
-        svh['thres']  = TiffWriter(join(tdir,'thres.tif'))
-        svh['despeck']= TiffWriter(join(tdir,'despk.tif'))
-        svh['erode']  = TiffWriter(join(tdir,'erode.tif'))
-        svh['close']  = TiffWriter(join(tdir,'close.tif'))
-        svh['detect'] = TiffWriter(join(tdir,'detect.tif'))
+        svh['video']  = TiffWriter(join(tdir,'video.tif')) if showrawscaled else None
+        svh['thres']  = TiffWriter(join(tdir,'thres.tif')) if showthres else None
+        svh['despeck']= TiffWriter(join(tdir,'despk.tif')) if showthres else None
+        svh['erode']  = TiffWriter(join(tdir,'erode.tif')) if showmorph else None
+        svh['close']  = TiffWriter(join(tdir,'close.tif')) if showmorph else None
+        # next line makes big file
+        svh['detect'] = None #TiffWriter(join(tdir,'detect.tif')) if showfinal else None
 
 
     elif savevideo == 'vid':
@@ -202,12 +204,12 @@ def svsetup(savevideo,ap, cp, up):
         else:
             svh['wiener'] = None
 
-        svh['video']  = cv2.VideoWriter(join(tdir,'video.avi'), fourcc,wfps, (ypix,xpix),False)
-        svh['thres']  = cv2.VideoWriter(join(tdir,'thres.avi'), fourcc,wfps, (ypix,xpix),False)
-        svh['despeck']= cv2.VideoWriter(join(tdir,'despk.avi'), fourcc,wfps, (ypix,xpix),False)
-        svh['erode']  = cv2.VideoWriter(join(tdir,'erode.avi'), fourcc,wfps, (ypix,xpix),False)
-        svh['close']  = cv2.VideoWriter(join(tdir,'close.avi'), fourcc,wfps, (ypix,xpix),False)
-        svh['detect'] = cv2.VideoWriter(join(tdir,'detct.avi'), fourcc,wfps, (ypix,xpix),True) #the annotation is color!
+        svh['video']  = cv2.VideoWriter(join(tdir,'video.avi'), fourcc,wfps, (ypix,xpix),False) if showrawscaled else None
+        svh['thres']  = cv2.VideoWriter(join(tdir,'thres.avi'), fourcc,wfps, (ypix,xpix),False) if showthres else None
+        svh['despeck']= cv2.VideoWriter(join(tdir,'despk.avi'), fourcc,wfps, (ypix,xpix),False) if showthres else None
+        svh['erode']  = cv2.VideoWriter(join(tdir,'erode.avi'), fourcc,wfps, (ypix,xpix),False) if showmorph else None
+        svh['close']  = cv2.VideoWriter(join(tdir,'close.avi'), fourcc,wfps, (ypix,xpix),False) if showmorph else None
+        svh['detect'] = cv2.VideoWriter(join(tdir,'detct.avi'), fourcc,wfps, (ypix,xpix),True) if showfinal else None
 
         for k,v in svh.items():
             if v is not None and not v.isOpened():
@@ -298,7 +300,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
 
     if svh['video'] is not None:
         if savevideo == 'tif':
-            svh['video'].save(framegray)
+            svh['video'].save(framegray,compress=cmplvl)
         elif savevideo == 'vid':
             svh['video'].write(framegray)
 
@@ -393,7 +395,7 @@ def dothres(ofmag,medianflow,ap,cp,svh):
 
     if svh['thres'] is not None:
         if savevideo == 'tif':
-            svh['thres'].save(thres)
+            svh['thres'].save(thres,compress=cmplvl)
         elif savevideo == 'vid':
             svh['thres'].write(thres)
 
@@ -415,7 +417,7 @@ def dodespeck(thres,medfiltsize,svh):
 
     if svh['despeck'] is not None:
         if savevideo == 'tif':
-            svh['despeck'].save(despeck)
+            svh['despeck'].save(despeck,compress=cmplvl)
         elif savevideo == 'vid':
             svh['despeck'].write(despeck)
 
@@ -434,13 +436,13 @@ def domorph(despeck,kern,svh):
 
     if svh['erode'] is not None:
         if savevideo == 'tif':
-            svh['erode'].save(eroded)
+            svh['erode'].save(eroded,compress=cmplvl)
         elif savevideo == 'vid':
             svh['erod'].write(eroded)
 
     if svh['close'] is not None:
         if savevideo == 'tif':
-            svh['close'].save(closed)
+            svh['close'].save(closed,compress=cmplvl)
         elif savevideo == 'vid':
             svh['close'].write(closed)
 
@@ -467,10 +469,11 @@ def doblob(morphed,blobdetect,framegray,ifrm,svh,pl,savevideo):
     if showfinal:
         cv2.imshow('final',final)
 
-    if savevideo == 'tif':
-        svh['detect'].save(final)
-    elif savevideo =='vid':
-        svh['detect'].write(final)
+    if svh['detect'] is not None:
+        if savevideo == 'tif':
+            svh['detect'].save(final,compress=cmplvl)
+        elif savevideo =='vid':
+            svh['detect'].write(final)
 
     if plotdet or savedet:
         pl['detect'][ifrm] = nkey
