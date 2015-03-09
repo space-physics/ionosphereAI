@@ -1,5 +1,7 @@
 from __future__ import division
 """
+Note: consider using scipy.misc.bytescale instead of this file.
+
 inputs:
 -------
 I: 2-D Numpy array of grayscale image data
