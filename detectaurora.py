@@ -353,7 +353,8 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl):
         """
         http://docs.opencv.org/trunk/modules/video/doc/motion_analysis_and_object_tracking.html
         """
-        flow = cv2.calcOpticalFlowFarneback(frameref, framegray, lastflow,
+        flow = cv2.calcOpticalFlowFarneback(frameref, framegray,
+                                            flow=lastflow, #need flow= for opencv2/3 compatibility
                                            pyr_scale=0.5,
                                            levels=1,
                                            winsize=3,
