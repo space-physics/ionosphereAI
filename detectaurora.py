@@ -80,7 +80,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
 #%% setup blob
         blobdetect = setupblob(cp['minblobarea'], cp['maxblobarea'], cp['minblobdist'])
 #%% cv opt. flow matrix setup
-        uv,lastflow = setupof(ap)
+        uv,lastflow, ofmed, gmm = setupof(ap,cp)
 #%% kernel setup
         kern = setupkern(ap,cp)
 #%% mag plots setup
@@ -97,11 +97,14 @@ def main(flist, up, savevideo, framebyframe, verbose):
 #%% load and filter
             framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
             if framegray is None: break
-#%% compute optical flow
-            flow,ofmag, ofmed,pl = dooptflow(framegray,frameref,lastflow,uv,ifrm, ap,cp,pl)
-            lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
+#%% compute optical flow or Background/Foreground
+            if lastflow is not None: #very fast way to check mode
+                flow,ofmaggmm,ofmed,pl = dooptflow(framegray,frameref,lastflow,uv,ifrm, ap,cp,pl)
+                lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
+            else: #background/foreground
+                ofmaggmm = gmm.apply(framegray)
 #%% threshold
-            thres = dothres(ofmag, ofmed, ap,cp,svh)
+            thres = dothres(ofmaggmm, ofmed, ap,cp,svh)
 #%% despeckle
             despeck = dodespeck(thres,cp['medfiltsize'],svh)
 #%% morphological ops
@@ -245,21 +248,40 @@ def svrelease(svh,savevideo):
                 v.release()
 
 
-def setupof(ap):
+def setupof(ap,cp):
     xpix = ap['xpix']; ypix = ap['ypix']
 
-    umat = None; vmat = None; lastflow = None
+    umat = None; vmat = None; gmm=None; ofmed=None
+    lastflow = None #if it stays None, signals to use GMM
     if ap['ofmethod'] == 'hs':
         try:
             umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
+            lastflow = np.nan #nan instead of None to signal to use OF instead of GMM
         except NameError as e:
             print("*** OpenCV 3 doesnt have legacy cv functions. You're using OpenCV " +str(cv2.__version__))
             exit(str(e))
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
+    elif ap['ofmethod'] == 'mog':
+        try:
+            gmm = cv2.BackgroundSubtractorMOG(history=cp['nhistory'],
+                                               nmixtures=cp['nmixtures'],)
+        except AttributeError as e:
+            exit('*** MOG is for OpenCV2 only.   ' + str(e))
+    elif ap['ofmethod'] == 'mog2':
+        try:
+            gmm = cv2.BackgroundSubtractorMOG2(history=cp['nhistory'],
+                                               varThreshold=cp['varThreshold'], #default 16
+                                                )
+        except AttributeError as e:
+            gmm = cv2.createBackgroundSubtractorMOG2(history=cp['nhistory'],
+                                                     varThreshold=cp['varThreshold'],
+                                                     )
+        gmm.setNMixtures(cp['nmixtures'])
 
-    return (umat, vmat), lastflow
+    return (umat, vmat), lastflow, ofmed, gmm
+
 
 def setupblob(minblobarea, maxblobarea, minblobdist):
     blobparam = cv2.SimpleBlobDetector_Params()
@@ -362,11 +384,9 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl):
                                            poly_n = 3,
                                            poly_sigma=1.5,
                                            flags=1)
-    else:
-        exit('*** OF method ' + ap['ofmethod'] + ' not implemented')
-
-    # zero out edges of image (which have very high flow, unnaturally)
-
+    else: #using non-of method
+        return None,None,None,None
+#%% zero out edges of image (which have very high flow, unnaturally)
     '''
     maybe this can be done more elegantly, maybe via pad or take?
     http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
@@ -376,7 +396,6 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl):
     flow[:,:te,:] = 0.; flow[:,-te:,:] = 0.
 
     flow /= 255. #make like matlab, which has normalized data input (opencv requires uint8)
-
 #%% compute median and magnitude
     ofmag = np.hypot(flow[...,0], flow[...,1])
     ofmed = np.median(ofmag)
@@ -396,29 +415,36 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl):
 
     return flow,ofmag, ofmed, pl
 
-def dothres(ofmag,medianflow,ap,cp,svh):
+def dothres(ofmaggmm,medianflow,ap,cp,svh):
     """
     flow threshold, considering median
     """
+    if medianflow is not None: #OptFlow based
+        if ap['thresmode'] == 'median':
+            if medianflow>1e-6:  #median is scalar
+                lowthres = cp['ofthresmin'] * medianflow #median is scalar!
+                hithres =  cp['ofthresmax'] * medianflow #median is scalar!
+            else: #median ~ 0
+                lowthres = 0
+                hithres = np.inf
 
-    if ap['thresmode'] == 'median':
-        if medianflow>1e-6:  #median is scalar
-            lowthres = cp['ofthresmin'] * medianflow #median is scalar!
-            hithres =  cp['ofthresmax'] * medianflow #median is scalar!
-        else: #median ~ 0
-            lowthres = 0
-            hithres = np.inf
-
-    elif ap['thresmode'] == 'runningmean':
-        exit('*** ' + ap['thresmode'] + ' not yet implemented')
+        elif ap['thresmode'] == 'runningmean':
+            exit('*** ' + ap['thresmode'] + ' not yet implemented')
+        else:
+            exit('*** ' + ap['thresmode'] + ' not yet implemented')
     else:
-        exit('*** ' + ap['thresmode'] + ' not yet implemented')
+        hithres = 255; lowthres=0 #TODO take from spreadsheed as gmmlowthres gmmhighthres
     """
+    This is the oppostite of np.clip
     1) make boolean of  min < flow < max
     2) convert to uint8
     3) (0,255) since that's what cv2.imshow wants
     """
-    thres = np.logical_and(ofmag < hithres, ofmag > lowthres).astype(np.uint8) * 255
+    # the logical_and, *, and & are almost exactly the same speed. The & felt the most Pythonic.
+    #thres = np.logical_and(ofmaggmm < hithres, ofmaggmm > lowthres).astype(np.uint8) * 255
+    thres = ((ofmaggmm<hithres) & (ofmaggmm>lowthres)).astype('uint8') * 255
+    # has to be 0,255 because that's what opencv functions (imshow and computation) want
+
 
     if svh['thres'] is not None:
         if savevideo == 'tif':
@@ -488,7 +514,7 @@ def doblob(morphed,blobdetect,framegray,ifrm,svh,pl,savevideo):
     nkey = len(keypoints)
     final = framegray.copy() # is the .copy necessary?
 
-    final = cv2.drawKeypoints(framegray, keypoints,final,
+    final = cv2.drawKeypoints(framegray, keypoints, outImage=final,
                               flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
     cv2.putText(final, text=str(nkey), org=(10,510),
