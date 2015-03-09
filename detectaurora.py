@@ -270,15 +270,18 @@ def setupof(ap,cp):
         except AttributeError as e:
             exit('*** MOG is for OpenCV2 only.   ' + str(e))
     elif ap['ofmethod'] == 'mog2':
+        print('* CAUTION: currently inputting the same paramters gives different'+
+        ' performance between OpenCV 2 and 3. Informally OpenCV 3 works a lot better.')
         try:
             gmm = cv2.BackgroundSubtractorMOG2(history=cp['nhistory'],
                                                varThreshold=cp['varThreshold'], #default 16
-                                                )
+#                                                nmixtures=cp['nmixtures'],
+)
         except AttributeError as e:
             gmm = cv2.createBackgroundSubtractorMOG2(history=cp['nhistory'],
                                                      varThreshold=cp['varThreshold'],
                                                      )
-        gmm.setNMixtures(cp['nmixtures'])
+            gmm.setNMixtures(cp['nmixtures'])
 
     return (umat, vmat), lastflow, ofmed, gmm
 
