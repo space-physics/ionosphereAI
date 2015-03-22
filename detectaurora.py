@@ -181,10 +181,7 @@ def setupkern(ap,cp):
 def svsetup(savevideo,ap, cp, up):
     xpix = ap['xpix']; ypix= ap['ypix']
     dowiener = np.isfinite(cp['wienernhood'])
-    wfps = up['fps']
 
-    if wfps<3:
-        print('* note: VLC media player had trouble with video slower than about 3 fps')
 
     tdir = gettempdir()
     svh = {}
@@ -206,6 +203,10 @@ def svsetup(savevideo,ap, cp, up):
 
 
     elif savevideo == 'vid':
+        wfps = up['fps']
+        if wfps<3:
+            print('* note: VLC media player had trouble with video slower than about 3 fps')
+
 
         """ if grayscale video, isColor=False
         http://stackoverflow.com/questions/9280653/writing-numpy-arrays-using-cv2-videowriter
