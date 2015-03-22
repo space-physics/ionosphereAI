@@ -19,9 +19,8 @@ Prerequisities:
 ---------------
 Python 3.4 or 2.7 with OpenCV
 
-### Anaconda Python 2.7 
 ```
-conda install matplotlib opencv h5py pandas xlrd
+pip install -r requirements.txt
 ```
 
 ### Anaconda Python 3.4
@@ -44,7 +43,7 @@ Tested with:
 ------------
 Python 3.4.3 / 2.7.9 
 
-OpenCV 3.0 beta / 2.4.{8-10}
+OpenCV 3.0 beta / 2.4.10
 
 Numpy 1.9.2
 
