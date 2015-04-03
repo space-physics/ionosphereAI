@@ -72,7 +72,11 @@ def main(flist, up, savevideo, framebyframe, verbose):
         if isfile(detfn):
             print('** overwriting existing ' + detfn)
 
-        cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
+        try:
+            cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
+        except KeyError: 
+            print('* using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
+            cp = camparam.iloc[:,s] #fallback to first column
 
         finf,ap = getvidinfo(f,cp,up,verbose)  # FIXME with more general function for radar/camera
 #%% setup optional video/tiff writing (mainly for debugging or publication)
@@ -184,6 +188,7 @@ def svsetup(savevideo,ap, cp, up):
 
 
     tdir = gettempdir()
+    if savevideo: print('dumping video output to '+tdir)
     svh = {}
     if savevideo == 'tif':
         #complvl = 6 #0 is uncompressed
@@ -650,6 +655,7 @@ def getvidinfo(fn,cp,up,verbose):
             finf = getDMCparam(fn,xypix,xybin,
                      (up['startstop'][0], up['startstop'][1], up['framestep']))
     elif ext.lower() in ('.avi','.mpg','.mpeg'):
+        cv2.VideoCapture.get(cv2.CV_CAP_PROP_FRAME_COUNT)
         print('*** working on this TODO')
         return None, None
     else:
