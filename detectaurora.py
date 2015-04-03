@@ -79,6 +79,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
             cp = camparam.iloc[:,s] #fallback to first column
 
         finf,ap,dfid = getvidinfo(f,cp,up,verbose) 
+        if finf is None: continue
 #%% setup optional video/tiff writing (mainly for debugging or publication)
         svh = svsetup(savevideo, ap, cp, up)
 #%% setup blob
@@ -679,17 +680,29 @@ def getvidinfo(fn,cp,up,verbose):
                      (up['startstop'][0], up['startstop'][1], up['framestep']))
         dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
         finf['reader'] = 'raw'
-    elif ext.lower() in ('.avi','.mpg','.mpeg'):
-        finf = {}
-        dfid = cv2.VideoCapture(fn)
-        finf['nframe'] = np.int64(dfid.get(cv.CV_CAP_PROP_FRAME_COUNT))
-        finf['superx'] = int(dfid.get(cv.CV_CAP_PROP_FRAME_WIDTH))
-        finf['supery'] = int(dfid.get(cv.CV_CAP_PROP_FRAME_HEIGHT))
-        finf['frameind']=np.arange(finf['nframe'],dtype=np.int64)
-        finf['reader'] = 'cv2'
     else:
-        print('*** Im sorry that I dont recognize your filetype ' + str(ext) + ' please contact the author for an update.')
-        return None, None,None
+        print('attempting to read ' + str(fn) + ' with OpenCV.')
+        finf = {'reader':'cv2'}
+        dfid = cv2.VideoCapture(fn)
+        nframe = np.int64(dfid.get(cv.CV_CAP_PROP_FRAME_COUNT))
+        xpix = int(dfid.get(cv.CV_CAP_PROP_FRAME_WIDTH))
+        ypix = int(dfid.get(cv.CV_CAP_PROP_FRAME_HEIGHT))
+        if nframe<1 or xpix<1 or ypix<1:
+            print('** I may not be reading ' + str(fn) + ' correctly, trying anyway by reading an initial frame..')
+            retval, frame =dfid.read()
+            if not retval:
+                print('*** could not succeed in any way to read '+str(fn))
+                return None, None, None
+            ypix,xpix = frame.shape
+            finf['nframe'] = 100000 #FIXME guessing how many frames in file
+        else:
+            finf['nframe'] = nframe
+        finf['superx'] = xpix
+        finf['supery'] = ypix
+
+        finf['frameind']=np.arange(finf['nframe'],dtype=np.int64)
+
+
 #%% extract analysis parameters
     ap = {'twoframe':bool(cp['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
           'ofmethod':cp['ofmethod'].lower(),
