@@ -31,7 +31,6 @@ from scipy.signal import wiener
 from scipy.misc import bytescale
 import sys
 from time import time
-import h5py
 from tempfile import gettempdir
 #
 sys.path.append('../hist-utils')
@@ -59,98 +58,114 @@ if savedet or plotdet or showhist or showofmag or showmeanmedian:
     from matplotlib.colors import LogNorm
     #from matplotlib.cm import get_cmap
 
+try:
+    import h5py
+except ImportError as e:
+    print('** h5py not working. Wont be able to save detections to disk')
+    print(str(e))
+    savedet=False
 
-def main(flist, up, savevideo, framebyframe, verbose):
+def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
 
     camser,camparam = getcamparam(up['paramfn'],flist)
 
     for f,s in zip(flist,camser): #iterate over files in list
-        tic = time()
-        #setup output file
-        stem,ext = splitext(f)
-        detfn = join(up['outdir'],f +'_detections.h5')
-        if isfile(detfn):
-            print('** overwriting existing ' + detfn)
+        result = procaurora(f,s,camparam,up,savevideo,framebyframe,verbose)
+           
+def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
+    tic = time()
+    #setup output file
+    stem,ext = splitext(f)
+    detfn = join(up['outdir'],f +'_detections.h5')
+    if isfile(detfn):
+        print('** overwriting existing ' + detfn)
 
-        try:
-            cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
-        except KeyError:
-            print('* using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
-            cp = camparam.iloc[:,s] #fallback to first column
+    try:
+        cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
+    except KeyError:
+        print('* using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
+        cp = camparam.iloc[:,s] #fallback to first column
 
-        finf,ap,dfid = getvidinfo(f,cp,up,verbose)
-        if finf is None: continue
+    finf,ap,dfid = getvidinfo(f,cp,up,verbose)
+    if finf is None: return
 #%% setup optional video/tiff writing (mainly for debugging or publication)
-        svh = svsetup(savevideo, ap, cp, up)
+    svh = svsetup(savevideo, ap, cp, up)
 #%% setup blob
-        blobdetect = setupblob(cp['minblobarea'], cp['maxblobarea'], cp['minblobdist'])
+    blobdetect = setupblob(cp['minblobarea'], cp['maxblobarea'], cp['minblobdist'])
 #%% cv opt. flow matrix setup
-        uv,lastflow, ofmed, gmm = setupof(ap,cp)
+    uv,lastflow, ofmed, gmm = setupof(ap,cp)
 #%% kernel setup
-        kern = setupkern(ap,cp)
+    kern = setupkern(ap,cp)
 #%% mag plots setup
-        pl = setupfigs(finf,f)
+    pl = setupfigs(finf,f)
 #%% start main loop
-        for ifrm in finf['frameind'][:-1]:
+    for ifrm in finf['frameind'][:-1]:
 #%% load and filter
-            framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
-            if framegray is None: break
+        framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
+        if framegray is None: break
 #%% compute optical flow or Background/Foreground
-            if lastflow is not None: #very fast way to check mode
-                flow,ofmaggmm,ofmed,pl = dooptflow(framegray,frameref,lastflow,uv,ifrm, ap,cp,pl)
-                lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
-            else: #background/foreground
-                ofmaggmm = gmm.apply(framegray)
+        if lastflow is not None: #very fast way to check mode
+            flow,ofmaggmm,ofmed,pl = dooptflow(framegray,frameref,lastflow,uv,ifrm, ap,cp,pl)
+            lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
+        else: #background/foreground
+            ofmaggmm = gmm.apply(framegray)
 #%% threshold
-            thres = dothres(ofmaggmm, ofmed, ap,cp,svh)
+        thres = dothres(ofmaggmm, ofmed, ap,cp,svh)
 #%% despeckle
-            despeck = dodespeck(thres,cp['medfiltsize'],svh)
+        despeck = dodespeck(thres,cp['medfiltsize'],svh)
 #%% morphological ops
-            morphed = domorph(despeck,kern,svh)
+        morphed = domorph(despeck,kern,svh)
 #%% blob detection
-            final = doblob(morphed,blobdetect,framegray,ifrm,svh,pl,savevideo)
+        final = doblob(morphed,blobdetect,framegray,ifrm,svh,pl,savevideo)
 #%% plotting in loop
-            """
-            http://docs.opencv.org/modules/highgui/doc/user_interface.html
-            """
+        """
+        http://docs.opencv.org/modules/highgui/doc/user_interface.html
+        """
 
-            if plotdet or showhist or showofmag or showmeanmedian:
-                draw(); pause(0.001)
+        if plotdet or showhist or showofmag or showmeanmedian:
+            draw(); pause(0.001)
 
-            if not ifrm % 20:
-                print('frame {:0d}'.format(ifrm))
-                if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
-                    print('* Warning: video may be saturated at 255, missed detections can result')
-                if (framegray == 0).sum() > 4:
-                    print('* Warning: video may be saturated at 0, missed detections can result')
+        if not ifrm % 50:
+            print('frame {:0d}'.format(ifrm))
+            if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
+                print('* Warning: video may be saturated at value 255, missed detections can result')
+            if (framegray == 0).sum() > 4:
+                print('* Warning: video may be saturated at value 0, missed detections can result')
 
-            if framebyframe: #wait indefinitely for spacebar press
-                keypressed = cv2.waitKey(0)
-                framebyframe,dobreak = keyhandler(keypressed,framebyframe)
-            else:
-                keypressed = cv2.waitKey(1)
-                framebyframe, dobreak = keyhandler(keypressed,framebyframe)
-            if dobreak:
-                break
+        if framebyframe: #wait indefinitely for spacebar press
+            keypressed = cv2.waitKey(0)
+            framebyframe,dobreak = keyhandler(keypressed,framebyframe)
+        else:
+            keypressed = cv2.waitKey(1)
+            framebyframe, dobreak = keyhandler(keypressed,framebyframe)
+        if dobreak:
+            break
 #%% done looping this file
+    try:
         if finf['reader'] == 'raw':
             dfid.close()
         elif finf['reader'] == 'cv2':
             dfid.release()
+    except Exception as e:
+        print(str(e))
 
-        print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
-        if savedet:
-            detfn = stem + '_det.h5'
-            detpltfn = stem + '_det.png'
+    print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
+    if savedet:
+        detfn = stem + '_det.h5'
+        detpltfn = stem + '_det.png'
+        try:
             print('saving detections to ' + detfn)
-            with h5py.File(detfn,libver='latest') as h5fid:
-                h5fid.create_dataset("/det", data=pl['detect'])
+            with h5py.File(detfn,'w',libver='latest') as h5fid:
+                h5fid["/det"] = pl['detect']
             print('saving detection plot to ' + detpltfn)
             pl['fdet'].savefig(detpltfn,dpi=100,bbox_inches='tight')
+        except Exception as e:
+            print('** trouble saving detection result')
+            print(str(e))
 
-        svrelease(svh,savevideo)
+    svrelease(svh,savevideo)
+    return pl
 
-        return final
 
 def keyhandler(keypressed,framebyframe):
     if keypressed == -1: # no key pressed
@@ -186,11 +201,20 @@ def svsetup(savevideo,ap, cp, up):
 
 
     tdir = gettempdir()
-    if savevideo: print('dumping video output to '+tdir)
-    svh = {}
+    if savevideo: 
+        print('dumping video output to '+tdir)
+    svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,
+           'erode':None,'close':None,'detect':None}
     if savevideo == 'tif':
         #complvl = 6 #0 is uncompressed
-        from tifffile import TiffWriter  #pip install tifffile
+        try:
+            from tifffile import TiffWriter  #pip install tifffile
+        except ImportError as e:
+            print('** I cannot save iterated video results due to missing tifffile module')
+            print('try pip install tifffile')
+            print(str(e))
+            return svh
+            
         if dowiener:
             svh['wiener'] = TiffWriter(join(tdir,'wiener.tif'))
         else:
@@ -236,20 +260,21 @@ def svsetup(savevideo,ap, cp, up):
         for k,v in svh.items():
             if v is not None and not v.isOpened():
                 exit('*** trouble writing video for ' + k)
-    else:
-        svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,'erode':None,'close':None,'detect':None}
-
+                
     return svh
 
 def svrelease(svh,savevideo):
-    if savevideo=='tif':
-        for k,v in svh.items():
-            if v is not None:
-                v.close()
-    elif savevideo == 'vid':
-        for k,v in svh.items():
-            if v is not None:
-                v.release()
+    try:
+        if savevideo=='tif':
+            for k,v in svh.items():
+                if v is not None:
+                    v.close()
+        elif savevideo == 'vid':
+            for k,v in svh.items():
+                if v is not None:
+                    v.release()
+    except Exception as e:
+        print(str(e))
 
 
 def setupof(ap,cp):
@@ -580,6 +605,8 @@ def doblob(morphed,blobdetect,framegray,ifrm,svh,pl,savevideo):
     if plotdet or savedet:
         pl['detect'][ifrm] = nkey
         pl['pdet'][0].set_ydata(pl['detect'])
+    
+    return pl
 
 def setupfigs(finf,fn):
 
@@ -610,7 +637,8 @@ def setupfigs(finf,fn):
         axmm.legend(loc='best')
 
 
-    detect = None; hpdt = None; fgdt = None
+    detect = np.nan #in case it falls through to h5py writer
+    hpdt = None; fgdt = None
     if plotdet or savedet:
         detect = np.zeros(finf['frameind'].size, dtype=int)
         figure(40).clf()
@@ -743,8 +771,8 @@ def getcamparam(paramfn,flist):
 if __name__=='__main__':
     from argparse import ArgumentParser
     p = ArgumentParser(description='detects aurora in raw video files')
-    p.add_argument('indir',help='specify file, OR top directory over which to recursively find video files',type=str)
-    p.add_argument('vidext',help='extension of raw video file',nargs='?',type=str,default='DMCdata')
+    p.add_argument('indir',help='specify file, OR top directory over which to recursively find video files',type=str,nargs='+')
+    p.add_argument('-e','--vidext',help='extension of raw video file',type=str,default='DMCdata')
     p.add_argument('--fps',help='output file FPS (note VLC needs fps>=3)',type=float,default=3)
     p.add_argument('-p','--framebyframe',help='space bar toggles play/pause', action='store_true')
     p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
@@ -785,7 +813,7 @@ if __name__=='__main__':
             cProfile.run('main(flist, uparams, savevideo, a.framebyframe, a.verbose)',profFN)
             pstats.Stats(profFN).sort_stats('time','cumulative').print_stats(50)
         else:
-            final = main(flist, uparams, savevideo, a.framebyframe, a.verbose)
+            loopaurorafiles(flist, uparams, savevideo, a.framebyframe, a.verbose)
             #show()
     except KeyboardInterrupt:
         exit('aborting per user request')
