@@ -78,7 +78,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
             print('* using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
             cp = camparam.iloc[:,s] #fallback to first column
 
-        finf,ap = getvidinfo(f,cp,up,verbose)  # FIXME with more general function for radar/camera
+        finf,ap,dfid = getvidinfo(f,cp,up,verbose) 
 #%% setup optional video/tiff writing (mainly for debugging or publication)
         svh = svsetup(savevideo, ap, cp, up)
 #%% setup blob
@@ -89,14 +89,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
         kern = setupkern(ap,cp)
 #%% mag plots setup
         pl = setupfigs(finf,f)
-#%% open this file and start loops
-        if ext == '.DMCdata':
-            dfid = open(f,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
-        elif ext == '.h5':
-            dfid = h5py.File(f,'r',libver='latest')
-        else:
-            exit('*** I didnt understand file extension ' + ext)
-
+#%% start main loop
         for ifrm in finf['frameind'][:-1]:
 #%% load and filter
             framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
@@ -648,19 +641,24 @@ def getvidinfo(fn,cp,up,verbose):
 
     xypix=(cp['xpix'],cp['ypix'])
     xybin=(cp['xbin'],cp['ybin'])
+    
     if ext =='.DMCdata':
         if up['startstop'][0] is None:
             finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose)
         else:
             finf = getDMCparam(fn,xypix,xybin,
                      (up['startstop'][0], up['startstop'][1], up['framestep']))
+        dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
+                     
     elif ext.lower() in ('.avi','.mpg','.mpeg'):
-        cv2.VideoCapture.get(cv2.CV_CAP_PROP_FRAME_COUNT)
+        finf = {}
+        dfid = cv2.VideoCapture(fn)
+        finf['nframe'] = dfid.get(dfid,cv.CV_CAP_PROP_FRAME_COUNT) #for OpenCV3 (?)
         print('*** working on this TODO')
-        return None, None
+        
     else:
         print('*** Im sorry that I dont recognize your filetype ' + str(ext) + ' please contact the author for an update.')
-        return None, None
+        return None, None,None
 #%% extract analysis parameters
     ap = {'twoframe':bool(cp['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
           'ofmethod':cp['ofmethod'].lower(),
@@ -671,7 +669,7 @@ def getvidinfo(fn,cp,up,verbose):
 
 
 
-    return finf, ap
+    return finf, ap, dfid
 
 def getserialnum(flist):
     """
