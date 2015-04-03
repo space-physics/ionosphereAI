@@ -315,21 +315,45 @@ def setupblob(minblobarea, maxblobarea, minblobdist):
     return SimpleBlobDetector(blobparam)
 
 def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
+    """ this function reads the reference frame too--which makes sense if youre 
+       only reading every Nth frame from the multi-TB file instead of every frame
+    """
+    frameref = None #just in case not used
     dowiener = np.isfinite(cp['wienernhood'])
 #%% reference frame
-    if ap['twoframe']:
-        frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
-
-        if dowiener:
-            frameref = wiener(frameref,cp['wienernhood'])
-        frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])#sixteen2eight(frameref, rawlim)
+    
+    if finf['reader'] == 'raw':
+        if ap['twoframe']:
+            frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
+            frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
+            if dowiener:
+                frameref = wiener(frameref,cp['wienernhood'])
+        
+        frame16,rfi = getDMCframe(dfid,ifrm+1,finf)
+        if frame16 is None or rfi is None: #FIXME accidental end of file, smarter way to detect beforehand?
+            ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
+            return None, None, ap
+        framegray = frame16.copy() # keeping frame16 as 16-bit for analysis plots
+        framegray = bytescale(framegray, ap['rawlim'][0], ap['rawlim'][1])
+        
+    elif finf['reader'] == 'cv2':
+        if ap['twoframe']:
+            retval,frameref = dfid.read()
+            if not retval: 
+                print('*** could not read video from file!')
+                return None, None, ap
+            frameref = cv2.cvtColor(frameref, cv2.COLOR_BGR2GRAY)
+            if dowiener:
+                frameref = wiener(frameref,cp['wienernhood'])
+            
+        retval,frame16 = dfid.read() #TODO this is skipping every other frame!
+        rfi = ifrm
+        if not retval: 
+            print('*** could not read video from file!')
+            return None, None, ap
+        #FIXME what if the original avi is gray? didn't try this yet.
+        framegray = cv2.cvtColor(frame16, cv2.COLOR_BGR2GRAY)
 #%% current frame
-    frame16,rfi = getDMCframe(dfid,ifrm+1,finf)
-    if frame16 is None or rfi is None:
-        ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
-        return None, None, ap
-
-    framegray = frame16.copy() # keeping frame16 as 16-bit for analysis plots
     ap['rawframeind'][ifrm] = rfi
 
     if dowiener:
@@ -339,7 +363,6 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
         # cv2.imshow just divides by 256, NOT autoscaled!
         # http://docs.opencv.org/modules/highgui/doc/user_interface.html
         cv2.imshow('video', framegray)
-    framegray = bytescale(framegray, ap['rawlim'][0], ap['rawlim'][1]) #sixteen2eight(framegray, rawlim)
 #%% plotting
     if showrawscaled:
         cv2.imshow('raw video, scaled to 8-bit', framegray)
@@ -649,13 +672,15 @@ def getvidinfo(fn,cp,up,verbose):
             finf = getDMCparam(fn,xypix,xybin,
                      (up['startstop'][0], up['startstop'][1], up['framestep']))
         dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
-                     
+        finf['reader'] = 'raw'
     elif ext.lower() in ('.avi','.mpg','.mpeg'):
         finf = {}
         dfid = cv2.VideoCapture(fn)
-        finf['nframe'] = dfid.get(dfid,cv.CV_CAP_PROP_FRAME_COUNT) #for OpenCV3 (?)
-        print('*** working on this TODO')
-        
+        finf['nframe'] = np.int64(dfid.get(cv.CV_CAP_PROP_FRAME_COUNT))
+        finf['superx'] = int(dfid.get(cv.CV_CAP_PROP_FRAME_WIDTH))
+        finf['supery'] = int(dfid.get(cv.CV_CAP_PROP_FRAME_HEIGHT))
+        finf['frameind']=np.arange(finf['nframe'],dtype=np.int64)
+        finf['reader'] = 'cv2'
     else:
         print('*** Im sorry that I dont recognize your filetype ' + str(ext) + ' please contact the author for an update.')
         return None, None,None
