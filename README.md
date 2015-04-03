@@ -1,12 +1,19 @@
 cv-hst
 ======
-Computer Vision functions made for working with HiST optical data
-
-```detectaurora.py``` is the main program, the others are only helper functions
+Computer Vision functions made for working with auroral video
 
 Usage:
 ------
-python detectaurora.py ~/directoryOfVideos/optionalSpecificFilename(s)
+#### Load and process all .AVI in a directory
+``` 
+python detectaurora.py ~/mydir --ext avi 
+```
+The line above will find all the .avi files in directory ~/mydir and play them back with analysis.
+
+#### Load and process a specific fle
+``` 
+python detectaurora.py ~/mydir/myvideo.avi
+The line above will read a specific file(s)
 
 This program will process several video files if given a directory, or specific file(s) if given the filename(s)
 The outputs include:
