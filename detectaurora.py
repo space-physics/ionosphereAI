@@ -132,7 +132,11 @@ def main(flist, up, savevideo, framebyframe, verbose):
             if dobreak:
                 break
 #%% done looping this file
-        dfid.close()
+        if finf['reader'] == 'raw':
+            dfid.close()
+        elif finf['reader'] == 'cv2':
+            dfid.release()
+            
         print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
         if savedet:
             detfn = stem + '_det.h5'
@@ -339,8 +343,10 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
     elif finf['reader'] == 'cv2':
         if ap['twoframe']:
             retval,frameref = dfid.read()
-            if not retval: 
-                print('*** could not read video from file!')
+            if not retval:
+                if ifrm==0:
+                    print('*** could not read video file, sorry')
+                print('done reading video.')
                 return None, None, ap
             frameref = cv2.cvtColor(frameref, cv2.COLOR_BGR2GRAY)
             if dowiener:
