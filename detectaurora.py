@@ -7,7 +7,7 @@ It is a major cleanup of the processDrive.sh, filelooper.m, TrackingOF7.m Franke
 0) recursively find all .DMCdata files under requested root directory
 1)
 """
-from __future__ import division, print_function
+from __future__ import division, print_function, absolute_import
 try:
     import cv2
 except ImportError as e:
@@ -22,7 +22,7 @@ except ImportError:
     from cv2 import SimpleBlobDetector_create as SimpleBlobDetector
     #print('legacy OpenCV functions not available, Horn-Schunck method not available')
     #print('legacy OpenCV functions are available in OpenCV2, but not OpenCV3.')
-print('OpenCV '+str(cv2.__version__))
+print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 from re import search
 from pandas import read_excel
 from os.path import join,isfile, splitext
@@ -62,7 +62,7 @@ if savedet or plotdet or showhist or showofmag or showmeanmedian:
 
 def main(flist, up, savevideo, framebyframe, verbose):
 
-    camser,camparam = getcamparam(up['paramfn'])
+    camser,camparam = getcamparam(up['paramfn'],flist)
 
     for f,s in zip(flist,camser): #iterate over files in list
         tic = time()
@@ -74,7 +74,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
 
         cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
 
-        finf,ap = getvidinfo(f,cp,up,verbose)  # UPDATE with more general function for radar/camera
+        finf,ap = getvidinfo(f,cp,up,verbose)  # FIXME with more general function for radar/camera
 #%% setup optional video/tiff writing (mainly for debugging or publication)
         svh = svsetup(savevideo, ap, cp, up)
 #%% setup blob
@@ -87,7 +87,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
         pl = setupfigs(finf,f)
 #%% open this file and start loops
         if ext == '.DMCdata':
-            dfid = open(f,'rb')
+            dfid = open(f,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
         elif ext == '.h5':
             dfid = h5py.File(f,'r',libver='latest')
         else:
@@ -634,6 +634,8 @@ def draw_hsv(flow):
     return bgr
 
 def getvidinfo(fn,cp,up,verbose):
+    ext = splitext(fn)[1] #"one source of truth" programming principle
+
     print('using ' + cp['ofmethod'] + ' for ' + fn)
     if verbose:
         print('minBlob='+str(cp['minblobarea']) + ' maxBlob='+
@@ -641,11 +643,15 @@ def getvidinfo(fn,cp,up,verbose):
 
     xypix=(cp['xpix'],cp['ypix'])
     xybin=(cp['xbin'],cp['ybin'])
-    if up['startstop'][0] is None:
-        finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose)
-    else:
-        finf = getDMCparam(fn,xypix,xybin,
-                           (up['startstop'][0], up['startstop'][1], up['framestep']))
+    if ext =='.DMCdata':
+        if up['startstop'][0] is None:
+            finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose)
+        else:
+            finf = getDMCparam(fn,xypix,xybin,
+                     (up['startstop'][0], up['startstop'][1], up['framestep']))
+    elif ext.lower() in ('.avi','.mpg','.mpeg'):
+        print('*** working on this TODO')
+        return None, None
 #%% extract analysis parameters
     ap = {'twoframe':bool(cp['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
           'ofmethod':cp['ofmethod'].lower(),
@@ -659,15 +665,28 @@ def getvidinfo(fn,cp,up,verbose):
     return finf, ap
 
 def getserialnum(flist):
+    """
+    This function assumes the serial number of the camera is in a particular place in the filename.
+    Yes, this is a little lame, but it's how the original 2011 image-writing program worked, and I've
+    carried over the scheme rather than appending bits to dozens of TB of files.
+    """
     sn = []
     for f in flist:
         sn.append(int(search(r'(?<=CamSer)\d{3,6}',f).group()))
     return sn
 
-def getcamparam(paramfn):
+def getcamparam(paramfn,flist):
+    ext = splitext(flist[0])[1]
     #uses pandas and xlrd to parse the spreadsheet parameters
-    camser = getserialnum(flist)
-    camparam = read_excel(paramfn,index_col=0,header=0)
+    if ext == '.DMCdata':
+        camser = getserialnum(flist)
+    else:
+        #FIXME add your own criteria to pick which spreadsheet paramete column to use.
+        # for now I tell it to just use the first column (same criteria for all files)
+        print('* using first column of spreadsheet only for camera parameters')
+        camser = [0] * len(flist) #we don't need to bother with itertools.repeat, we have a short list
+
+    camparam = read_excel(paramfn,index_col=0,header=0) #returns a nicely indexable DataFrame
     return camser, camparam
 
 if __name__=='__main__':
