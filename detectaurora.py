@@ -74,11 +74,11 @@ def main(flist, up, savevideo, framebyframe, verbose):
 
         try:
             cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
-        except KeyError: 
+        except KeyError:
             print('* using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
             cp = camparam.iloc[:,s] #fallback to first column
 
-        finf,ap,dfid = getvidinfo(f,cp,up,verbose) 
+        finf,ap,dfid = getvidinfo(f,cp,up,verbose)
         if finf is None: continue
 #%% setup optional video/tiff writing (mainly for debugging or publication)
         svh = svsetup(savevideo, ap, cp, up)
@@ -137,7 +137,7 @@ def main(flist, up, savevideo, framebyframe, verbose):
             dfid.close()
         elif finf['reader'] == 'cv2':
             dfid.release()
-            
+
         print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
         if savedet:
             detfn = stem + '_det.h5'
@@ -320,27 +320,27 @@ def setupblob(minblobarea, maxblobarea, minblobdist):
     return SimpleBlobDetector(blobparam)
 
 def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
-    """ this function reads the reference frame too--which makes sense if youre 
+    """ this function reads the reference frame too--which makes sense if youre
        only reading every Nth frame from the multi-TB file instead of every frame
     """
     frameref = None #just in case not used
     dowiener = np.isfinite(cp['wienernhood'])
 #%% reference frame
-    
+
     if finf['reader'] == 'raw':
         if ap['twoframe']:
             frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
             frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
             if dowiener:
                 frameref = wiener(frameref,cp['wienernhood'])
-        
+
         frame16,rfi = getDMCframe(dfid,ifrm+1,finf)
         if frame16 is None or rfi is None: #FIXME accidental end of file, smarter way to detect beforehand?
             ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
             return None, None, ap
         framegray = frame16.copy() # keeping frame16 as 16-bit for analysis plots
         framegray = bytescale(framegray, ap['rawlim'][0], ap['rawlim'][1])
-        
+
     elif finf['reader'] == 'cv2':
         if ap['twoframe']:
             retval,frameref = dfid.read()
@@ -352,10 +352,10 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
             frameref = cv2.cvtColor(frameref, cv2.COLOR_BGR2GRAY)
             if dowiener:
                 frameref = wiener(frameref,cp['wienernhood'])
-            
+
         retval,frame16 = dfid.read() #TODO this is skipping every other frame!
         rfi = ifrm
-        if not retval: 
+        if not retval:
             print('*** could not read video from file!')
             return None, None, ap
         #FIXME what if the original avi is gray? didn't try this yet.
@@ -671,7 +671,7 @@ def getvidinfo(fn,cp,up,verbose):
 
     xypix=(cp['xpix'],cp['ypix'])
     xybin=(cp['xbin'],cp['ybin'])
-    
+
     if ext =='.DMCdata':
         if up['startstop'][0] is None:
             finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose)
@@ -780,12 +780,10 @@ if __name__=='__main__':
         flist = walktree(a.indir,'*.' + a.vidext)
 
         if a.profile:
-            import cProfile
-            from profilerun import goCprofile
+            import cProfile,pstats
             profFN = 'profstats.pstats'
-            print('saving profile results to ' + profFN)
             cProfile.run('main(flist, uparams, savevideo, a.framebyframe, a.verbose)',profFN)
-            goCprofile(profFN)
+            pstats.Stats(profFN).sort_stats('time','cumulative').print_stats(50)
         else:
             final = main(flist, uparams, savevideo, a.framebyframe, a.verbose)
             #show()
