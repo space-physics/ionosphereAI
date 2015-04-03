@@ -652,6 +652,9 @@ def getvidinfo(fn,cp,up,verbose):
     elif ext.lower() in ('.avi','.mpg','.mpeg'):
         print('*** working on this TODO')
         return None, None
+    else:
+        print('*** Im sorry that I dont recognize your filetype ' + str(ext) + ' please contact the author for an update.')
+        return None, None
 #%% extract analysis parameters
     ap = {'twoframe':bool(cp['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
           'ofmethod':cp['ofmethod'].lower(),
