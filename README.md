@@ -13,6 +13,7 @@ The line above will find all the .avi files in directory ~/mydir and play them b
 #### Load and process a specific fle
 ``` 
 python detectaurora.py ~/mydir/myvideo.avi
+```
 The line above will read a specific file(s)
 
 This program will process several video files if given a directory, or specific file(s) if given the filename(s)
