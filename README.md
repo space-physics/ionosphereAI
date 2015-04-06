@@ -21,7 +21,10 @@ The outputs include:
 * PNG figure plot of the number of auroral detections per video frame sampled
 * HDF5 file of the data in the PNG plot (so that you can use another program to extract the GB of interesting data from TB file
 
-This program is specifically designed for .DMCdata video files in a proprietary binary format from the HiST project. It is trivial to adapt the program to ingest AVI, NetCDF, HDF5 and many other formats--just contact me.
+This program reads any video format available to OpenCV cv2.VideoCapture(), such as most AVI, MPG, MOV, OGV, etc. depending on how your particular OpenCV was compiled. 
+The program also reads our multi-terabyte .DMCdata video files in a proprietary binary format from the [HiST project](https://github.com/scienceopen/hist-feasibility).
+
+It is trivial to adapt the program to ingest NetCDF, HDF5 and many other formats--just contact me.
 
 Prerequisities:
 ---------------
