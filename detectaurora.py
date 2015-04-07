@@ -361,8 +361,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
         if frame16 is None or rfi is None: #FIXME accidental end of file, smarter way to detect beforehand?
             ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
             return None, None, ap
-        framegray = frame16.copy() # keeping frame16 as 16-bit for analysis plots
-        framegray = bytescale(framegray, ap['rawlim'][0], ap['rawlim'][1])
+        framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
 
     elif finf['reader'] == 'cv2':
         if ap['twoframe']:
@@ -383,6 +382,15 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
             return None, None, ap
         #FIXME what if the original avi is gray? didn't try this yet.
         framegray = cv2.cvtColor(frame16, cv2.COLOR_BGR2GRAY)
+    elif finf['reader'] == 'h5':   #one frame per file
+        if ap['twoframe']:
+            frameref = getfmradarframe(dfid[ifrm])[2]
+            frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
+        frame16 = getfmradarframe(dfid[ifrm+1])[2]
+        rfi = ifrm
+        framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+
+
 #%% current frame
     ap['rawframeind'][ifrm] = rfi
 
@@ -709,8 +717,8 @@ def getvidinfo(fn,cp,up,verbose):
     elif ext.lower() in ('.h5','.hdf5'):
         finf = {'reader':'h5'}
         print('attempting to read HDF5 ' + str(fn))
-        dfid = h5py.File(fn,'r',libver='latest')
-        finf['nframe'] = len(flist) # currently the passive radar uses one file per frame
+        dfid = flist
+        finf['nframe'] = len(dfid) # currently the passive radar uses one file per frame
 
         range_km,vel_mps = getfmradarframe(fn)[:2] #assuming all frames are the same size
         finf['superx'] = range_km.size
