@@ -40,8 +40,6 @@ see http://blogs.bu.edu/mhirsch/2015/03/anaconda-python-opencv3/
 Installation:
 -------------
 ```
-mkdir ~/code
-cd ~/code
 git clone https://github.com/scienceopen/cv-hst.git
 git clone https://github.com/scienceopen/hist-utils.git
 ```
@@ -55,11 +53,3 @@ Tested with:
 Python 3.4.3 / 2.7.9 
 
 OpenCV 3.0 beta / 2.4.10
-
-Numpy 1.9.2
-
-Matplotlib 1.4.3
-
-Pandas 0.15.2
-
-h5py 2.4.0
