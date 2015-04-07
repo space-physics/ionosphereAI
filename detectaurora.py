@@ -2,10 +2,7 @@
 """we temporarily use python 2.7 until OpenCV 3 is out of beta (will work with Python 3)
 Michael Hirsch Dec 2014
 This program detects aurora in multi-terabyte raw video data files
-It is a major cleanup of the processDrive.sh, filelooper.m, TrackingOF7.m Frankenprograms
-
-0) recursively find all .DMCdata files under requested root directory
-1)
+It is also used for the Haystack passive FM radar ionospheric activity detection
 """
 from __future__ import division, print_function, absolute_import
 try:
@@ -33,6 +30,7 @@ import sys
 from time import time
 from tempfile import gettempdir
 #
+from getpassivefm import getfmradarframe
 sys.path.append('../hist-utils')
 from walktree import walktree
 from rawDMCreader import getDMCparam,getDMCframe
@@ -71,7 +69,7 @@ def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
 
     for f,s in zip(flist,camser): #iterate over files in list
         result = procaurora(f,s,camparam,up,savevideo,framebyframe,verbose)
-           
+
 def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     tic = time()
     #setup output file
@@ -201,7 +199,7 @@ def svsetup(savevideo,ap, cp, up):
 
 
     tdir = gettempdir()
-    if savevideo: 
+    if savevideo:
         print('dumping video output to '+tdir)
     svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,
            'erode':None,'close':None,'detect':None}
@@ -214,7 +212,7 @@ def svsetup(savevideo,ap, cp, up):
             print('try pip install tifffile')
             print(str(e))
             return svh
-            
+
         if dowiener:
             svh['wiener'] = TiffWriter(join(tdir,'wiener.tif'))
         else:
@@ -260,7 +258,7 @@ def svsetup(savevideo,ap, cp, up):
         for k,v in svh.items():
             if v is not None and not v.isOpened():
                 exit('*** trouble writing video for ' + k)
-                
+
     return svh
 
 def svrelease(svh,savevideo):
@@ -288,7 +286,7 @@ def setupof(ap,cp):
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             lastflow = np.nan #nan instead of None to signal to use OF instead of GMM
         except NameError as e:
-            print("*** OpenCV 3 doesnt have legacy cv functions. You're using OpenCV " +str(cv2.__version__))
+            print("*** OpenCV 3 doesn't have legacy cv functions. You're using OpenCV " +str(cv2.__version__))
             exit(str(e))
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
@@ -605,7 +603,7 @@ def doblob(morphed,blobdetect,framegray,ifrm,svh,pl,savevideo):
     if plotdet or savedet:
         pl['detect'][ifrm] = nkey
         pl['pdet'][0].set_ydata(pl['detect'])
-    
+
     return pl
 
 def setupfigs(finf,fn):
@@ -697,18 +695,29 @@ def getvidinfo(fn,cp,up,verbose):
         print('minBlob='+str(cp['minblobarea']) + ' maxBlob='+
           str(cp['maxblobarea']) + ' maxNblob=' + str(cp['maxblobcount']) )
 
-    xypix=(cp['xpix'],cp['ypix'])
-    xybin=(cp['xbin'],cp['ybin'])
-
     if ext =='.DMCdata':
+        finf = {'reader':'raw'}
+        xypix=(cp['xpix'],cp['ypix'])
+        xybin=(cp['xbin'],cp['ybin'])
         if up['startstop'][0] is None:
             finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose)
         else:
             finf = getDMCparam(fn,xypix,xybin,
                      (up['startstop'][0], up['startstop'][1], up['framestep']))
         dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
-        finf['reader'] = 'raw'
+
+    elif ext.lower() in ('.h5','.hdf5'):
+        finf = {'reader':'h5'}
+        print('attempting to read HDF5 ' + str(fn))
+        dfid = h5py.File(fn,'r',libver='latest')
+        finf['nframe'] = len(flist) # currently the passive radar uses one file per frame
+
+        range_km,vel_mps = getfmradarframe(fn)[:2] #assuming all frames are the same size
+        finf['superx'] = range_km.size
+        finf['supery'] = vel_mps.size
+        finf['frameind'] = np.arange(finf['nframe'],dtype=np.int64)
     else:
+        #FIXME start,stop,step is not yet implemented, simply uses every other frame
         print('attempting to read ' + str(fn) + ' with OpenCV.')
         finf = {'reader':'cv2'}
         dfid = cv2.VideoCapture(fn)
