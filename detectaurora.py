@@ -26,14 +26,12 @@ from os.path import join,isfile, splitext
 import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
-import sys
 from time import time
 from tempfile import gettempdir
 #
 from getpassivefm import getfmradarframe
-sys.path.append('../hist-utils')
-from walktree import walktree
-from rawDMCreader import getDMCparam,getDMCframe
+from histutils.walktree import walktree
+from histutils.rawDMCreader import getDMCparam,getDMCframe
 
 #plot disable
 showraw=False #often not useful due to no autoscale
