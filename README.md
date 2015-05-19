@@ -40,8 +40,12 @@ see http://blogs.bu.edu/mhirsch/2015/03/anaconda-python-opencv3/
 Installation:
 -------------
 ```
-git clone https://github.com/scienceopen/cv-hst.git
-git clone https://github.com/scienceopen/hist-utils.git
+git clone --recursive https://github.com/scienceopen/cv-hst.git
+```
+
+to keep up to date with latest work:
+```
+git pull && git submodule update --remote --merge
 ```
 
 Thanks:
