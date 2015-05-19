@@ -28,6 +28,7 @@ from scipy.signal import wiener
 from scipy.misc import bytescale
 from time import time
 from tempfile import gettempdir
+from warnings import warn
 #
 from getpassivefm import getfmradarframe
 from histutils.walktree import walktree
@@ -62,6 +63,9 @@ except ImportError as e:
     savedet=False
 
 def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
+    if not flist:
+        warn('no files specified')
+        return
 
     camser,camparam = getcamparam(up['paramfn'],flist)
 
@@ -769,9 +773,8 @@ def getserialnum(flist):
     return sn
 
 def getcamparam(paramfn,flist):
-    ext = splitext(flist[0])[1]
     #uses pandas and xlrd to parse the spreadsheet parameters
-    if ext == '.DMCdata':
+    if flist[0].endswith('.DMCdata'):
         camser = getserialnum(flist)
     else:
         #FIXME add your own criteria to pick which spreadsheet paramete column to use.
