@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-"""we temporarily use python 2.7 until OpenCV 3 is out of beta (will work with Python 3)
+"""
 Michael Hirsch Dec 2014
 This program detects aurora in multi-terabyte raw video data files
 It is also used for the Haystack passive FM radar ionospheric activity detection
@@ -71,7 +71,7 @@ def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
 def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     tic = time()
     #setup output file
-    stem,ext = splitext(f)
+    stem = splitext(f)[0]
     detfn = join(up['outdir'],f +'_detections.h5')
     if isfile(detfn):
         print('** overwriting existing ' + detfn)
@@ -694,14 +694,12 @@ def draw_hsv(flow):
     return bgr
 
 def getvidinfo(fn,cp,up,verbose):
-    ext = splitext(fn)[1] #"one source of truth" programming principle
-
-    print('using ' + cp['ofmethod'] + ' for ' + fn)
+    print('using {} for {}'.format(cp['ofmethod'],fn))
     if verbose:
         print('minBlob='+str(cp['minblobarea']) + ' maxBlob='+
           str(cp['maxblobarea']) + ' maxNblob=' + str(cp['maxblobcount']) )
 
-    if ext =='.DMCdata':
+    if fn.endswidth('.DMCdata'):
         finf = {'reader':'raw'}
         xypix=(cp['xpix'],cp['ypix'])
         xybin=(cp['xbin'],cp['ybin'])
@@ -712,7 +710,7 @@ def getvidinfo(fn,cp,up,verbose):
                      (up['startstop'][0], up['startstop'][1], up['framestep']))
         dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
 
-    elif ext.lower() in ('.h5','.hdf5'):
+    elif fn.lower().endswidth(('.h5','.hdf5')):
         finf = {'reader':'h5'}
         print('attempting to read HDF5 ' + str(fn))
         dfid = flist
@@ -731,7 +729,7 @@ def getvidinfo(fn,cp,up,verbose):
         xpix = int(dfid.get(cv.CV_CAP_PROP_FRAME_WIDTH))
         ypix = int(dfid.get(cv.CV_CAP_PROP_FRAME_HEIGHT))
         if nframe<1 or xpix<1 or ypix<1:
-            print('** I may not be reading ' + str(fn) + ' correctly, trying anyway by reading an initial frame..')
+            print('** I may not be reading {} correctly, trying anyway by reading an initial frame..'.format(fn))
             retval, frame =dfid.read()
             if not retval:
                 print('*** could not succeed in any way to read '+str(fn))
