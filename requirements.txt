@@ -1,7 +1,7 @@
-scipy>=0.10
-pandas>=0.11
-opencv>=2.4
-numpy>=1.7
-matplotlib>=1.4
-h5py>=2.0
-tifffile>=0.4
+scipy
+pandas
+opencv
+numpy
+matplotlib
+h5py
+tifffile
