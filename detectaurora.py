@@ -284,7 +284,7 @@ def setupof(ap,cp):
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             lastflow = np.nan #nan instead of None to signal to use OF instead of GMM
         except NameError as e:
-            print("*** OpenCV 3 doesn't have legacy cv functions. You're using OpenCV " +str(cv2.__version__))
+            print("*** OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}  Please use another CV method".format(ap['ofmethod'],cv2.__version__))
             exit(str(e))
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
@@ -699,8 +699,7 @@ def getvidinfo(fn,cp,up,verbose):
         print('minBlob='+str(cp['minblobarea']) + ' maxBlob='+
           str(cp['maxblobarea']) + ' maxNblob=' + str(cp['maxblobcount']) )
 
-    if fn.endswidth('.DMCdata'):
-        finf = {'reader':'raw'}
+    if fn.endswith('.DMCdata'):
         xypix=(cp['xpix'],cp['ypix'])
         xybin=(cp['xbin'],cp['ybin'])
         if up['startstop'][0] is None:
@@ -708,9 +707,11 @@ def getvidinfo(fn,cp,up,verbose):
         else:
             finf = getDMCparam(fn,xypix,xybin,
                      (up['startstop'][0], up['startstop'][1], up['framestep']))
+        finf['reader']='raw'
+
         dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
 
-    elif fn.lower().endswidth(('.h5','.hdf5')):
+    elif fn.lower().endswith(('.h5','.hdf5')):
         finf = {'reader':'h5'}
         print('attempting to read HDF5 ' + str(fn))
         dfid = flist
