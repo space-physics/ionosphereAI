@@ -689,13 +689,13 @@ def draw_hsv(flow):
     h, w = flow.shape[:2]
     fx, fy = scaleFact*flow[:,:,0], scaleFact*flow[:,:,1]
     ang = np.arctan2(fy, fx) + np.pi
-    v = np.sqrt(fx*fx+fy*fy)
-    hsv = np.zeros((h, w, 3), np.uint8)
+    mag = np.hypot(fx,fy)
+    hsv = np.empty((h, w, 3), np.uint8)
     hsv[...,0] = ang*(180/np.pi/2)
     hsv[...,1] = 255
-    hsv[...,2] = np.minimum(v*4, 255)
-    bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-    return bgr
+    hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
+    rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+    return rgb
 
 def getvidinfo(fn,cp,up,verbose):
     print('using {} for {}'.format(cp['ofmethod'],fn))
