@@ -1,3 +1,6 @@
 [submodule "histutils"]
 	path = histutils
 	url = https://github.com/scienceopen/histutils
+[submodule "cvutils"]
+	path = cvutils
+	url = https://github.com/scienceopen/cvutils.git
