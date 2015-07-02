@@ -4,11 +4,11 @@ Michael Hirsch Dec 2014
 This program detects aurora in multi-terabyte raw video data files
 It is also used for the Haystack passive FM radar ionospheric activity detection
 """
-from __future__ import division, print_function, absolute_import
+from __future__ import division, absolute_import
 try:
     import cv2
 except ImportError as e:
-    print('*** This program requires OpenCV2 or OpenCV3 installed into your Python')
+    print('This program requires OpenCV2 or OpenCV3 installed into your Python')
     exit(str(e))
 try:
     from cv2 import cv #necessary for Windows, "import cv" doesn't work
@@ -20,7 +20,7 @@ except ImportError:
     #print('legacy OpenCV functions not available, Horn-Schunck method not available')
     #print('legacy OpenCV functions are available in OpenCV2, but not OpenCV3.')
 print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
-from re import search
+#
 from pandas import read_excel
 from os.path import join,isfile, splitext
 import numpy as np
@@ -30,9 +30,14 @@ from time import time
 from tempfile import gettempdir
 from warnings import warn
 #
-from getpassivefm import getfmradarframe
-from histutils.walktree import walktree
-from histutils.rawDMCreader import getDMCparam,getDMCframe
+try:
+    from .getpassivefm import getfmradarframe
+    from .histutils.walktree import walktree
+    from .histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
+except:
+    from getpassivefm import getfmradarframe
+    from histutils.walktree import walktree
+    from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
 
 #plot disable
 showraw=False #often not useful due to no autoscale
@@ -760,17 +765,6 @@ def getvidinfo(fn,cp,up,verbose):
 
 
     return finf, ap, dfid
-
-def getserialnum(flist):
-    """
-    This function assumes the serial number of the camera is in a particular place in the filename.
-    Yes, this is a little lame, but it's how the original 2011 image-writing program worked, and I've
-    carried over the scheme rather than appending bits to dozens of TB of files.
-    """
-    sn = []
-    for f in flist:
-        sn.append(int(search(r'(?<=CamSer)\d{3,6}',f).group()))
-    return sn
 
 def getcamparam(paramfn,flist):
     #uses pandas and xlrd to parse the spreadsheet parameters
