@@ -1,9 +1,10 @@
 import cv2
-from cv2 import cv
+from cv2 import cv #windows needs it this way
 try:
-    from cv import FOURCC as fourcc
+    from cv2.cv import FOURCC as fourcc #Windows needs from cv2.cv
     from cv2 import SimpleBlobDetector as SimpleBlobDetector
-except ImportError:
+except ImportError as e:
+    print(e)
     from cv2 import VideoWriter_fourcc as fourcc
     from cv2 import SimpleBlobDetector_create as SimpleBlobDetector
 #

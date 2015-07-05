@@ -9,28 +9,25 @@ from warnings import warn
 try:
     import cv2
 except ImportError as e:
-    warn('This program requires OpenCV2 or OpenCV3 installed into your Python')
-    exit(str(e))
-try:
-    from cv2 import cv #necessary for Windows, "import cv" doesn't work
-except:
-    warn('legacy CV methods may not work')
+    exit('This program requires OpenCV2 or OpenCV3 installed into your Python.  {}'.format(e))
 print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 #
 from pandas import read_excel
-from os.path import join,isfile, splitext
+from os.path import join,isfile
 import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
 from time import time
 #
 try:
+    from .pyimagevideo.getaviprop import getaviprop
     from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
     from .cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
     from .getpassivefm import getfmradarframe
     from .histutils.walktree import walktree
     from .histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
 except:
+    from pyimagevideo.getaviprop import getaviprop
     from cvops import dooptflow,dothres,dodespeck,domorph,doblob
     from cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
     from getpassivefm import getfmradarframe
@@ -50,7 +47,7 @@ pshow = ('thres','final')
 #'morph'
 #'final'
 #'det'
-#savedet 
+#savedet
 complvl = 4 #tradeoff b/w speed and filesize for TIFF
 
 #only import matplotlib if needed to save time
@@ -76,17 +73,12 @@ def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
 
 def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     tic = time()
-    #setup output file
-    stem = splitext(f)[0]
-    detfn = join(up['outdir'],f +'_detections.h5')
-    if isfile(detfn):
-        print('** overwriting existing ' + detfn)
 
     try:
         cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
-    except KeyError:
-        print('* using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
-        cp = camparam.iloc[:,s] #fallback to first column
+    except (KeyError,ValueError):
+        warn('using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
+        cp = camparam.iloc[:,0] #fallback to first column
 
     finf,ap,dfid = getvidinfo(f,cp,up,verbose)
     if finf is None: return
@@ -153,9 +145,12 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
         print(str(e))
 
     print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
-    if savedet:
-        detfn = stem + '_det.h5'
-        detpltfn = stem + '_det.png'
+    if 'savedet' in pshow:
+        detfn = join(up['outdir'],f +'_detections.h5')
+        detpltfn = join(up['outdir'],f +'_detections.png')
+        if isfile(detfn):
+            warn('overwriting existing ' + detfn)
+
         try:
             print('saving detections to ' + detfn)
             with h5py.File(detfn,'w',libver='latest') as h5fid:
@@ -163,8 +158,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
             print('saving detection plot to ' + detpltfn)
             pl['fdet'].savefig(detpltfn,dpi=100,bbox_inches='tight')
         except Exception as e:
-            print('** trouble saving detection result')
-            print(str(e))
+            warn('trouble saving detection result   '.format(e))
 
     svrelease(svh,savevideo)
     return pl
@@ -190,7 +184,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
     dowiener = np.isfinite(cp['wienernhood'])
 #%% reference frame
 
-    if finf['reader'] == 'raw':
+    if finf['reader'] == 'raw' and dfid is not None:
         if ap['twoframe']:
             frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
             frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
@@ -208,20 +202,24 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
             retval,frameref = dfid.read()
             if not retval:
                 if ifrm==0:
-                    print('*** could not read video file, sorry')
+                    warn('could not read video file, sorry')
                 print('done reading video.')
                 return None, None, ap
-            frameref = cv2.cvtColor(frameref, cv2.COLOR_BGR2GRAY)
+            if frameref.ndim>2:
+                frameref = cv2.cvtColor(frameref, cv2.COLOR_RGB2GRAY)
             if dowiener:
                 frameref = wiener(frameref,cp['wienernhood'])
 
         retval,frame16 = dfid.read() #TODO this is skipping every other frame!
+        # TODO can we use dfid.set(cv.CV_CAP_PROP_POS_FRAMES,ifrm) to set 0-based index of next frame?
         rfi = ifrm
         if not retval:
-            print('*** could not read video from file!')
+            warn('could not read video from file!')
             return None, None, ap
-        #FIXME what if the original avi is gray? didn't try this yet.
-        framegray = cv2.cvtColor(frame16, cv2.COLOR_BGR2GRAY)
+        if frame16.ndim>2:
+            framegray = cv2.cvtColor(frame16, cv2.COLOR_RGB2GRAY)
+        else:
+            framegray = frame16 #copy NOT needed
     elif finf['reader'] == 'h5':   #one frame per file
         if ap['twoframe']:
             frameref = getfmradarframe(dfid[ifrm])[2]
@@ -285,7 +283,7 @@ def getvidinfo(fn,cp,up,verbose):
 
     elif fn.lower().endswith(('.h5','.hdf5')):
         finf = {'reader':'h5'}
-        print('attempting to read HDF5 ' + str(fn))
+        print('attempting to read HDF5 {}'.format(fn))
         dfid = flist
         finf['nframe'] = len(dfid) # currently the passive radar uses one file per frame
 
@@ -295,17 +293,19 @@ def getvidinfo(fn,cp,up,verbose):
         finf['frameind'] = np.arange(finf['nframe'],dtype=np.int64)
     else:
         #FIXME start,stop,step is not yet implemented, simply uses every other frame
-        print('attempting to read ' + str(fn) + ' with OpenCV.')
+        print('attempting to read {} with OpenCV.'.format(fn))
         finf = {'reader':'cv2'}
+
         dfid = cv2.VideoCapture(fn)
-        nframe = np.int64(dfid.get(cv.CV_CAP_PROP_FRAME_COUNT))
-        xpix = int(dfid.get(cv.CV_CAP_PROP_FRAME_WIDTH))
-        ypix = int(dfid.get(cv.CV_CAP_PROP_FRAME_HEIGHT))
+        nframe,xpix,ypix,fps,codec=getaviprop(dfid)
+
+
+
         if nframe<1 or xpix<1 or ypix<1:
-            print('** I may not be reading {} correctly, trying anyway by reading an initial frame..'.format(fn))
+            warn('I may not be reading {} correctly, trying anyway by reading an initial frame..'.format(fn))
             retval, frame =dfid.read()
             if not retval:
-                print('*** could not succeed in any way to read '+str(fn))
+                warn('could not succeed in any way to read '+str(fn))
                 return None, None, None
             ypix,xpix = frame.shape
             finf['nframe'] = 100000 #FIXME guessing how many frames in file
@@ -320,12 +320,10 @@ def getvidinfo(fn,cp,up,verbose):
 #%% extract analysis parameters
     ap = {'twoframe':bool(cp['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
           'ofmethod':cp['ofmethod'].lower(),
-          'rawframeind': np.empty(finf['nframe'],dtype='int64'), #int64 for very large files on Windows Python 2.7, long is not available on Python3
+          'rawframeind': np.empty(finf['nframe'],np.int64), #int64 for very large files on Windows Python 2.7, long is not available on Python3
           'rawlim': (cp['cmin'], cp['cmax']),
           'xpix': finf['superx'], 'ypix':finf['supery'],
           'thresmode':cp['thresholdmode'].lower()}
-
-
 
     return finf, ap, dfid
 
@@ -336,8 +334,8 @@ def getcamparam(paramfn,flist):
     else:
         #FIXME add your own criteria to pick which spreadsheet paramete column to use.
         # for now I tell it to just use the first column (same criteria for all files)
-        print('* using first column of spreadsheet only for camera parameters')
-        camser = [0] * len(flist) #we don't need to bother with itertools.repeat, we have a short list
+        warn('using first column of spreadsheet only for camera parameters')
+        camser = [None] * len(flist)
 
     camparam = read_excel(paramfn,index_col=0,header=0) #returns a nicely indexable DataFrame
     return camser, camparam
@@ -377,10 +375,10 @@ if __name__=='__main__':
         savevideo='vid'
     else:
         savevideo=''
-
+#%% run program (allowing ctrl+c to exit)
     try:
+        #note, if a specific file is given, vidext is ignored
         flist = walktree(a.indir,'*.' + a.vidext)
-
         if a.profile:
             import cProfile,pstats
             profFN = 'profstats.pstats'
