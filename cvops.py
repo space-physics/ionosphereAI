@@ -2,8 +2,7 @@ import cv2
 from cv2 import cv #necessary for Windows, "import cv" doesn't work
 import numpy as np
 
-
-try:    
+try:
     from .CVutils.cv2draw import draw_flow,flow2magang,draw_hsv
 except:
     from CVutils.cv2draw import draw_flow,flow2magang,draw_hsv
@@ -153,7 +152,7 @@ def domorph(despeck,kern,svh,pshow):
         if svh['save'] == 'tif':
             svh['erode'].save(eroded,compress=svh['complvl'])
         elif svh['save'] == 'vid':
-            svh['erod'].write(eroded)
+            svh['erode'].write(eroded)
 
     if svh['close'] is not None:
         if svh['save'] == 'tif':
