@@ -1,7 +1,5 @@
 scipy
 pandas
-opencv
 numpy
 matplotlib
 h5py
-tifffile
