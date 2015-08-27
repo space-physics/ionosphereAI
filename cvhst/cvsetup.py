@@ -17,7 +17,7 @@ from matplotlib.colors import LogNorm
 
 def setupkern(ap,cp):
     if not cp['openradius'] % 2:
-        exit('*** detectaurora: openRadius must be ODD')
+        raise ValueError('openRadius must be ODD')
 
     kern = {}
     kern['open'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,

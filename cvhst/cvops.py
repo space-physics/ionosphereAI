@@ -1,11 +1,8 @@
 import cv2
 from cv2 import cv #necessary for Windows, "import cv" doesn't work
 import numpy as np
-
-try:
-    from .CVutils.cv2draw import draw_flow,flow2magang,draw_hsv
-except:
-    from CVutils.cv2draw import draw_flow,flow2magang,draw_hsv
+#
+from CVutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
 def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl,pshow):
 

@@ -24,15 +24,14 @@ try:
     from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
     from .cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
     from .getpassivefm import getfmradarframe
-    from .histutils.walktree import walktree
-    from .histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
 except:
     from pyimagevideo.getaviprop import getaviprop
     from cvops import dooptflow,dothres,dodespeck,domorph,doblob
     from cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
     from getpassivefm import getfmradarframe
-    from histutils.walktree import walktree
-    from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
+#
+from histutils.walktree import walktree
+from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
 
 #plot disable
 pshow = ('thres','final')

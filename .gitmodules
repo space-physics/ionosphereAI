@@ -1,6 +1,0 @@
-[submodule "histutils"]
-	path = histutils
-	url = https://github.com/scienceopen/histutils
-[submodule "CVutils"]
-	path = CVutils
-	url = https://github.com/scienceopen/CVutils.git
