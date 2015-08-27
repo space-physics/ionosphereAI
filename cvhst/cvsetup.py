@@ -1,6 +1,6 @@
 import cv2
-from cv2 import cv #windows needs it this way
 try:
+    from cv2 import cv #windows needs it this way
     from cv2.cv import FOURCC as fourcc #Windows needs from cv2.cv
     from cv2 import SimpleBlobDetector as SimpleBlobDetector
 except ImportError as e:
@@ -11,6 +11,7 @@ except ImportError as e:
 from tempfile import gettempdir
 import numpy as np
 from os.path import join
+from warnings import warn
 from matplotlib.pylab import figure
 from matplotlib.colors import LogNorm
 #from matplotlib.cm import get_cmap
@@ -47,8 +48,8 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
         try:
             from tifffile import TiffWriter  #pip install tifffile
         except ImportError as e:
-            print('** I cannot save iterated video results due to missing tifffile module')
-            print('try pip install tifffile')
+            warn('I cannot save iterated video results due to missing tifffile module')
+            print('try   pip install tifffile')
             print(str(e))
             return svh
 
@@ -69,7 +70,7 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
     elif savevideo == 'vid':
         wfps = up['fps']
         if wfps<3:
-            print('* note: VLC media player had trouble with video slower than about 3 fps')
+            warn('VLC media player had trouble with video slower than about 3 fps')
 
 
         """ if grayscale video, isColor=False
@@ -96,7 +97,7 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
 
         for k,v in svh.items():
             if v is not None and not v.isOpened():
-                exit('*** trouble writing video for ' + k)
+                raise TypeError('trouble writing video for ' + k)
 
     return svh
 
@@ -125,8 +126,8 @@ def setupof(ap,cp):
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             lastflow = np.nan #nan instead of None to signal to use OF instead of GMM
         except NameError as e:
-            print("*** OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}  Please use another CV method".format(ap['ofmethod'],cv2.__version__))
-            exit(str(e))
+            raise ImportError("OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}  Please use another CV method.  Original error: {}".format(ap['ofmethod'],cv2.__version__,e))
+
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
     elif ap['ofmethod'] == 'mog':
@@ -134,7 +135,7 @@ def setupof(ap,cp):
             gmm = cv2.BackgroundSubtractorMOG(history=cp['nhistory'],
                                                nmixtures=cp['nmixtures'],)
         except AttributeError as e:
-            exit('*** MOG is for OpenCV2 only.   ' + str(e))
+            raise ImportError('MOG is for OpenCV2 only.   ' + str(e))
     elif ap['ofmethod'] == 'mog2':
         print('* CAUTION: currently inputting the same paramters gives different'+
         ' performance between OpenCV 2 and 3. Informally OpenCV 3 works a lot better.')
@@ -154,15 +155,15 @@ def setupof(ap,cp):
             gmm = cv2.createBackgroundSubtractorKNN(history=cp['nhistory'],
                                                     detectShadows=True)
         except AttributeError as e:
-            exit('KNN is for OpenCV3 only. ' + str(e))
+            raise ImportError('KNN is for OpenCV3 only. ' + str(e))
     elif ap['ofmethod'] == 'gmg':
         try:
             gmm = cv2.createBackgroundSubtractorGMG(initializationFrames=cp['nhistory'])
         except AttributeError as e:
-            exit('GMG is for OpenCV3 only, but is currently part of opencv_contrib. ' + str(e))
+            raise ImportError('GMG is for OpenCV3 only, but is currently part of opencv_contrib. ' + str(e))
 
     else:
-        exit('*** unknown method ' + ap['ofmethod'])
+        raise TypeError('unknown method ' + ap['ofmethod'])
 
     return (umat, vmat), lastflow, ofmed, gmm
 

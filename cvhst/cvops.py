@@ -1,8 +1,12 @@
 import cv2
-from cv2 import cv #necessary for Windows, "import cv" doesn't work
 import numpy as np
+try:
+    from cv2 import cv #necessary for Windows, "import cv" doesn't work
+except:
+#TODO: openCV 3.0 has legacy code buried in opencv-extra
+    pass
 #
-from CVutils.cv2draw import draw_flow,flow2magang,draw_hsv
+from cvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
 def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl,pshow):
 
