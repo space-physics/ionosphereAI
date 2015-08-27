@@ -6,10 +6,7 @@ It is also used for the Haystack passive FM radar ionospheric activity detection
 """
 from __future__ import division, absolute_import
 from warnings import warn
-try:
-    import cv2
-except ImportError as e:
-    exit('This program requires OpenCV2 or OpenCV3 installed into your Python.  {}'.format(e))
+import cv2
 print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 #
 from pandas import read_excel
@@ -19,18 +16,11 @@ from scipy.signal import wiener
 from scipy.misc import bytescale
 from time import time
 #
-try:
-    from .pyimagevideo.getaviprop import getaviprop
-    from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
-    from .cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
-    from .getpassivefm import getfmradarframe
-except:
-    from pyimagevideo.getaviprop import getaviprop
-    from cvops import dooptflow,dothres,dodespeck,domorph,doblob
-    from cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
-    from getpassivefm import getfmradarframe
+from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
+from .cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
+from .getpassivefm import getfmradarframe
 #
-from histutils.walktree import walktree
+from cvutils.getaviprop import getaviprop
 from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
 
 #plot disable
@@ -338,53 +328,3 @@ def getcamparam(paramfn,flist):
 
     camparam = read_excel(paramfn,index_col=0,header=0) #returns a nicely indexable DataFrame
     return camser, camparam
-
-if __name__=='__main__':
-    from argparse import ArgumentParser
-    p = ArgumentParser(description='detects aurora in raw video files')
-    p.add_argument('indir',help='specify file, OR top directory over which to recursively find video files',type=str,nargs='+')
-    p.add_argument('-e','--vidext',help='extension of raw video file',type=str,default='DMCdata')
-    p.add_argument('--fps',help='output file FPS (note VLC needs fps>=3)',type=float,default=3)
-    p.add_argument('-p','--framebyframe',help='space bar toggles play/pause', action='store_true')
-    p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
-    p.add_argument('-t','--savetiff',help='save tiff at each step (can make enormous files)',action='store_true')
-    p.add_argument('-k','--step',help='frame step skip increment (default 10000)',type=int,default=1)
-    p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,None))
-    p.add_argument('-o','--outdir',help='directory to put output files in',type=str,default='') #None doesn't work with Windows
-    p.add_argument('--ms',help='keogram/montage step [1000] dont make it too small like 1 or output is as big as original file!',type=int,default=1000)
-    p.add_argument('-c','--contrast',help='[low high] data numbers to bound video contrast',type=int,nargs=2,default=(None,None))
-    p.add_argument('--rejectvid',help='reject raw video files with less than this many frames',type=int,default=10)
-    p.add_argument('-r','--rejectdet',help='reject files that have fewer than this many detections',type=int,default=10)
-    p.add_argument('--paramfn',help='parameter file for cameras',type=str,default='camparam.xlsx')
-    p.add_argument('-v','--verbose',help='verbosity',action='store_true')
-    p.add_argument('--profile',help='profile debug',action='store_true')
-    a = p.parse_args()
-
-    uparams = {'rejvid':a.rejectvid,
-              'framestep':a.step,
-              'startstop':a.frames,
-              'montstep':a.ms,'clim':a.contrast,
-              'paramfn':a.paramfn,'rejdet':a.rejectdet,'outdir':a.outdir,
-              'fps':a.fps
-              }
-
-    if a.savetiff:
-        savevideo='tif'
-    elif a.savevideo:
-        savevideo='vid'
-    else:
-        savevideo=''
-#%% run program (allowing ctrl+c to exit)
-    try:
-        #note, if a specific file is given, vidext is ignored
-        flist = walktree(a.indir,'*.' + a.vidext)
-        if a.profile:
-            import cProfile,pstats
-            profFN = 'profstats.pstats'
-            cProfile.run('main(flist, uparams, savevideo, a.framebyframe, a.verbose)',profFN)
-            pstats.Stats(profFN).sort_stats('time','cumulative').print_stats(50)
-        else:
-            loopaurorafiles(flist, uparams, savevideo, a.framebyframe, a.verbose)
-            #show()
-    except KeyboardInterrupt:
-        exit('aborting per user request')
