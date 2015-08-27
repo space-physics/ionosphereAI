@@ -35,7 +35,7 @@ from Terminal::
 
   git clone --recursive --depth 1 https://github.com/scienceopen/cv-hst.git
   conda install --file requirements.txt
-  pip install -r piprequirements.txt
+  python setup.py develop
 
 If using Python 3, see https://scivision.co/anaconda-python-opencv3/
 
