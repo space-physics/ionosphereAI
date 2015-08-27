@@ -262,10 +262,11 @@ def getvidinfo(fn,cp,up,verbose):
         xypix=(cp['xpix'],cp['ypix'])
         xybin=(cp['xbin'],cp['ybin'])
         if up['startstop'][0] is None:
-            finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose)
+            finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose=verbose)
         else:
             finf = getDMCparam(fn,xypix,xybin,
-                     (up['startstop'][0], up['startstop'][1], up['framestep']))
+                     (up['startstop'][0], up['startstop'][1], up['framestep']),
+                      verbose=verbose)
         finf['reader']='raw'
 
         dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
@@ -273,7 +274,7 @@ def getvidinfo(fn,cp,up,verbose):
     elif fn.lower().endswith(('.h5','.hdf5')):
         finf = {'reader':'h5'}
         print('attempting to read HDF5 {}'.format(fn))
-        dfid = flist
+        dfid = fn
         finf['nframe'] = len(dfid) # currently the passive radar uses one file per frame
 
         range_km,vel_mps = getfmradarframe(fn)[:2] #assuming all frames are the same size
