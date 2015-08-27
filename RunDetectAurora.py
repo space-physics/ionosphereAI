@@ -28,7 +28,8 @@ def rundetect(p):
     try:
         #note, if a specific file is given, vidext is ignored
         flist = walktree(p.indir,'*.' + p.vidext)
-        print(len(flist))
+        print('working with {} files.'.format(len(flist)))
+
         if p.profile:
             import cProfile,pstats
             profFN = 'profstats.pstats'
@@ -36,7 +37,6 @@ def rundetect(p):
             pstats.Stats(profFN).sort_stats('time','cumulative').print_stats(50)
         else:
             loopaurorafiles(flist, uparams, savevideo, p.framebyframe, p.verbose)
-            #show()
     except KeyboardInterrupt:
         exit('aborting per user request')
 

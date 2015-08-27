@@ -126,7 +126,7 @@ def setupof(ap,cp):
             vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
             lastflow = np.nan #nan instead of None to signal to use OF instead of GMM
         except NameError as e:
-            raise ImportError("OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}  Please use another CV method.  Original error: {}".format(ap['ofmethod'],cv2.__version__,e))
+            raise ImportError("OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}.  Please use another CV method.  Original error: {}".format(ap['ofmethod'],cv2.__version__,e))
 
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
