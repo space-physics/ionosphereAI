@@ -1,4 +1,5 @@
 scipy
+scikit-image
 pandas
 numpy
 matplotlib
