@@ -15,7 +15,7 @@ setup(name='cvhst',
                           'https://github.com/scienceopen/cvutils/tarball/master#egg=cvutils'],
 	  install_requires=['histutils','CVutils',
                         'tifffile',
-                        'scipy','scikit-image','numpy','h5py','six','nose'],
+                        'h5py','six','nose'],
       packages=['cvhst'],
 	  )
 
