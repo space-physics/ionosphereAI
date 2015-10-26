@@ -1,26 +1,34 @@
 ======
 cv-hst
 ======
+
+:Author: Michael Hirsch
+
 Computer Vision functions made for working with auroral video
 
+
+.. contents::
+
 Usage
-------
-* Load and process all .AVI in a directory::
+=====
+A few common uses:
 
-    python detectaurora.py ~/mydir --ext avi
+Load and process all .AVI in a directory
+----------------------------------------
+::
 
-The line above will find all the .avi files in directory ~/mydir and play them back with analysis.
+    python RunDetectAurora.py ~/mydir -e avi
 
-* Load and process a specific file::
+This will find all the .avi files in directory ~/mydir and play them back with analysis.
 
-    python detectaurora.py ~/mydir/myvideo.avi
+Load and process a specific file
+--------------------------------
+::
 
-The line above will read a specific file(s)
+    python RunDetectAurora.py ~/mydir/myvideo.avi
 
--------------
-
-Program disk outputs include:
-
+Hard disk outputs
+-----------------
 * PNG figure plot of the number of auroral detections per video frame sampled
 * HDF5 file of the data in the PNG plot (so that you can use another program to extract the GB of interesting data from TB file
 
@@ -30,17 +38,16 @@ The program also reads our multi-terabyte .DMCdata video files in a proprietary 
 It is trivial to adapt the program to ingest NetCDF, HDF5 and many other formats--just contact me.
 
 Install
----------------
-from Terminal::
+=======
+::
 
-  git clone --recursive --depth 1 https://github.com/scienceopen/cv-hst.git
+  git clone --depth 1 https://github.com/scienceopen/cv-hst.git
   conda install --file requirements.txt
   python setup.py develop
 
-If using Python 3, see https://scivision.co/anaconda-python-opencv3/
+`If using Python 3 <https://scivision.co/anaconda-python-opencv3/>`_
 
 Tested with
 ------------
-Python 3.4 / 2.7
-
-OpenCV 3.0 / 2.4
+* Python 3.4 / 2.7
+* OpenCV 3.0 / 2.4
