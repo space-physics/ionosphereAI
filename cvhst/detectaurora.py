@@ -5,10 +5,11 @@ This program detects aurora in multi-terabyte raw video data files
 It is also used for the Haystack passive FM radar ionospheric activity detection
 """
 from __future__ import division, absolute_import
-from warnings import warn
+import logging
 import cv2
 print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 #
+import h5py
 from pandas import read_excel
 from os.path import join,isfile
 import numpy as np
@@ -43,12 +44,6 @@ complvl = 4 #tradeoff b/w speed and filesize for TIFF
 if np.in1d(('det','hist','ofmag','meanmedian','savedet'),pshow).any():
     from matplotlib.pylab import draw, pause, figure, hist
 
-try:
-    import h5py
-except ImportError as e:
-    warn('h5py not working. Wont be able to save detections to disk')
-    print(str(e))
-    savedet=False
 
 def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
     if not flist:
