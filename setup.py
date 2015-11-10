@@ -15,7 +15,7 @@ setup(name='cvhst',
                           'https://github.com/scienceopen/cvutils/tarball/master#egg=cvutils'],
 	  install_requires=['histutils','CVutils',
                         'tifffile',
-                        'h5py','six','nose'],
+                        'pathlib2>=2.1.0'],
       packages=['cvhst'],
 	  )
 
