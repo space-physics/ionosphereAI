@@ -320,7 +320,14 @@ def getvidinfo(fn,cp,up,verbose):
     elif fn.suffix.lower() in ('.fit','.fits'):
         finf = {'reader':'fits'}
         dfid = fn
-        with fits.open(str(fn),mode='readonly') as h:
+        """
+        have not tried memmap=True
+        with memmap=False, whole file is read in to access even single element.
+        Linux file system caching should make this speedy even with memmap=False
+        YMMV.
+        http://docs.astropy.org/en/stable/io/fits/#working-with-large-files
+        """
+        with fits.open(str(fn),mode='readonly',memmap=False) as h:
             finf['nframe'] = h[0].header['NAXIS3']
             finf['superx'] = h[0].header['NAXIS1']
             finf['supery'] = h[0].header['NAXIS2']
