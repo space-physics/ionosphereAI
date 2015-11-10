@@ -47,8 +47,7 @@ if np.in1d(('det','hist','ofmag','meanmedian','savedet'),pshow).any():
 
 def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
     if not flist:
-        warn('no files specified')
-        return
+        raise ValueError('no files found')
 
     camser,camparam = getcamparam(up['paramfn'],flist)
 
@@ -61,7 +60,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     try:
         cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
     except (KeyError,ValueError):
-        warn('using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
+        logging.error('using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
         cp = camparam.iloc[:,0] #fallback to first column
 
     finf,ap,dfid = getvidinfo(f,cp,up,verbose)
@@ -133,7 +132,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
         detfn = join(up['outdir'],f +'_detections.h5')
         detpltfn = join(up['outdir'],f +'_detections.png')
         if isfile(detfn):
-            warn('overwriting existing ' + detfn)
+            logging.warning('overwriting existing ' + detfn)
 
         try:
             print('saving detections to ' + detfn)
@@ -142,7 +141,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
             print('saving detection plot to ' + detpltfn)
             pl['fdet'].savefig(detpltfn,dpi=100,bbox_inches='tight')
         except Exception as e:
-            warn('trouble saving detection result   '.format(e))
+            logging.critical('trouble saving detection result   '.format(e))
 
     svrelease(svh,savevideo)
     return pl
@@ -186,7 +185,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
             retval,frameref = dfid.read()
             if not retval:
                 if ifrm==0:
-                    warn('could not read video file, sorry')
+                    logging.error('could not read video file, sorry')
                 print('done reading video.')
                 return None, None, ap
             if frameref.ndim>2:
@@ -198,7 +197,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
         # TODO can we use dfid.set(cv.CV_CAP_PROP_POS_FRAMES,ifrm) to set 0-based index of next frame?
         rfi = ifrm
         if not retval:
-            warn('could not read video from file!')
+            logging.warning('could not read video from file!')
             return None, None, ap
         if frame16.ndim>2:
             framegray = cv2.cvtColor(frame16, cv2.COLOR_RGB2GRAY)
@@ -287,10 +286,10 @@ def getvidinfo(fn,cp,up,verbose):
 
 
         if nframe<1 or xpix<1 or ypix<1:
-            warn('I may not be reading {} correctly, trying anyway by reading an initial frame..'.format(fn))
+            logging.warning('I may not be reading {} correctly, trying anyway by reading an initial frame..'.format(fn))
             retval, frame =dfid.read()
             if not retval:
-                warn('could not succeed in any way to read '+str(fn))
+                logging.error('could not succeed in any way to read '+str(fn))
                 return None, None, None
             ypix,xpix = frame.shape
             finf['nframe'] = 100000 #FIXME guessing how many frames in file
