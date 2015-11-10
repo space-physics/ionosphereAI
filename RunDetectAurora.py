@@ -27,7 +27,7 @@ def rundetect(p):
 #%% run program (allowing ctrl+c to exit)
     try:
         #note, if a specific file is given, vidext is ignored
-        flist = walktree(p.indir,'*.' + p.vidext)
+        flist = walktree(p.indir,p.vidext)
         print('working with {} files.'.format(len(flist)))
 
         if p.profile:
@@ -43,8 +43,8 @@ def rundetect(p):
 if __name__=='__main__':
     from argparse import ArgumentParser
     p = ArgumentParser(description='detects aurora in raw video files')
-    p.add_argument('indir',help='specify file, OR top directory over which to recursively find video files',nargs='+')
-    p.add_argument('-e','--vidext',help='extension of raw video file',default='DMCdata')
+    p.add_argument('indir',help='specify file, OR top directory over which to recursively find video files')
+    p.add_argument('-e','--vidext',help='suffix of raw video file',default='.h5')
     p.add_argument('--fps',help='output file FPS (note VLC needs fps>=3)',type=float,default=3)
     p.add_argument('-p','--framebyframe',help='space bar toggles play/pause', action='store_true')
     p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
