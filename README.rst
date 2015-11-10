@@ -41,13 +41,12 @@ Install
 =======
 ::
 
-  git clone --depth 1 https://github.com/scienceopen/cv-hst.git
-  conda install --file requirements.txt
+  git clone --depth 1 https://github.com/scienceopen/cvhst.git
   python setup.py develop
 
 `If using Python 3 <https://scivision.co/anaconda-python-opencv3/>`_
 
 Tested with
 ------------
-* Python 3.4 / 2.7
+* Python 3.5 / 3.4 / 2.7
 * OpenCV 3.0 / 2.4
