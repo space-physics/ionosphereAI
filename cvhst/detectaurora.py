@@ -9,9 +9,10 @@ import logging
 import cv2
 print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 #
+from astropy.io import fits
 import h5py
 from pandas import read_excel
-from os.path import join,isfile
+from pathlib2 import Path
 import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
@@ -60,11 +61,12 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     try:
         cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
     except (KeyError,ValueError):
-        logging.error('using first column of '+up['paramfn'] + ' as I didnt find '+str(s)+' in it.')
+        logging.error('using first column of {} as I didnt find {} in it.'.format(up['paramfn'],s))
         cp = camparam.iloc[:,0] #fallback to first column
 
     finf,ap,dfid = getvidinfo(f,cp,up,verbose)
-    if finf is None: return
+    if finf is None:
+        return
 #%% setup optional video/tiff writing (mainly for debugging or publication)
     svh = svsetup(savevideo,complvl, ap, cp, up,pshow)
 #%% setup blob
@@ -78,8 +80,10 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
 #%% start main loop
     for ifrm in finf['frameind'][:-1]:
 #%% load and filter
-        framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
-        if framegray is None: break
+        try:
+            framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
+        except:
+            break
 #%% compute optical flow or Background/Foreground
         if lastflow is not None: #very fast way to check mode
             flow,ofmaggmm,ofmed,pl = dooptflow(framegray,frameref,lastflow,uv,
@@ -127,23 +131,24 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     except Exception as e:
         print(str(e))
 
-    print('{:0.1f}'.format(time()-tic) + ' seconds to process ' + f)
+    print('{:0.1f} seconds to process {}'.format(time()-tic,f))
     if 'savedet' in pshow:
-        detfn = join(up['outdir'],f +'_detections.h5')
-        detpltfn = join(up['outdir'],f +'_detections.png')
-        if isfile(detfn):
-            logging.warning('overwriting existing ' + detfn)
+        detfn =    (Path(up['outdir'])/f +'_detections.h5').expanduser()
+        detpltfn = (Path(up['outdir'])/f +'_detections.png').expanduser()
+        if detfn.is_file():
+            logging.warning('overwriting existing %s', detfn)
 
         try:
             print('saving detections to ' + detfn)
-            with h5py.File(detfn,'w',libver='latest') as h5fid:
+            with h5py.File(str(detfn),'w',libver='latest') as h5fid:
                 h5fid["/det"] = pl['detect']
             print('saving detection plot to ' + detpltfn)
             pl['fdet'].savefig(detpltfn,dpi=100,bbox_inches='tight')
         except Exception as e:
             logging.critical('trouble saving detection result   '.format(e))
+        finally:
+            svrelease(svh,savevideo)
 
-    svrelease(svh,savevideo)
     return pl
 
 
@@ -167,18 +172,19 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
     dowiener = np.isfinite(cp['wienernhood'])
 #%% reference frame
 
-    if finf['reader'] == 'raw' and dfid is not None:
+    if finf['reader'] == 'raw' and dfid:
         if ap['twoframe']:
             frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
             frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
             if dowiener:
                 frameref = wiener(frameref,cp['wienernhood'])
 
-        frame16,rfi = getDMCframe(dfid,ifrm+1,finf)
-        if frame16 is None or rfi is None: #FIXME accidental end of file, smarter way to detect beforehand?
+        try:
+            frame16,rfi = getDMCframe(dfid,ifrm+1,finf)
+            framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+        except (ValueError,IOError):
             ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
-            return None, None, ap
-        framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+            raise
 
     elif finf['reader'] == 'cv2':
         if ap['twoframe']:
@@ -197,19 +203,48 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
         # TODO can we use dfid.set(cv.CV_CAP_PROP_POS_FRAMES,ifrm) to set 0-based index of next frame?
         rfi = ifrm
         if not retval:
-            logging.warning('could not read video from file!')
-            return None, None, ap
+            raise IOError('could not read video from {}'.format(dfid))
+
         if frame16.ndim>2:
             framegray = cv2.cvtColor(frame16, cv2.COLOR_RGB2GRAY)
         else:
             framegray = frame16 #copy NOT needed
-    elif finf['reader'] == 'h5':   #one frame per file
+    elif finf['reader'] == 'h5fm':   #one frame per file
         if ap['twoframe']:
             frameref = getfmradarframe(dfid[ifrm])[2]
             frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
         frame16 = getfmradarframe(dfid[ifrm+1])[2]
         rfi = ifrm
         framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+    elif finf['reader'] == 'h5vid':
+        with h5py.File(str(dfid),'r',libver='latest') as f:
+            if ap['twoframe']:
+                frameref = bytescale(f['/rawimg'][ifrm,...],
+                                     ap['rawlim'][0], ap['rawlim'][1])
+                if dowiener:
+                    frameref = wiener(frameref,cp['wienernhood'])
+
+            #keep frame16 for histogram
+            frame16 = f['/rawimg'][ifrm+1,...]
+        framegray = bytescale(frame16,
+                                 ap['rawlim'][0], ap['rawlim'][1])
+        rfi = ifrm
+
+    elif finf['reader'] == 'fits':
+        with fits.open(str(dfid),mode='readonly') as f:
+            if ap['twoframe']:
+                frameref = bytescale(f[0].data[ifrm,...],
+                                     ap['rawlim'][0], ap['rawlim'][1])
+                if dowiener:
+                    frameref = wiener(frameref,cp['wienernhood'])
+
+            frame16 = f[0].data[ifrm+1,...]
+        framegray = bytescale(frame16,
+                                 ap['rawlim'][0], ap['rawlim'][1])
+
+        rfi = ifrm #TODO: incorrect raw index with sequence of fits files
+    else:
+        raise TypeError('unknown reader type {}'.format(finf['reader']))
 
 
 #%% current frame
@@ -249,10 +284,9 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
 def getvidinfo(fn,cp,up,verbose):
     print('using {} for {}'.format(cp['ofmethod'],fn))
     if verbose:
-        print('minBlob='+str(cp['minblobarea']) + ' maxBlob='+
-          str(cp['maxblobarea']) + ' maxNblob=' + str(cp['maxblobcount']) )
+        print('minBlob={} maxBlob={} maxNblob={}'.format(cp['minblobarea'],cp['maxblobarea'],cp['maxblobcount']) )
 
-    if fn.endswith('.DMCdata'):
+    if fn.suffix.lower() == '.dmcdata':
         xypix=(cp['xpix'],cp['ypix'])
         xybin=(cp['xbin'],cp['ybin'])
         if up['startstop'][0] is None:
@@ -265,18 +299,34 @@ def getvidinfo(fn,cp,up,verbose):
 
         dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
 
-    elif fn.lower().endswith(('.h5','.hdf5')):
-        finf = {'reader':'h5'}
-        print('attempting to read HDF5 {}'.format(fn))
+    elif fn.suffix.lower() in ('.h5','.hdf5'):
         dfid = fn
-        finf['nframe'] = len(dfid) # currently the passive radar uses one file per frame
-
-        range_km,vel_mps = getfmradarframe(fn)[:2] #assuming all frames are the same size
-        finf['superx'] = range_km.size
-        finf['supery'] = vel_mps.size
+#%% determine if optical or passive radar
+        with h5py.File(str(fn),'r') as f:
+            try: #hst image/video file
+                finf = {'reader':'h5vid'}
+                finf['nframe'] = f['rawimg'].shape[0]
+                finf['superx'] = f['rawimg'].shape[2]
+                finf['supery'] = f['rawimg'].shape[1]
+                print('HDF5 video file detected {}'.format(fn))
+            except KeyError: # Haystack passive FM radar file
+                finf = {'reader':'h5fm'}
+                finf['nframe'] = 1 # currently the passive radar uses one file per frame
+                range_km,vel_mps = getfmradarframe(fn)[:2] #assuming all frames are the same size
+                finf['superx'] = range_km.size
+                finf['supery'] = vel_mps.size
+                print('HDF5 passive FM radar file detected {}'.format(fn))
         finf['frameind'] = np.arange(finf['nframe'],dtype=np.int64)
-    else:
-        #FIXME start,stop,step is not yet implemented, simply uses every other frame
+    elif fn.suffix.lower() in ('.fit','.fits'):
+        finf = {'reader':'fits'}
+        dfid = fn
+        with fits.open(str(fn),mode='readonly') as h:
+            finf['nframe'] = h[0].header['NAXIS3']
+            finf['superx'] = h[0].header['NAXIS1']
+            finf['supery'] = h[0].header['NAXIS2']
+        finf['frameind'] = np.arange(finf['nframe'],dtype=np.int64)
+    else: #assume video file
+        #TODO start,stop,step is not yet implemented, simply uses every other frame
         print('attempting to read {} with OpenCV.'.format(fn))
         finf = {'reader':'cv2'}
 
@@ -313,12 +363,12 @@ def getvidinfo(fn,cp,up,verbose):
 
 def getcamparam(paramfn,flist):
     #uses pandas and xlrd to parse the spreadsheet parameters
-    if flist[0].endswith('.DMCdata'):
+    if flist[0].suffix == '.DMCdata':
         camser = getserialnum(flist)
     else:
         #FIXME add your own criteria to pick which spreadsheet paramete column to use.
         # for now I tell it to just use the first column (same criteria for all files)
-        warn('using first column of spreadsheet only for camera parameters')
+        logging.info('using first column of spreadsheet only for camera parameters')
         camser = [None] * len(flist)
 
     camparam = read_excel(paramfn,index_col=0,header=0) #returns a nicely indexable DataFrame
