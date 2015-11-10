@@ -1,3 +1,5 @@
+import logging
+from pathlib2 import Path
 import cv2
 try:
     from cv2 import cv #windows needs it this way
@@ -10,8 +12,6 @@ except ImportError as e:
 #
 from tempfile import gettempdir
 import numpy as np
-from os.path import join
-from warnings import warn
 from matplotlib.pylab import figure
 from matplotlib.colors import LogNorm
 #from matplotlib.cm import get_cmap
@@ -38,7 +38,7 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
     dowiener = np.isfinite(cp['wienernhood'])
 
 
-    tdir = gettempdir()
+    tdir = Path(gettempdir())
     if savevideo:
         print('dumping video output to '+tdir)
     svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,
@@ -48,21 +48,20 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
         try:
             from tifffile import TiffWriter  #pip install tifffile
         except ImportError as e:
-            warn('I cannot save iterated video results due to missing tifffile module')
-            print('try   pip install tifffile')
-            print(str(e))
+            logging.error('I cannot save iterated video results due to missing tifffile module \n'
+                          'try   pip install tifffile \n {}'.format(e))
             return svh
 
         if dowiener:
-            svh['wiener'] = TiffWriter(join(tdir,'wiener.tif'))
+            svh['wiener'] = TiffWriter(str(tdir/'wiener.tif'))
         else:
             svh['wiener'] = None
 
-        svh['video']  = TiffWriter(join(tdir,'video.tif')) if 'rawscaled' in pshow else None
-        svh['thres']  = TiffWriter(join(tdir,'thres.tif')) if 'thres' in pshow else None
-        svh['despeck']= TiffWriter(join(tdir,'despk.tif')) if 'thres' in pshow else None
-        svh['erode']  = TiffWriter(join(tdir,'erode.tif')) if 'morph' in pshow else None
-        svh['close']  = TiffWriter(join(tdir,'close.tif')) if 'morph' in pshow else None
+        svh['video']  = TiffWriter(str(tdir/'video.tif')) if 'rawscaled' in pshow else None
+        svh['thres']  = TiffWriter(str(tdir/'thres.tif')) if 'thres' in pshow else None
+        svh['despeck']= TiffWriter(str(tdir/'despk.tif')) if 'thres' in pshow else None
+        svh['erode']  = TiffWriter(str(tdir/'erode.tif')) if 'morph' in pshow else None
+        svh['close']  = TiffWriter(str(tdir/'close.tif')) if 'morph' in pshow else None
         # next line makes big file
         svh['detect'] = None #TiffWriter(join(tdir,'detect.tif')) if showfinal else None
 
@@ -70,7 +69,7 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
     elif savevideo == 'vid':
         wfps = up['fps']
         if wfps<3:
-            warn('VLC media player had trouble with video slower than about 3 fps')
+            logging.warning('VLC media player had trouble with video slower than about 3 fps')
 
 
         """ if grayscale video, isColor=False
@@ -84,16 +83,16 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
         see https://github.com/scienceopen/python-test-functions/blob/master/videowritetest.py for more info
         """
         if dowiener:
-            svh['wiener'] = cv2.VideoWriter(join(tdir,'wiener.avi'),cc4, wfps,(ypix,xpix),False)
+            svh['wiener'] = cv2.VideoWriter(str(tdir/'wiener.avi'),cc4, wfps,(ypix,xpix),False)
         else:
             svh['wiener'] = None
 
-        svh['video']  = cv2.VideoWriter(join(tdir,'video.avi'), cc4,wfps, (ypix,xpix),False) if 'rawscaled' in pshow else None
-        svh['thres']  = cv2.VideoWriter(join(tdir,'thres.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
-        svh['despeck']= cv2.VideoWriter(join(tdir,'despk.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
-        svh['erode']  = cv2.VideoWriter(join(tdir,'erode.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
-        svh['close']  = cv2.VideoWriter(join(tdir,'close.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
-        svh['detect'] = cv2.VideoWriter(join(tdir,'detct.avi'), cc4,wfps, (ypix,xpix),True)  if 'final' in pshow else None
+        svh['video']  = cv2.VideoWriter(str(tdir/'video.avi'), cc4,wfps, (ypix,xpix),False) if 'rawscaled' in pshow else None
+        svh['thres']  = cv2.VideoWriter(str(tdir/'thres.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
+        svh['despeck']= cv2.VideoWriter(str(tdir/'despk.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
+        svh['erode']  = cv2.VideoWriter(str(tdir/'erode.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
+        svh['close']  = cv2.VideoWriter(str(tdir/'close.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
+        svh['detect'] = cv2.VideoWriter(str(tdir/'detct.avi'), cc4,wfps, (ypix,xpix),True)  if 'final' in pshow else None
 
         for k,v in svh.items():
             if v is not None and not v.isOpened():
@@ -184,8 +183,6 @@ def setupblob(minblobarea, maxblobarea, minblobdist):
 
 
 def setupfigs(finf,fn,pshow):
-
-
     hiom = None
     if 'ofmag' in pshow:
         figure(30).clf()
