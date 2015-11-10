@@ -216,7 +216,7 @@ def setupfigs(finf,fn,pshow):
         figure(40).clf()
         fgdt = figure(40)
         axdt = fgdt.gca()
-        axdt.set_title('Detections of Aurora: ' + fn,fontsize =10)
+        axdt.set_title('Detections of Aurora: {}'.format(fn))
         axdt.set_xlabel('frame index #')
         axdt.set_ylabel('number of detections')
         axdt.set_ylim((0,10))
