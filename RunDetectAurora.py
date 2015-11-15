@@ -4,7 +4,7 @@ front end (used from Terminal) to auroral detection program
 Michael Hirsch
 """
 from __future__ import absolute_import
-from histutils.walktree import walktree
+from pathlib2 import Path
 from cvhst.detectaurora import loopaurorafiles
 
 def rundetect(p):
@@ -28,7 +28,7 @@ def rundetect(p):
 #%% run program (allowing ctrl+c to exit)
     try:
         #note, if a specific file is given, vidext is ignored
-        flist = walktree(p.indir,p.vidext)
+        flist = sorted(Path(p.indir).expanduser().glob('*'+p.vidext))
         print('working with {} files.'.format(len(flist)))
 
         if p.profile:
