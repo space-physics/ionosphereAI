@@ -338,22 +338,10 @@ def getvidinfo(fn,cp,up,verbose):
         finf = {'reader':'cv2'}
 
         dfid = cv2.VideoCapture(fn)
-        nframe,xpix,ypix,fps,codec=getaviprop(dfid)
-
-
-
-        if nframe<1 or xpix<1 or ypix<1:
-            logging.warning('I may not be reading {} correctly, trying anyway by reading an initial frame..'.format(fn))
-            retval, frame =dfid.read()
-            if not retval:
-                logging.error('could not succeed in any way to read '+str(fn))
-                return None, None, None
-            ypix,xpix = frame.shape
-            finf['nframe'] = 100000 #FIXME guessing how many frames in file
-        else:
-            finf['nframe'] = nframe
-        finf['superx'] = xpix
-        finf['supery'] = ypix
+        vidparam=getaviprop(dfid)
+        finf['nframe'] = vidparam['nframe']
+        finf['superx'] = vidparam['xpix']
+        finf['supery'] = vidparam['ypix']
 
         finf['frameind']=np.arange(finf['nframe'],dtype=np.int64)
 
