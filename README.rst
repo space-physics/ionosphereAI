@@ -1,3 +1,7 @@
+(c) Copyright 2012-2015 Michael Hirsch
+
+This is non-public code. Do not publish or share this code without prior written approval from Michael Hirsch.
+
 ======
 cv-hst
 ======
