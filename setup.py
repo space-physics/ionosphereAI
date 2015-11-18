@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 
 from setuptools import setup
-import subprocess,os
+import subprocess
 
 with open('README.rst','r') as f:
 	long_description = f.read()
 
-try:
-    subprocess.call(['conda','install','--file','requirements.txt'],env={'PATH': os.environ['PATH']},shell=False)
-    ok = True
-except Exception as e:
-    ok = False
 
 setup(name='cvhst',
       version='0.1',
@@ -26,5 +21,8 @@ setup(name='cvhst',
       packages=['cvhst'],
 	  )
 
-if not ok:
+
+try:
+    subprocess.call(['conda','install','--file','requirements.txt'],shell=False)
+except Exception as e:
     print('you will need to install packages in requirements.txt  {}'.format(e))
