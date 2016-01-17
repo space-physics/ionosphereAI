@@ -13,11 +13,11 @@ Computer Vision functions made for working with auroral video
 
 .. contents::
 
-Usage
-=====
+Examples
+========
 A few common uses:
 
-Load and process all .AVI in a directory
+Process all .AVI in a directory
 ----------------------------------------
 ::
 
@@ -25,14 +25,20 @@ Load and process all .AVI in a directory
 
 This will find all the .avi files in directory ~/mydir and play them back with analysis.
 
-Load and process a specific file
+Process a specific file
 --------------------------------
 ::
 
     python RunDetectAurora.py ~/mydir/myvideo.avi
 
+Process DMC sCMOS video
+-----------------------
+::
+
+    python RunDetectAurora.py "~/X/data/DMC2015-11/2015-11-15" -e .fits -p dmc.xlsx
+
 Hard disk outputs
------------------
+=================
 * PNG figure plot of the number of auroral detections per video frame sampled
 * HDF5 file of the data in the PNG plot (so that you can use another program to extract the GB of interesting data from TB file
 
@@ -45,12 +51,14 @@ Install
 =======
 ::
 
-  git clone --depth 1 https://github.com/scienceopen/cvhst.git
   python setup.py develop
 
-`If using Python 3 <https://scivision.co/anaconda-python-opencv3/>`_
+
+Note on installing OpenCV 3
+===========================
+`Install OpenCV 3 on Python 3 <https://scivision.co/anaconda-python-opencv3/>`_
 
 Tested with
 ------------
-* Python 3.5 / 3.4 / 2.7
-* OpenCV 3.0 / 2.4
+* Python 3.5 / 2.7
+* OpenCV 3.1 / 2.4

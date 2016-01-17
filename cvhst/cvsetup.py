@@ -2,19 +2,16 @@ import logging
 from pathlib2 import Path
 import cv2
 try:
-    from cv2 import cv #windows needs it this way
     from cv2.cv import FOURCC as fourcc #Windows needs from cv2.cv
-    from cv2 import SimpleBlobDetector as SimpleBlobDetector
 except ImportError as e:
-    print(e)
     from cv2 import VideoWriter_fourcc as fourcc
-    from cv2 import SimpleBlobDetector_create as SimpleBlobDetector
 #
 from tempfile import gettempdir
 import numpy as np
 from matplotlib.pylab import figure
 from matplotlib.colors import LogNorm
-#from matplotlib.cm import get_cmap
+#
+from cvutils.calcOptFlow import setupuv
 
 def setupkern(ap,cp):
     if not cp['openradius'] % 2:
@@ -121,11 +118,10 @@ def setupof(ap,cp):
     lastflow = None #if it stays None, signals to use GMM
     if ap['ofmethod'] == 'hs':
         try:
-            umat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
-            vmat =   cv.CreateMat(ypix, xpix, cv.CV_32FC1)
+            umat,vmat = setupuv((ypix,xpix))
             lastflow = np.nan #nan instead of None to signal to use OF instead of GMM
         except NameError as e:
-            raise ImportError("OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}.  Please use another CV method.  Original error: {}".format(ap['ofmethod'],cv2.__version__,e))
+            raise ImportError("OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}.  Original error: {}".format(ap['ofmethod'],cv2.__version__,e))
 
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
@@ -162,24 +158,9 @@ def setupof(ap,cp):
             raise ImportError('GMG is for OpenCV3 only, but is currently part of opencv_contrib. ' + str(e))
 
     else:
-        raise TypeError('unknown method ' + ap['ofmethod'])
+        raise TypeError('unknown method {}'.format(ap['ofmethod']))
 
     return (umat, vmat), lastflow, ofmed, gmm
-
-
-def setupblob(minblobarea, maxblobarea, minblobdist):
-    blobparam = cv2.SimpleBlobDetector_Params()
-    blobparam.filterByArea = True
-    blobparam.filterByColor = False
-    blobparam.filterByCircularity = False
-    blobparam.filterByInertia = False
-    blobparam.filterByConvexity = False
-
-    blobparam.minDistBetweenBlobs = minblobdist
-    blobparam.minArea = minblobarea
-    blobparam.maxArea = maxblobarea
-    #blobparam.minThreshold = 40 #we have already made a binary image
-    return SimpleBlobDetector(blobparam)
 
 
 def setupfigs(finf,fn,pshow):
