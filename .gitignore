@@ -1,3 +1,4 @@
+*.xls*#
 *.pstats
 
 # Byte-compiled / optimized / DLL files
