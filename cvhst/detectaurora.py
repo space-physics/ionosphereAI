@@ -19,11 +19,15 @@ from scipy.misc import bytescale
 from time import time
 #
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
-from .cvsetup import setupkern,svsetup,svrelease,setupof,setupblob,setupfigs
+from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs
 from .getpassivefm import getfmradarframe
 #
 from cvutils.getaviprop import getaviprop
-from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
+from cvutils.connectedComponents import setupblob
+try:
+    from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
+except Exception:
+    pass #only used for raw .DMCdata files, many may not need
 
 #plot disable
 pshow = ('thres','final')
@@ -61,7 +65,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     try:
         cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
     except (KeyError,ValueError):
-        logging.error('using first column of {} as I didnt find {} in it.'.format(up['paramfn'],s))
+        logging.info('using first column of {} as I didnt find serial # {} in it.'.format(up['paramfn'],s))
         cp = camparam.iloc[:,0] #fallback to first column
 
     finf,ap,dfid = getvidinfo(f,cp,up,verbose)
@@ -231,7 +235,8 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
         rfi = ifrm
 
     elif finf['reader'] == 'fits':
-        with fits.open(str(dfid),mode='readonly') as f:
+        #memmap = False required thru Astropy 1.1.1 due to BZERO used...
+        with fits.open(str(dfid),mode='readonly',memmap=False) as f:
             if ap['twoframe']:
                 frameref = bytescale(f[0].data[ifrm,...],
                                      ap['rawlim'][0], ap['rawlim'][1])
@@ -322,9 +327,9 @@ def getvidinfo(fn,cp,up,verbose):
         dfid = fn
         """
         have not tried memmap=True
-        with memmap=False, whole file is read in to access even single element.
+        with memmap=False, whole file is read in to access even single data element.
         Linux file system caching should make this speedy even with memmap=False
-        YMMV.
+        --Except if using over network, then the first read can take a long time.
         http://docs.astropy.org/en/stable/io/fits/#working-with-large-files
         """
         with fits.open(str(fn),mode='readonly',memmap=False) as h:

@@ -9,16 +9,17 @@ with open('README.rst','r') as f:
 
 setup(name='cvhst',
       version='0.1',
-	  description='OpenCV auroral detection for the HiST auroral tomography system',
-	  long_description=long_description,
-	  author='Michael Hirsch',
-	  url='https://github.com/scienceopen/cvhst',
-      dependency_links = ['https://github.com/scienceopen/histutils/tarball/master#egg=histutils',
+  	  description='OpenCV auroral detection for the HiST auroral tomography system',
+	   long_description=long_description,
+	   author='Michael Hirsch',
+	   url='https://github.com/scienceopen/cvhst',
+    dependency_links = ['https://github.com/scienceopen/histutils/tarball/master#egg=histutils',
                           'https://github.com/scienceopen/cvutils/tarball/master#egg=cvutils'],
-	  install_requires=['histutils','CVutils',
+	   install_requires=['cvutils',
                         'tifffile',
-                        'pathlib2>=2.1.0'],
-      packages=['cvhst'],
+                        'pathlib2'],
+    extras_require={'histutils':'histutils'},
+    packages=['cvhst'],
 	  )
 
 
