@@ -1,11 +1,13 @@
 import logging
-from pathlib2 import Path
+from pathlib import Path
 import cv2
 try:
     from cv2.cv import FOURCC as fourcc #Windows needs from cv2.cv
 except ImportError as e:
     from cv2 import VideoWriter_fourcc as fourcc
 #
+from datetime import datetime
+from pytz import UTC
 from tempfile import gettempdir
 import numpy as np
 from matplotlib.pylab import figure
@@ -37,7 +39,7 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
 
     tdir = Path(gettempdir())
     if savevideo:
-        print('dumping video output to '+tdir)
+        print('dumping video output to {}'.format(tdir))
     svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,
            'erode':None,'close':None,'detect':None,'save':savevideo,'complvl':complvl}
     if savevideo == 'tif':
@@ -92,8 +94,11 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
         svh['detect'] = cv2.VideoWriter(str(tdir/'detct.avi'), cc4,wfps, (ypix,xpix),True)  if 'final' in pshow else None
 
         for k,v in svh.items():
-            if v is not None and not v.isOpened():
-                raise TypeError('trouble writing video for ' + k)
+            try:
+                if not v.isOpened():
+                    raise TypeError('trouble writing video for {}'.format(k))
+            except AttributeError: #not a cv2 object, duck typing
+                pass
 
     return svh
 
@@ -105,8 +110,10 @@ def svrelease(svh,savevideo):
                     v.close()
         elif savevideo == 'vid':
             for k,v in svh.items():
-                if v is not None:
+                try:
                     v.release()
+                except AttributeError:
+                    pass
     except Exception as e:
         print(str(e))
 
@@ -190,18 +197,22 @@ def setupfigs(finf,fn,pshow):
         axmm.legend(loc='best')
 
 
-    detect = np.nan #in case it falls through to h5py writer
+    detect = np.zeros(finf['frameind'].size-1, dtype=int) #in case it falls through to h5py writer
     hpdt = None; fgdt = None
     if 'det' in pshow or 'savedet' in pshow:
-        detect = np.zeros(finf['frameind'].size, dtype=int)
         figure(40).clf()
         fgdt = figure(40)
         axdt = fgdt.gca()
         axdt.set_title('Detections of Aurora: {}'.format(fn))
-        axdt.set_xlabel('frame index #')
         axdt.set_ylabel('number of detections')
         axdt.set_ylim((0,10))
-        hpdt = axdt.plot(detect)
+        try:
+            dt = [datetime.fromtimestamp(t,tz=UTC) for t in finf['ut1'][:-1]]
+            hpdt = axdt.plot(dt,detect)
+            axdt.set_xlabel('Time [UTC]')
+        except KeyError:
+            hpdt = axdt.plot(finf['frameind'][:-1],detect)
+            axdt.set_xlabel('frame index #')
 
     return {'iofm':hiom, 'pmean':hpmn, 'pmed':hpmd, 'median':medpl, 'mean':meanpl,
             'pdet':hpdt, 'fdet':fgdt, 'detect':detect}
