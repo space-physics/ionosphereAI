@@ -4,7 +4,8 @@ front end (used from Terminal) to auroral detection program
 Michael Hirsch
 """
 from __future__ import absolute_import
-from pathlib2 import Path
+from tempfile import gettempdir
+from pathlib import Path
 #
 from cvhst.detectaurora import loopaurorafiles
 
@@ -51,9 +52,9 @@ if __name__=='__main__':
     p.add_argument('-b','--framebyframe',help='space bar toggles play/pause', action='store_true')
     p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
     p.add_argument('-t','--savetiff',help='save tiff at each step (can make enormous files)',action='store_true')
-    p.add_argument('-k','--step',help='frame step skip increment (default 10000)',type=int,default=1)
+    p.add_argument('-k','--step',help='frame step skip increment',type=int,default=10)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,)*2)
-    p.add_argument('-o','--outdir',help='directory to put output files in',default='') #None doesn't work with Windows
+    p.add_argument('-o','--outdir',help='directory to put output files in',default=gettempdir()) #None doesn't work with Windows
     p.add_argument('--ms',help='keogram/montage step [1000] dont make it too small like 1 or output is as big as original file!',type=int,default=1000)
     p.add_argument('-c','--contrast',help='[low high] data numbers to bound video contrast',type=int,nargs=2,default=(None,)*2)
     p.add_argument('--rejectvid',help='reject raw video files with less than this many frames',type=int,default=10)

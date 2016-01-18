@@ -12,7 +12,7 @@ print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a cons
 from astropy.io import fits
 import h5py
 from pandas import read_excel
-from pathlib2 import Path
+from pathlib import Path
 import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
@@ -24,13 +24,13 @@ from .getpassivefm import getfmradarframe
 #
 from cvutils.getaviprop import getaviprop
 from cvutils.connectedComponents import setupblob
-try:
-    from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum
-except Exception:
-    pass #only used for raw .DMCdata files, many may not need
+#
+from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum,getNeoParam
 
 #plot disable
-pshow = ('thres','final')
+pshow = (#'thres',
+         'final',
+         'det','savedet')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal
 #'hist' ogram
@@ -42,7 +42,7 @@ pshow = ('thres','final')
 #'morph'
 #'final'
 #'det'
-#savedet
+#'savedet' #save detection results (normally use this)
 complvl = 4 #tradeoff b/w speed and filesize for TIFF
 
 #only import matplotlib if needed to save time
@@ -82,7 +82,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
 #%% mag plots setup
     pl = setupfigs(finf,f,pshow)
 #%% start main loop
-    for ifrm in finf['frameind'][:-1]:
+    for jfrm,ifrm in enumerate(finf['frameind'][:-1]):
 #%% load and filter
         try:
             framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
@@ -102,7 +102,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
 #%% morphological ops
         morphed = domorph(despeck,kern,svh,pshow)
 #%% blob detection
-        final = doblob(morphed,blobdetect,framegray,ifrm,svh,pl,pshow) #lint:ok
+        final = doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,pshow) #lint:ok
 #%% plotting in loop
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
@@ -128,7 +128,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
             break
 #%% done looping this file
     try:
-        if finf['reader'] == 'raw':
+        if finf['reader'] in ('raw','fits'):
             dfid.close()
         elif finf['reader'] == 'cv2':
             dfid.release()
@@ -137,17 +137,17 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
 
     print('{:0.1f} seconds to process {}'.format(time()-tic,f))
     if 'savedet' in pshow:
-        detfn =    (Path(up['outdir'])/f +'_detections.h5').expanduser()
-        detpltfn = (Path(up['outdir'])/f +'_detections.png').expanduser()
+        detfn =    Path(up['outdir']).expanduser()/(f.stem +'_detections.h5')
+        detpltfn = Path(up['outdir']).expanduser()/(f.stem +'_detections.png')
         if detfn.is_file():
             logging.warning('overwriting existing %s', detfn)
 
         try:
-            print('saving detections to ' + detfn)
+            print('saving detections to {}'.format(detfn))
             with h5py.File(str(detfn),'w',libver='latest') as h5fid:
                 h5fid["/det"] = pl['detect']
-            print('saving detection plot to ' + detpltfn)
-            pl['fdet'].savefig(detpltfn,dpi=100,bbox_inches='tight')
+            print('saving detection plot to {}'.format(detpltfn))
+            pl['fdet'].savefig(str(detpltfn),dpi=100,bbox_inches='tight')
         except Exception as e:
             logging.critical('trouble saving detection result   '.format(e))
         finally:
@@ -236,14 +236,14 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
 
     elif finf['reader'] == 'fits':
         #memmap = False required thru Astropy 1.1.1 due to BZERO used...
-        with fits.open(str(dfid),mode='readonly',memmap=False) as f:
-            if ap['twoframe']:
-                frameref = bytescale(f[0].data[ifrm,...],
-                                     ap['rawlim'][0], ap['rawlim'][1])
-                if dowiener:
-                    frameref = wiener(frameref,cp['wienernhood'])
+        #with fits.open(str(dfid),mode='readonly',memmap=False) as f:
+        if ap['twoframe']:
+            frameref = bytescale(dfid[0].data[ifrm,...],
+                                 ap['rawlim'][0], ap['rawlim'][1])
+            if dowiener:
+                frameref = wiener(frameref,cp['wienernhood'])
 
-            frame16 = f[0].data[ifrm+1,...]
+        frame16 = dfid[0].data[ifrm+1,...]
         framegray = bytescale(frame16,
                                  ap['rawlim'][0], ap['rawlim'][1])
 
@@ -323,8 +323,6 @@ def getvidinfo(fn,cp,up,verbose):
                 print('HDF5 passive FM radar file detected {}'.format(fn))
         finf['frameind'] = np.arange(finf['nframe'],dtype=np.int64)
     elif fn.suffix.lower() in ('.fit','.fits'):
-        finf = {'reader':'fits'}
-        dfid = fn
         """
         have not tried memmap=True
         with memmap=False, whole file is read in to access even single data element.
@@ -332,11 +330,12 @@ def getvidinfo(fn,cp,up,verbose):
         --Except if using over network, then the first read can take a long time.
         http://docs.astropy.org/en/stable/io/fits/#working-with-large-files
         """
-        with fits.open(str(fn),mode='readonly',memmap=False) as h:
-            finf['nframe'] = h[0].header['NAXIS3']
-            finf['superx'] = h[0].header['NAXIS1']
-            finf['supery'] = h[0].header['NAXIS2']
-        finf['frameind'] = np.arange(finf['nframe'],dtype=np.int64)
+        finf = getNeoParam(fn,up['framestep'])[0]
+        finf['reader']='fits'
+
+        dfid = fits.open(str(fn),mode='readonly',memmap=False)
+
+        #finf['frameind'] = np.arange(0,finf['nframe'],up['framestep'],dtype=np.int64)
     else: #assume video file
         #TODO start,stop,step is not yet implemented, simply uses every other frame
         print('attempting to read {} with OpenCV.'.format(fn))
