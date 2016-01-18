@@ -6,11 +6,12 @@ try:
 except ImportError as e:
     from cv2 import VideoWriter_fourcc as fourcc
 #
+from pandas import DataFrame
 from datetime import datetime
 from pytz import UTC
 from tempfile import gettempdir
 import numpy as np
-from matplotlib.pylab import figure
+from matplotlib.pylab import figure,draw,pause
 from matplotlib.colors import LogNorm
 #
 from cvutils.calcOptFlow import setupuv
@@ -171,48 +172,66 @@ def setupof(ap,cp):
 
 
 def setupfigs(finf,fn,pshow):
-    hiom = None
+#%% optical flow magnitude plot
+
     if 'ofmag' in pshow:
         figure(30).clf()
         figom = figure(30)
         axom = figom.gca()
         hiom = axom.imshow(np.zeros((finf['supery'],finf['superx'])),vmin=1e-4, vmax=0.1,
                            origin='bottom', norm=LogNorm())#, cmap=lcmap) #arbitrary limits
-        axom.set_title('optical flow magnitude')
+        axom.set_title('optical flow magnitude\n{}'.format(fn))
         figom.colorbar(hiom,ax=axom)
+    else:
+        hiom = None
 
-    hpmn = None; hpmd = None; medpl = None; meanpl = None
+#%% stat plot
+    try:
+        dt = [datetime.fromtimestamp(t,tz=UTC) for t in finf['ut1'][:-1]]
+        ut = finf['ut1'][:-1]
+    except KeyError:
+        ut = None
+
+    stat = DataFrame(index=ut,columns=['mean','median','variance','detect'])
+    stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
+    stat[['mean','median','variance']] = np.zeros((finf['frameind'].size-1,3),dtype=float)
+
+    def _timelbl(ax,finf,x,y,lbl=None):
+        if x is not None:
+            hpl = ax.plot(x,y,label=lbl)
+            ax.set_xlabel('Time [UTC]')
+        else:
+            hpl = ax.plot(finf['frameind'][:-1],y,label=lbl)
+            ax.set_xlabel('frame index #')
+        return hpl
+
     if 'meanmedian' in pshow:
-        medpl = np.zeros(finf['frameind'].size, dtype=float) #don't use nan, it won't plot
-        meanpl = medpl.copy()
         figure(31).clf()
-        figmm = figure(31)
-        axmm = figmm.gca()
-        axmm.set_title('mean and median optical flow')
-        axmm.set_xlabel('frame index #')
-        axmm.set_ylim((0,5e-4))
+        ax = figure(31).gca()
+        ax.set_title('optical flow statistics\n{}'.format(fn))
+        ax.set_xlabel('frame index #')
+        ax.set_ylim((0,5e-4))
 
-        hpmn = axmm.plot(meanpl, label='mean')
-        hpmd = axmm.plot(medpl, label='median')
-        axmm.legend(loc='best')
+        hpmn = _timelbl(ax,finf,dt,stat['mean'].values,'mean')
+        hpmd = _timelbl(ax,finf,dt,stat['median'].values,'median')
+        ax.legend(loc='best')
+    else:
+        hpmn = None; hpmd = None;
 
-
-    detect = np.zeros(finf['frameind'].size-1, dtype=int) #in case it falls through to h5py writer
+#%% detections
     hpdt = None; fgdt = None
     if 'det' in pshow or 'savedet' in pshow:
         figure(40).clf()
         fgdt = figure(40)
-        axdt = fgdt.gca()
-        axdt.set_title('Detections of Aurora: {}'.format(fn))
-        axdt.set_ylabel('number of detections')
-        axdt.set_ylim((0,10))
-        try:
-            dt = [datetime.fromtimestamp(t,tz=UTC) for t in finf['ut1'][:-1]]
-            hpdt = axdt.plot(dt,detect)
-            axdt.set_xlabel('Time [UTC]')
-        except KeyError:
-            hpdt = axdt.plot(finf['frameind'][:-1],detect)
-            axdt.set_xlabel('frame index #')
+        ax = fgdt.gca()
+        ax.set_title('Detections of Aurora:\n{}'.format(fn))
+        ax.set_ylabel('number of detections')
+        ax.set_ylim((0,10))
 
-    return {'iofm':hiom, 'pmean':hpmn, 'pmed':hpmd, 'median':medpl, 'mean':meanpl,
-            'pdet':hpdt, 'fdet':fgdt, 'detect':detect}
+        hpdt = _timelbl(ax,finf,dt,stat['detect'].values)
+
+    draw(); pause(0.001) #catch any plot bugs
+
+    pl= {'iofm':hiom, 'pmean':hpmn, 'pmed':hpmd, 'pdet':hpdt, 'fdet':fgdt}
+
+    return pl,stat

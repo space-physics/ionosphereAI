@@ -17,9 +17,13 @@ def rundetect(p):
               'clim':p.contrast,
               'paramfn':p.paramfn,
               'rejdet':p.rejectdet,
-              'outdir':p.outdir,
+              'outdir':Path(p.outdir).expanduser(),
+              'detfn': Path(p.outdir).expanduser() / p.detfn,
               'fps':p.fps
               }
+
+    uparams['outdir'].mkdir(parents=True,exist_ok=True)
+
 
     if p.savetiff:
         savevideo='tif'
@@ -36,12 +40,15 @@ def rundetect(p):
         if p.profile:
             import cProfile,pstats
             profFN = 'profstats.pstats'
-            cProfile.run('loopaurorafiles(flist, uparams, savevideo, p.framebyframe, p.verbose)',profFN)
+            cProfile.run('loopaurorafiles(flist, uparams, detfn,savevideo, p.framebyframe, p.verbose)',profFN)
             pstats.Stats(profFN).sort_stats('time','cumulative').print_stats(50)
+            aurstat = None
         else:
-            loopaurorafiles(flist, uparams, savevideo, p.framebyframe, p.verbose)
+            aurstat = loopaurorafiles(flist, uparams, savevideo, p.framebyframe, p.verbose)
     except KeyboardInterrupt:
         print('aborting per user request')
+
+    return aurstat
 
 if __name__=='__main__':
     from argparse import ArgumentParser
@@ -55,6 +62,7 @@ if __name__=='__main__':
     p.add_argument('-k','--step',help='frame step skip increment',type=int,default=10)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,)*2)
     p.add_argument('-o','--outdir',help='directory to put output files in',default=gettempdir()) #None doesn't work with Windows
+    p.add_argument('-d','--detfn',help='master file to save detections and statistics in HDF5, under outdir',default='auroraldet.h5')
     p.add_argument('--ms',help='keogram/montage step [1000] dont make it too small like 1 or output is as big as original file!',type=int,default=1000)
     p.add_argument('-c','--contrast',help='[low high] data numbers to bound video contrast',type=int,nargs=2,default=(None,)*2)
     p.add_argument('--rejectvid',help='reject raw video files with less than this many frames',type=int,default=10)
@@ -64,4 +72,4 @@ if __name__=='__main__':
     p.add_argument('--profile',help='profile debug',action='store_true')
     p = p.parse_args()
 
-    rundetect(p)
+    aurstat = rundetect(p)
