@@ -65,28 +65,27 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
     stat['mean'].iat[jfrm] = ofmag.mean()
     stat['variance'].iat[jfrm] = np.var(ofmag)
 
-    if 'ofmag' in pshow:
+    if 'stat' in pshow:
         pl['pmed'][0].set_ydata(stat['median'].values)
         pl['pmean'][0].set_ydata(stat['mean'].values)
+    if 'thres' in pshow:
+        #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
+        pl['iofm'].set_data(ofmag)
 
     if 'flowvec' in pshow:
         cv2.imshow('flow vectors', draw_flow(framegray,flow) )
     if 'flowhsv' in pshow:
         mag,ang = flow2magang(flow,np.uint8)
         cv2.imshow('flowHSV', draw_hsv(mag,ang,np.uint8) )
-    if 'ofmag' in pshow:
-        #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
-        pl['iofm'].set_data(ofmag)
-
 
 #    draw(); pause(0.001) #debug
     return flow,ofmag, stat
 
-def dothres(ofmaggmm,medianflow,ap,cp,svh,pshow):
+def dothres(ofmaggmm,medianflow,ap,cp,svh,pshow,isgmm):
     """
     flow threshold, considering median
     """
-    if medianflow is not None: #OptFlow based
+    if ~isgmm: #OptFlow based
         if ap['thresmode'] == 'median':
             if medianflow>1e-6:  #median is scalar
                 lowthres = cp['ofthresmin'] * medianflow #median is scalar!
