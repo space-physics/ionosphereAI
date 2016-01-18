@@ -11,25 +11,27 @@ print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a cons
 #
 from astropy.io import fits
 import h5py
+from datetime import datetime
+from pytz import UTC
 from pandas import read_excel, DataFrame
 from pathlib import Path
 import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
 from time import time
+from matplotlib.pylab import draw, pause, figure, hist,close,show
 #
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
-from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs
+from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 from .getpassivefm import getfmradarframe
 #
 from cvutils.getaviprop import getaviprop
 from cvutils.connectedComponents import setupblob
 #
 from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum,getNeoParam
-
 #plot disable
 pshow = ('thres',
-         'meanmedian',
+         'stat',
          'final',
          'det','savedet')
 #'raw' #often not useful due to no autoscale
@@ -38,17 +40,11 @@ pshow = ('thres',
 # 'flowvec'
 #'flowhsv'
 #'thres'
-#'ofmag'
-#'meanmedian'
 #'morph'
 #'final'
 #'det'
 #'savedet' #save detection results (normally use this)
 complvl = 4 #tradeoff b/w speed and filesize for TIFF
-
-#only import matplotlib if needed to save time
-if np.in1d(('det','hist','ofmag','meanmedian','savedet'),pshow).any():
-    from matplotlib.pylab import draw, pause, figure, hist
 
 
 def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
@@ -61,10 +57,18 @@ def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
 
     for f,s in zip(flist,camser): #iterate over files in list
         stat = procaurora(f,s,camparam,up,savevideo,framebyframe,verbose)
-        aurstat.append(stat)
-
+        aurstat=aurstat.append(stat)
+#%% sort,plot,save results for all files
     aurstat.sort_index(inplace=True) #sort by time
     savestat(aurstat,up['detfn'])
+
+    if stat.index[0] > 1e9: #ut1 instead of index
+        dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
+    else:
+        dt=None
+    statplot(dt,stat.index,stat['mean'],stat['median'],stat['detect'],
+             fn=up['outdir'],pshow='stat')
+    show()
 
     return aurstat
 
@@ -86,7 +90,8 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
 #%% setup blob
     blobdetect = setupblob(cp['minblobarea'], cp['maxblobarea'], cp['minblobdist'])
 #%% cv opt. flow matrix setup
-    uv,lastflow, ofmed, gmm = setupof(ap,cp)
+    uv, lastflow,gmm = setupof(ap,cp)
+    isgmm = lastflow is None
 #%% kernel setup
     kern = setupkern(ap,cp)
 #%% mag plots setup
@@ -99,14 +104,14 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
         except:
             break
 #%% compute optical flow or Background/Foreground
-        if lastflow is not None: #very fast way to check mode
+        if ~isgmm:
             flow,ofmaggmm,stat = dooptflow(framegray,frameref,lastflow,uv,
                                                ifrm,jfrm, ap,cp,pl,stat,pshow)
             lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
         else: #background/foreground
             ofmaggmm = gmm.apply(framegray)
 #%% threshold
-        thres = dothres(ofmaggmm, ofmed, ap,cp,svh,pshow)
+        thres = dothres(ofmaggmm, stat['median'].iat[jfrm],ap,cp,svh,pshow,isgmm)
 #%% despeckle
         despeck = dodespeck(thres,cp['medfiltsize'],svh,pshow)
 #%% morphological ops
@@ -117,9 +122,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
         """
-
-        if np.in1d(('det','hist','ofmag','meanmedian'),pshow).any():
-            draw(); pause(0.001)
+        draw(); pause(0.001)
 
         if not ifrm % 50:
             print('frame {:0d}'.format(ifrm))
@@ -165,6 +168,8 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
             logging.critical('trouble saving detection result   '.format(e))
         finally:
             svrelease(svh,savevideo)
+
+    close('all')
 
     return stat
 
@@ -289,13 +294,11 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
         cv2.imshow('raw video, scaled to 8-bit', framegray)
     # image histograms (to help verify proper scaling to uint8)
     if 'hist' in pshow:
-        figure(321).clf()
-        ax=figure(321).gca()
+        ax=figure().gca()
         hist(frame16.flatten(), bins=128, fc='w',ec='k', log=True)
         ax.set_title('raw uint16 values')
 
-        figure(322).clf()
-        ax=figure(322).gca()
+        ax=figure().gca()
         hist(framegray.flatten(), bins=128, fc='w',ec='k', log=True)
         ax.set_xlim((0,255))
         ax.set_title('normalized video into opt flow')

@@ -11,7 +11,7 @@ from datetime import datetime
 from pytz import UTC
 from tempfile import gettempdir
 import numpy as np
-from matplotlib.pylab import figure,draw,pause
+from matplotlib.pylab import figure,subplots#draw,pause
 from matplotlib.colors import LogNorm
 #
 from cvutils.calcOptFlow import setupuv
@@ -122,7 +122,7 @@ def svrelease(svh,savevideo):
 def setupof(ap,cp):
     xpix = ap['xpix']; ypix = ap['ypix']
 
-    umat = None; vmat = None; gmm=None; ofmed=None
+    umat = None; vmat = None; gmm=None
     lastflow = None #if it stays None, signals to use GMM
     if ap['ofmethod'] == 'hs':
         try:
@@ -168,20 +168,19 @@ def setupof(ap,cp):
     else:
         raise TypeError('unknown method {}'.format(ap['ofmethod']))
 
-    return (umat, vmat), lastflow, ofmed, gmm
+    return (umat, vmat), lastflow,gmm
 
 
 def setupfigs(finf,fn,pshow):
 #%% optical flow magnitude plot
 
-    if 'ofmag' in pshow:
-        figure(30).clf()
-        figom = figure(30)
-        axom = figom.gca()
-        hiom = axom.imshow(np.zeros((finf['supery'],finf['superx'])),vmin=1e-4, vmax=0.1,
+    if 'thres' in pshow:
+        fg = figure()
+        axom = fg.gca()
+        hiom = axom.imshow(np.zeros((finf['supery'],finf['superx'])),vmin=1e-5, vmax=0.1,
                            origin='bottom', norm=LogNorm())#, cmap=lcmap) #arbitrary limits
         axom.set_title('optical flow magnitude\n{}'.format(fn))
-        figom.colorbar(hiom,ax=axom)
+        fg.colorbar(hiom,ax=axom)
     else:
         hiom = None
 
@@ -196,42 +195,44 @@ def setupfigs(finf,fn,pshow):
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
     stat[['mean','median','variance']] = np.zeros((finf['frameind'].size-1,3),dtype=float)
 
-    def _timelbl(ax,finf,x,y,lbl=None):
-        if x is not None:
-            hpl = ax.plot(x,y,label=lbl)
-            ax.set_xlabel('Time [UTC]')
-        else:
-            hpl = ax.plot(finf['frameind'][:-1],y,label=lbl)
-            ax.set_xlabel('frame index #')
-        return hpl
+    hpmn, hpmd, hpdt, fgdt= statplot(dt,finf['frameind'][:-1],
+                                     stat['mean'],stat['median'],stat['detect'],
+                                     fn,pshow)
 
-    if 'meanmedian' in pshow:
-        figure(31).clf()
-        ax = figure(31).gca()
-        ax.set_title('optical flow statistics\n{}'.format(fn))
-        ax.set_xlabel('frame index #')
-        ax.set_ylim((0,5e-4))
-
-        hpmn = _timelbl(ax,finf,dt,stat['mean'].values,'mean')
-        hpmd = _timelbl(ax,finf,dt,stat['median'].values,'median')
-        ax.legend(loc='best')
-    else:
-        hpmn = None; hpmd = None;
-
-#%% detections
-    hpdt = None; fgdt = None
-    if 'det' in pshow or 'savedet' in pshow:
-        figure(40).clf()
-        fgdt = figure(40)
-        ax = fgdt.gca()
-        ax.set_title('Detections of Aurora:\n{}'.format(fn))
-        ax.set_ylabel('number of detections')
-        ax.set_ylim((0,10))
-
-        hpdt = _timelbl(ax,finf,dt,stat['detect'].values)
-
-    draw(); pause(0.001) #catch any plot bugs
+#    draw(); pause(0.001) #catch any plot bugs
 
     pl= {'iofm':hiom, 'pmean':hpmn, 'pmed':hpmd, 'pdet':hpdt, 'fdet':fgdt}
 
     return pl,stat
+
+def statplot(dt,ind,mean,median,detect,fn=None,pshow='stat'):
+    def _timelbl(ax,ind,x,y,lbl=None):
+        if x is not None:
+            hpl = ax.plot(x,y,label=lbl)
+            ax.set_xlabel('Time [UTC]')
+        else:
+            hpl = ax.plot(ind,y,label=lbl)
+            ax.set_xlabel('frame index #')
+        return hpl
+
+    if 'stat' in pshow:
+        fgdt,axs = subplots(1,2,figsize=(12,5))
+        ax = axs[0]
+        ax.set_title('optical flow statistics\n{}'.format(fn))
+        ax.set_xlabel('frame index #')
+        ax.set_ylim((0,5e-3))
+
+        hpmn = _timelbl(ax,ind,dt,mean,'mean')
+        hpmd = _timelbl(ax,ind,dt,median,'median')
+        ax.legend(loc='best')
+#%% detections
+        ax = axs[1]
+        ax.set_title('Detections of Aurora:\n{}'.format(fn))
+        ax.set_ylabel('number of detections')
+        ax.set_ylim((0,10))
+
+        hpdt = _timelbl(ax,ind,dt,detect)
+    else:
+        hpmn = None; hpmd = None; hpdt = None; fgdt = None
+
+    return hpmn, hpmd, hpdt, fgdt
