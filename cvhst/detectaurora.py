@@ -11,7 +11,7 @@ print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a cons
 #
 from astropy.io import fits
 import h5py
-from pandas import read_excel
+from pandas import read_excel, DataFrame
 from pathlib import Path
 import numpy as np
 from scipy.signal import wiener
@@ -28,7 +28,8 @@ from cvutils.connectedComponents import setupblob
 from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum,getNeoParam
 
 #plot disable
-pshow = (#'thres',
+pshow = ('thres',
+         'meanmedian',
          'final',
          'det','savedet')
 #'raw' #often not useful due to no autoscale
@@ -50,20 +51,29 @@ if np.in1d(('det','hist','ofmag','meanmedian','savedet'),pshow).any():
     from matplotlib.pylab import draw, pause, figure, hist
 
 
-def loopaurorafiles(flist, up, savevideo, framebyframe, verbose):
+def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
     if not flist:
         raise ValueError('no files found')
 
     camser,camparam = getcamparam(up['paramfn'],flist)
 
+    aurstat = DataFrame(columns=['mean','median','variance','detect'])
+
     for f,s in zip(flist,camser): #iterate over files in list
-        result = procaurora(f,s,camparam,up,savevideo,framebyframe,verbose)
+        stat = procaurora(f,s,camparam,up,savevideo,framebyframe,verbose)
+        aurstat.append(stat)
+
+    aurstat.sort_index(inplace=True) #sort by time
+    savestat(aurstat,up['detfn'])
+
+    return aurstat
+
 
 def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
     tic = time()
 
     try:
-        cp = camparam[s] #pick the parameters for this camara from pandas DataFrame
+        cp = camparam[s] #pick the parameters for this camera from pandas DataFrame
     except (KeyError,ValueError):
         logging.info('using first column of {} as I didnt find serial # {} in it.'.format(up['paramfn'],s))
         cp = camparam.iloc[:,0] #fallback to first column
@@ -80,7 +90,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
 #%% kernel setup
     kern = setupkern(ap,cp)
 #%% mag plots setup
-    pl = setupfigs(finf,f,pshow)
+    pl,stat = setupfigs(finf,f,pshow)
 #%% start main loop
     for jfrm,ifrm in enumerate(finf['frameind'][:-1]):
 #%% load and filter
@@ -90,8 +100,8 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
             break
 #%% compute optical flow or Background/Foreground
         if lastflow is not None: #very fast way to check mode
-            flow,ofmaggmm,ofmed,pl = dooptflow(framegray,frameref,lastflow,uv,
-                                               ifrm, ap,cp,pl,pshow)
+            flow,ofmaggmm,stat = dooptflow(framegray,frameref,lastflow,uv,
+                                               ifrm,jfrm, ap,cp,pl,stat,pshow)
             lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
         else: #background/foreground
             ofmaggmm = gmm.apply(framegray)
@@ -102,7 +112,7 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
 #%% morphological ops
         morphed = domorph(despeck,kern,svh,pshow)
 #%% blob detection
-        final = doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,pshow) #lint:ok
+        stat = doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,stat,pshow) #lint:ok
 #%% plotting in loop
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
@@ -127,6 +137,8 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
         if dobreak:
             break
 #%% done looping this file
+
+#%% close data file
     try:
         if finf['reader'] in ('raw','fits'):
             dfid.close()
@@ -134,8 +146,9 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
             dfid.release()
     except Exception as e:
         print(str(e))
+#%% save results for this file
+    print('{:.1f} seconds to process {}'.format(time()-tic,f))
 
-    print('{:0.1f} seconds to process {}'.format(time()-tic,f))
     if 'savedet' in pshow:
         detfn =    Path(up['outdir']).expanduser()/(f.stem +'_detections.h5')
         detpltfn = Path(up['outdir']).expanduser()/(f.stem +'_detections.png')
@@ -143,17 +156,17 @@ def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
             logging.warning('overwriting existing %s', detfn)
 
         try:
-            print('saving detections to {}'.format(detfn))
-            with h5py.File(str(detfn),'w',libver='latest') as h5fid:
-                h5fid["/det"] = pl['detect']
+            savestat(stat,detfn)
+
             print('saving detection plot to {}'.format(detpltfn))
             pl['fdet'].savefig(str(detpltfn),dpi=100,bbox_inches='tight')
+
         except Exception as e:
             logging.critical('trouble saving detection result   '.format(e))
         finally:
             svrelease(svh,savevideo)
 
-    return pl
+    return stat
 
 
 def keyhandler(keypressed,framebyframe):
@@ -167,6 +180,15 @@ def keyhandler(keypressed,framebyframe):
         print('keypress code: ' + str(keypressed))
         return (framebyframe,False)
 
+def savestat(stat,fn):
+    assert isinstance(stat,DataFrame)
+    print('saving detections & statistics to {}'.format(fn))
+
+    with h5py.File(str(fn),'w',libver='latest') as h5:
+        h5['/detect']  = stat['detect']
+        h5['/mean']    = stat['mean']
+        h5['/median']  = stat['median']
+        h5['/variance']= stat['variance']
 
 def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
     """ this function reads the reference frame too--which makes sense if youre
