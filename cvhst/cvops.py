@@ -8,7 +8,9 @@ except:
 #
 from cvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
-def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl,pshow):
+from matplotlib.pyplot import draw,pause #for debug plot
+
+def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
 
     if ap['ofmethod'] == 'hs':
         """
@@ -59,12 +61,13 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl,pshow):
     flow /= 255. #make like matlab, which has normalized data input (opencv requires uint8)
 #%% compute median and magnitude
     ofmag = np.hypot(flow[...,0], flow[...,1])
-    ofmed = np.median(ofmag)
+    stat['median'].iat[jfrm] = np.median(ofmag)#we don't know if it will be index or ut1 in index
+    stat['mean'].iat[jfrm] = ofmag.mean()
+    stat['variance'].iat[jfrm] = np.var(ofmag)
+
     if 'ofmag' in pshow:
-        pl['median'][ifrm] = ofmed
-        pl['mean'][ifrm] = ofmag.mean()
-        pl['pmed'][0].set_ydata(pl['median'])
-        pl['pmean'][0].set_ydata(pl['mean'])
+        pl['pmed'][0].set_ydata(stat['median'].values)
+        pl['pmean'][0].set_ydata(stat['mean'].values)
 
     if 'flowvec' in pshow:
         cv2.imshow('flow vectors', draw_flow(framegray,flow) )
@@ -75,7 +78,9 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,ap,cp,pl,pshow):
         #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
         pl['iofm'].set_data(ofmag)
 
-    return flow,ofmag, ofmed, pl
+
+#    draw(); pause(0.001) #debug
+    return flow,ofmag, stat
 
 def dothres(ofmaggmm,medianflow,ap,cp,svh,pshow):
     """
@@ -167,13 +172,16 @@ def domorph(despeck,kern,svh,pshow):
 
     return closed
 
-def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,pshow):
+def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,stat,pshow):
     """
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     """
+#%% how many blobs
     keypoints = blobdetect.detect(morphed)
     nkey = len(keypoints)
+    stat['detect'].iat[jfrm] = nkey #we don't know if it will be index or ut1 in index
+#%% plot blobs
     final = framegray.copy() # is the .copy necessary?
 
     final = cv2.drawKeypoints(framegray, keypoints, outImage=final,
@@ -192,10 +200,10 @@ def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,pshow):
         elif svh['save'] =='vid':
             svh['detect'].write(final)
 
-    if 'det' in pshow or 'savedet' in pshow or svh['save']:
-        pl['detect'][jfrm] = nkey
-
+#%% plot detection vs. time
     if 'det' in pshow or 'savedet' in pshow: #updates plot with current info
-        pl['pdet'][0].set_ydata(pl['detect'])
+        pl['pdet'][0].set_ydata(stat['detect'].values)
 
-    return pl
+#    draw(); pause(0.001) #debug
+
+    return stat
