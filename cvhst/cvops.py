@@ -167,7 +167,7 @@ def domorph(despeck,kern,svh,pshow):
 
     return closed
 
-def doblob(morphed,blobdetect,framegray,ifrm,svh,pl,pshow):
+def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,pshow):
     """
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
@@ -192,8 +192,10 @@ def doblob(morphed,blobdetect,framegray,ifrm,svh,pl,pshow):
         elif svh['save'] =='vid':
             svh['detect'].write(final)
 
-    if 'det' in pshow or svh['save']:
-        pl['detect'][ifrm] = nkey
+    if 'det' in pshow or 'savedet' in pshow or svh['save']:
+        pl['detect'][jfrm] = nkey
+
+    if 'det' in pshow or 'savedet' in pshow: #updates plot with current info
         pl['pdet'][0].set_ydata(pl['detect'])
 
     return pl
