@@ -8,7 +8,7 @@ except:
 #
 from cvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
-from matplotlib.pyplot import draw,pause #for debug plot
+#from matplotlib.pyplot import draw,pause #for debug plot
 
 def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
 
