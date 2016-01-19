@@ -66,9 +66,11 @@ def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
         dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
     else:
         dt=None
-    statplot(dt,stat.index,stat['mean'],stat['median'],stat['detect'],
-             fn=up['outdir'],pshow='stat')
-    show()
+
+    fgst = statplot(dt,aurstat.index,aurstat['mean'],aurstat['median'],aurstat['detect'],
+             fn=up['outdir'],pshow='stat')[3]
+    draw(); pause(0.001)
+    fgst.savefig(up['detfn'].with_suffix('.png'),bbox_inches='tight',dpi=100)
 
     return aurstat
 
