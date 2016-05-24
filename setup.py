@@ -3,6 +3,13 @@
 from setuptools import setup
 import subprocess
 
+
+try:
+    subprocess.call(['conda','install','--file','requirements.txt'],shell=False)
+except Exception as e:
+    print('you will need to install packages in requirements.txt  {}'.format(e))
+
+
 with open('README.rst','r') as f:
 	long_description = f.read()
 
@@ -17,13 +24,9 @@ setup(name='cvhst',
                           'https://github.com/scienceopen/cvutils/tarball/master#egg=cvutils'],
 	   install_requires=['cvutils',
                         'tifffile',
-                        'pathlib2'],
+                        ],
     extras_require={'histutils':'histutils'},
     packages=['cvhst'],
 	  )
 
 
-try:
-    subprocess.call(['conda','install','--file','requirements.txt'],shell=False)
-except Exception as e:
-    print('you will need to install packages in requirements.txt  {}'.format(e))
