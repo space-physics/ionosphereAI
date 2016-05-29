@@ -24,7 +24,6 @@ setup(name='cvhst',
 	   install_requires=['histutils','cvutils',
                         'tifffile',
                         ],
-    extras_require={'histutils':'histutils'},
 	  )
 
 
