@@ -3,7 +3,6 @@
 front end (used from Terminal) to auroral detection program
 Michael Hirsch
 """
-from __future__ import absolute_import
 from tempfile import gettempdir
 from pathlib import Path
 #
