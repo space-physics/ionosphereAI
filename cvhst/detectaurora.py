@@ -9,11 +9,12 @@ import logging
 import cv2
 print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 #
+from configparser import ConfigParser
 from astropy.io import fits
 import h5py
 from datetime import datetime
 from pytz import UTC
-from pandas import read_excel, DataFrame
+from pandas import read_excel,DataFrame
 from pathlib import Path
 import numpy as np
 from scipy.signal import wiener

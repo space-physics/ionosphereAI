@@ -5,9 +5,9 @@ import subprocess
 
 
 try:
-    subprocess.call(['conda','install','--file','requirements.txt'],shell=False)
+    subprocess.call(['conda','install','--yes','--file','requirements.txt'])
 except Exception as e:
-    print('you will need to install packages in requirements.txt  {}'.format(e))
+    pass
 
 
 with open('README.rst','r') as f:
@@ -15,7 +15,6 @@ with open('README.rst','r') as f:
 
 
 setup(name='cvhst',
-      version='0.1',
   	  description='OpenCV auroral detection for the HiST auroral tomography system',
 	   long_description=long_description,
 	   author='Michael Hirsch',
@@ -26,7 +25,6 @@ setup(name='cvhst',
                         'tifffile',
                         ],
     extras_require={'histutils':'histutils'},
-    packages=['cvhst'],
 	  )
 
 
