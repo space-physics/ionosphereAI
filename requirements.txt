@@ -1,8 +1,6 @@
 setuptools
 nose
-six
 scipy
-scikit-image
 pandas
 numpy
 matplotlib
