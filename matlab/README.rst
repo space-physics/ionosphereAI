@@ -1,4 +1,4 @@
-Copyright 2013 Michael Hirsch, non-public code
+Copyright 2013 Michael Hirsch
 
 ======================
 passive-fm-utils
