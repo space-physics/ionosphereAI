@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 """
 Michael Hirsch Dec 2014
 This program detects aurora in multi-terabyte raw video data files
@@ -20,7 +20,7 @@ import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
 from time import time
-from matplotlib.pylab import draw, pause, figure, hist,close,show
+from matplotlib.pylab import draw, pause, figure, hist,close
 #
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
 from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
