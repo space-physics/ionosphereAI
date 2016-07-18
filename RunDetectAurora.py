@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 front end (used from Terminal) to auroral detection program
 Michael Hirsch
