@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.com/scienceopen/cvhst.svg
-    :target: https://travis-ci.com/scienceopen/cvhst
+.. image:: https://travis-ci.org/scienceopen/cvhst.svg?branch=master
+    :target: https://travis-ci.org/scienceopen/cvhst
     
 Copyright 2012-2016 Michael Hirsch
 
