@@ -16,11 +16,17 @@ Examples
 ========
 A few common uses:
 
+Process Incoherent Scatter Radar data
+-------------------------------------
+Using `raw ISR data <https://github.com/scienceopen/isrutils>`_::
+
+    python Detect.py ~/data/2013-05-01/isr -e .dt3.h5
+
 Process all .AVI in a directory
-----------------------------------------
+---------------------------------
 ::
 
-    python RunDetectAurora.py ~/mydir -e avi
+    python Detect.py ~/mydir -e avi
 
 This will find all the .avi files in directory ~/mydir and play them back with analysis.
 
@@ -28,13 +34,13 @@ Process a specific file
 --------------------------------
 ::
 
-    python RunDetectAurora.py ~/mydir/myvideo.avi
+    python Detect.py ~/mydir/myvideo.avi
 
 Process DMC sCMOS video
 -----------------------
 ::
 
-    python RunDetectAurora.py "~/X/data/DMC2015-11/2015-11-15" -e .fits -p dmc.xlsx
+    python Detect.py "~/data/DMC2015-11/2015-11-15" -e .fits -p dmc.ini
 
 Hard disk outputs
 =================
@@ -48,14 +54,11 @@ It is trivial to adapt the program to ingest NetCDF, HDF5 and many other formats
 
 Install
 =======
+`Install OpenCV on Python <https://scivision.co/anaconda-python-opencv3/>`_
 ::
 
   python setup.py develop
 
-
-Note on installing OpenCV 3
-===========================
-`Install OpenCV 3 on Python 3 <https://scivision.co/anaconda-python-opencv3/>`_
 
 Tested with
 ------------
