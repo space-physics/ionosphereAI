@@ -4,9 +4,9 @@ front end (used from Terminal) to auroral detection program
 Michael Hirsch
 """
 from tempfile import gettempdir
-from pathlib import Path
+from cviono import Path
 #
-from cvhst.detectaurora import loopaurorafiles
+from cviono.detectaurora import loopaurorafiles
 
 def rundetect(p):
     uparams = {'rejvid':p.rejectvid,
