@@ -20,4 +20,8 @@ setup(name='cviono',
                         ],
 	  )
 
-
+try:
+    import cv2
+except Exception:
+    print('you need to install OpenCV for Python. see:')
+    print('https://scivision.co/install-opencv-3-0-x-for-python-on-windows/')
