@@ -1,5 +1,4 @@
 import logging
-from . import Path
 import cv2
 try:
     from cv2.cv import FOURCC as fourcc #Windows needs from cv2.cv
@@ -9,7 +8,6 @@ except ImportError as e:
 from pandas import DataFrame
 from datetime import datetime
 from pytz import UTC
-from tempfile import gettempdir
 import numpy as np
 from matplotlib.pylab import figure,subplots#draw,pause
 from matplotlib.colors import LogNorm
@@ -17,15 +15,16 @@ from matplotlib.colors import LogNorm
 from cvutils.calcOptFlow import setupuv
 
 def setupkern(ap,cp):
-    if not cp['openradius'] % 2:
+    openrad = cp.getint('morph','openradius')
+    if not openrad % 2:
         raise ValueError('openRadius must be ODD')
 
     kern = {}
-    kern['open'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                           (cp['openradius'], cp['openradius']))
+    kern['open'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad,openrad))
     kern['erode'] = kern['open']
     kern['close'] = cv2.getStructuringElement(cv2.MORPH_RECT,
-                                            (cp['closewidth'],cp['closeheight']))
+                                            (cp.getint('morph','closewidth'),
+                                             cp.getint('morph','closeheight')))
     #cv2.imshow('open kernel',openkernel)
     print('open kernel');  print(kern['open'])
     print('close kernel'); print(kern['close'])
@@ -35,12 +34,12 @@ def setupkern(ap,cp):
 
 def svsetup(savevideo,complvl,ap, cp, up,pshow):
     xpix = ap['xpix']; ypix= ap['ypix']
-    dowiener = np.isfinite(cp['wienernhood'])
+
+    dowiener = cp.getint('main','wienernhood',fallback=0)
 
 
-    tdir = Path(gettempdir())
     if savevideo:
-        print('dumping video output to {}'.format(tdir))
+        print('dumping video output to {}'.format(up['odir']))
     svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,
            'erode':None,'close':None,'detect':None,'save':savevideo,'complvl':complvl}
     if savevideo == 'tif':
@@ -53,15 +52,15 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
             return svh
 
         if dowiener:
-            svh['wiener'] = TiffWriter(str(tdir/'wiener.tif'))
+            svh['wiener'] = TiffWriter(str(up['odir'] / 'wiener.tif'))
         else:
             svh['wiener'] = None
 
-        svh['video']  = TiffWriter(str(tdir/'video.tif')) if 'rawscaled' in pshow else None
-        svh['thres']  = TiffWriter(str(tdir/'thres.tif')) if 'thres' in pshow else None
-        svh['despeck']= TiffWriter(str(tdir/'despk.tif')) if 'thres' in pshow else None
-        svh['erode']  = TiffWriter(str(tdir/'erode.tif')) if 'morph' in pshow else None
-        svh['close']  = TiffWriter(str(tdir/'close.tif')) if 'morph' in pshow else None
+        svh['video']  = TiffWriter(str(up['odir'] / 'video.tif')) if 'rawscaled' in pshow else None
+        svh['thres']  = TiffWriter(str(up['odir'] / 'thres.tif')) if 'thres' in pshow else None
+        svh['despeck']= TiffWriter(str(up['odir'] / 'despk.tif')) if 'thres' in pshow else None
+        svh['erode']  = TiffWriter(str(up['odir'] / 'erode.tif')) if 'morph' in pshow else None
+        svh['close']  = TiffWriter(str(up['odir'] / 'close.tif')) if 'morph' in pshow else None
         # next line makes big file
         svh['detect'] = None #TiffWriter(join(tdir,'detect.tif')) if showfinal else None
 
@@ -83,16 +82,16 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
         see https://github.com/scienceopen/python-test-functions/blob/master/videowritetest.py for more info
         """
         if dowiener:
-            svh['wiener'] = cv2.VideoWriter(str(tdir/'wiener.avi'),cc4, wfps,(ypix,xpix),False)
+            svh['wiener'] = cv2.VideoWriter(str(up['odir'] / 'wiener.avi'),cc4, wfps,(ypix,xpix),False)
         else:
             svh['wiener'] = None
 
-        svh['video']  = cv2.VideoWriter(str(tdir/'video.avi'), cc4,wfps, (ypix,xpix),False) if 'rawscaled' in pshow else None
-        svh['thres']  = cv2.VideoWriter(str(tdir/'thres.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
-        svh['despeck']= cv2.VideoWriter(str(tdir/'despk.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
-        svh['erode']  = cv2.VideoWriter(str(tdir/'erode.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
-        svh['close']  = cv2.VideoWriter(str(tdir/'close.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
-        svh['detect'] = cv2.VideoWriter(str(tdir/'detct.avi'), cc4,wfps, (ypix,xpix),True)  if 'final' in pshow else None
+        svh['video']  = cv2.VideoWriter(str(up['odir'] / 'video.avi'), cc4,wfps, (ypix,xpix),False) if 'rawscaled' in pshow else None
+        svh['thres']  = cv2.VideoWriter(str(up['odir'] / 'thres.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
+        svh['despeck']= cv2.VideoWriter(str(up['odir'] / 'despk.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
+        svh['erode']  = cv2.VideoWriter(str(up['odir'] / 'erode.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
+        svh['close']  = cv2.VideoWriter(str(up['odir'] / 'close.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
+        svh['detect'] = cv2.VideoWriter(str(up['odir'] / 'detct.avi'), cc4,wfps, (ypix,xpix),True)  if 'final' in pshow else None
 
         for k,v in svh.items():
             try:
@@ -189,7 +188,7 @@ def setupfigs(finf,fn,pshow):
         dt = [datetime.fromtimestamp(t,tz=UTC) for t in finf['ut1'][:-1]]
         ut = finf['ut1'][:-1]
     except KeyError:
-        ut = None
+        dt = ut = None
 
     stat = DataFrame(index=ut,columns=['mean','median','variance','detect'])
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)

@@ -9,6 +9,7 @@ import logging
 import cv2
 print('OpenCV {}'.format(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 #
+from astropy.io import fits
 import h5py
 from datetime import datetime
 from pytz import UTC
@@ -20,7 +21,7 @@ from scipy.misc import bytescale
 from time import time
 from matplotlib.pylab import draw, pause, figure, hist,close
 #
-from .io import getparam,getvidinfo
+from .io import getparam,getvidinfo,keyhandler,savestat
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
 from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 from .getpassivefm import getfmradarframe
@@ -30,9 +31,8 @@ from cvutils.connectedComponents import setupblob
 from histutils.rawDMCreader import getDMCframe
 #plot disable
 pshow = ('thres',
-         'stat',
-         'final',
-         'det','savedet')
+ #        'stat',
+         'final')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal
 #'hist' ogram
@@ -41,8 +41,6 @@ pshow = ('thres',
 #'thres'
 #'morph'
 #'final'
-#'det'
-#'savedet' #save detection results (normally use this)
 complvl = 4 #tradeoff b/w speed and filesize for TIFF
 
 
@@ -67,9 +65,9 @@ def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
         dt=None
 
     fgst = statplot(dt,aurstat.index,aurstat['mean'],aurstat['median'],aurstat['detect'],
-             fn=up['outdir'],pshow='stat')[3]
+             fn=up['odir'],pshow='stat')[3]
     draw(); pause(0.001)
-    fgst.savefig(up['detfn'].with_suffix('.png'),bbox_inches='tight',dpi=100)
+    fgst.savefig(str(up['detfn'].with_suffix('.png')),bbox_inches='tight',dpi=100)
 
     return aurstat
 
@@ -77,13 +75,15 @@ def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
 def procaurora(f, P,up,savevideo,framebyframe,verbose=False):
     tic = time()
 
-    finf,ap,dfid = getvidinfo(f, P,up,verbose)
+    finf,ap = getvidinfo(f, P,up,verbose)
     if finf is None:
         return
 #%% setup optional video/tiff writing (mainly for debugging or publication)
     svh = svsetup(savevideo,complvl, ap, P, up,pshow)
 #%% setup blob
-    blobdetect = setupblob(P['minblobarea'], P['maxblobarea'], P['minblobdist'])
+    blobdetect = setupblob(P.getfloat('blob','minblobarea'),
+                           P.getfloat('blob','maxblobarea'),
+                           P.getfloat('blob','minblobdist'))
 #%% cv opt. flow matrix setup
     uv, lastflow,gmm = setupof(ap,P)
     isgmm = lastflow is None
@@ -95,8 +95,9 @@ def procaurora(f, P,up,savevideo,framebyframe,verbose=False):
     for jfrm,ifrm in enumerate(finf['frameind'][:-1]):
 #%% load and filter
         try:
-            framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap, P,savevideo,verbose)
-        except Exception:
+            framegray,frameref,ap = getraw(f,ifrm,finf,svh,ap, P,savevideo,verbose)
+        except Exception as e:
+            print('{}  {}'.format(f,e))
             break
 #%% compute optical flow or Background/Foreground
         if ~isgmm:
@@ -108,7 +109,7 @@ def procaurora(f, P,up,savevideo,framebyframe,verbose=False):
 #%% threshold
         thres = dothres(ofmaggmm, stat['median'].iat[jfrm],ap, P,svh,pshow,isgmm)
 #%% despeckle
-        despeck = dodespeck(thres,P['medfiltsize'],svh,pshow)
+        despeck = dodespeck(thres,P.getint('filter','medfiltsize'),svh,pshow)
 #%% morphological ops
         morphed = domorph(despeck,kern,svh,pshow)
 #%% blob detection
@@ -134,22 +135,12 @@ def procaurora(f, P,up,savevideo,framebyframe,verbose=False):
             framebyframe, dobreak = keyhandler(keypressed,framebyframe)
         if dobreak:
             break
-#%% done looping this file
-
-#%% close data file
-    try:
-        if finf['reader'] in ('raw','fits'):
-            dfid.close()
-        elif finf['reader'] == 'cv2':
-            dfid.release()
-    except Exception as e:
-        print(str(e))
-#%% save results for this file
+#%% done looping this file  save results for this file
     print('{:.1f} seconds to process {}'.format(time()-tic,f))
 
-    if 'savedet' in pshow:
-        detfn =    Path(up['outdir']).expanduser()/(f.stem +'_detections.h5')
-        detpltfn = Path(up['outdir']).expanduser()/(f.stem +'_detections.png')
+    if up['odir']:
+        detfn =    Path(up['odir']).expanduser()/(f.stem +'_detections.h5')
+        detpltfn = Path(up['odir']).expanduser()/(f.stem +'_detections.png')
         if detfn.is_file():
             logging.warning('overwriting existing %s', detfn)
 
@@ -168,45 +159,22 @@ def procaurora(f, P,up,savevideo,framebyframe,verbose=False):
 
     return stat
 
-
-def keyhandler(keypressed,framebyframe):
-    if keypressed == -1: # no key pressed
-        return (framebyframe,False)
-    elif keypressed == 1048608: #space
-        return (not framebyframe, False)
-    elif keypressed == 1048603: #escape
-        return (None, True)
-    else:
-        print('keypress code: ' + str(keypressed))
-        return (framebyframe,False)
-
-def savestat(stat,fn):
-    assert isinstance(stat,DataFrame)
-    print('saving detections & statistics to {}'.format(fn))
-
-    with h5py.File(str(fn),'w',libver='latest') as h5:
-        h5['/detect']  = stat['detect']
-        h5['/mean']    = stat['mean']
-        h5['/median']  = stat['median']
-        h5['/variance']= stat['variance']
-
-def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
+def getraw(fn,ifrm,finf,svh,ap,cp,savevideo,verbose):
     """ this function reads the reference frame too--which makes sense if youre
        only reading every Nth frame from the multi-TB file instead of every frame
     """
     frameref = None #just in case not used
-    dowiener = np.isfinite(cp['wienernhood'])
+    dowiener = cp.getint('main','wienernhood',fallback=0)
 #%% reference frame
-
-    if finf['reader'] == 'raw' and dfid:
+    if finf['reader'] == 'raw' and fn:
         if ap['twoframe']:
-            frameref = getDMCframe(dfid,ifrm,finf,verbose)[0]
+            frameref = getDMCframe(fn,ifrm,finf,verbose)[0]
             frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
             if dowiener:
-                frameref = wiener(frameref,cp['wienernhood'])
+                frameref = wiener(frameref, dowiener)
 
         try:
-            frame16,rfi = getDMCframe(dfid,ifrm+1,finf)
+            frame16,rfi = getDMCframe(fn,ifrm+1,finf)
             framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
         except (ValueError,IOError):
             ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
@@ -214,7 +182,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
 
     elif finf['reader'] == 'cv2':
         if ap['twoframe']:
-            retval,frameref = dfid.read()
+            retval,frameref = fn.read() #TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES is said not to always work vis keyframes
             if not retval:
                 if ifrm==0:
                     logging.error('could not read video file, sorry')
@@ -223,13 +191,13 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
             if frameref.ndim>2:
                 frameref = cv2.cvtColor(frameref, cv2.COLOR_RGB2GRAY)
             if dowiener:
-                frameref = wiener(frameref,cp['wienernhood'])
+                frameref = wiener(frameref, dowiener)
 
-        retval,frame16 = dfid.read() #TODO this is skipping every other frame!
+        retval,frame16 = fn.read() #TODO this is skipping every other frame!
         # TODO can we use dfid.set(cv.CV_CAP_PROP_POS_FRAMES,ifrm) to set 0-based index of next frame?
         rfi = ifrm
         if not retval:
-            raise IOError('could not read video from {}'.format(dfid))
+            raise IOError('could not read video from {}'.format(fn))
 
         if frame16.ndim>2:
             framegray = cv2.cvtColor(frame16, cv2.COLOR_RGB2GRAY)
@@ -237,18 +205,18 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
             framegray = frame16 #copy NOT needed
     elif finf['reader'] == 'h5fm':   #one frame per file
         if ap['twoframe']:
-            frameref = getfmradarframe(dfid[ifrm])[2]
+            frameref = getfmradarframe(fn[ifrm])[2]
             frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
-        frame16 = getfmradarframe(dfid[ifrm+1])[2]
+        frame16 = getfmradarframe(fn[ifrm+1])[2]
         rfi = ifrm
         framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
     elif finf['reader'] == 'h5vid':
-        with h5py.File(str(dfid),'r',libver='latest') as f:
+        with h5py.File(str(fn),'r',libver='latest') as f:
             if ap['twoframe']:
                 frameref = bytescale(f['/rawimg'][ifrm,...],
                                      ap['rawlim'][0], ap['rawlim'][1])
                 if dowiener:
-                    frameref = wiener(frameref,cp['wienernhood'])
+                    frameref = wiener(frameref, dowiener)
 
             #keep frame16 for histogram
             frame16 = f['/rawimg'][ifrm+1,...]
@@ -258,16 +226,16 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
 
     elif finf['reader'] == 'fits':
         #memmap = False required thru Astropy 1.1.1 due to BZERO used...
-        #with fits.open(str(dfid),mode='readonly',memmap=False) as f:
-        if ap['twoframe']:
-            frameref = bytescale(dfid[0].data[ifrm,...],
-                                 ap['rawlim'][0], ap['rawlim'][1])
-            if dowiener:
-                frameref = wiener(frameref,cp['wienernhood'])
+        with fits.open(str(fn),mode='readonly',memmap=False) as f:
+            if ap['twoframe']:
+                frameref = bytescale(f[0].data[ifrm,...],
+                                     ap['rawlim'][0], ap['rawlim'][1])
+                if dowiener:
+                    frameref = wiener(frameref, dowiener)
 
-        frame16 = dfid[0].data[ifrm+1,...]
-        framegray = bytescale(frame16,
-                                 ap['rawlim'][0], ap['rawlim'][1])
+            frame16 = f[0].data[ifrm+1,...]
+
+        framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
 
         rfi = ifrm #TODO: incorrect raw index with sequence of fits files
     else:
@@ -278,7 +246,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
     ap['rawframeind'][ifrm] = rfi
 
     if dowiener:
-        framegray = wiener(framegray,cp['wienernhood'])
+        framegray = wiener(framegray, dowiener)
 
     if 'raw' in pshow:
         # cv2.imshow just divides by 256, NOT autoscaled!
@@ -300,7 +268,7 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
 
     if svh['video'] is not None:
         if savevideo == 'tif':
-            svh['video'].save(framegray,compress=complvl)
+            svh['video'].save(framegray, compress=complvl)
         elif savevideo == 'vid':
             svh['video'].write(framegray)
 

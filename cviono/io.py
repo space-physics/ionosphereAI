@@ -1,6 +1,6 @@
 from six.moves.configparser import ConfigParser
-from astropy.io import fits
 from numpy import arange,int64,empty
+from pandas import DataFrame
 import h5py
 from . import Path
 #
@@ -16,8 +16,8 @@ def getvidinfo(fn,cp,up,verbose):
                                                          cp['blob']['maxblobcount']) )
 
     if fn.suffix.lower() == '.dmcdata':
-        xypix=(cp['main']['xpix'], cp['main']['ypix'])
-        xybin=(cp['main']['xbin'], cp['main']['ybin'])
+        xypix=(cp.getint('main','xpix'), cp.getint('main','ypix'))
+        xybin=(cp.getint('main','xbin'), cp.getint('main','ybin'))
         if up['startstop'][0] is None:
             finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose=verbose)
         else:
@@ -74,7 +74,8 @@ def getvidinfo(fn,cp,up,verbose):
     ap = {'twoframe':bool(cp['main']['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
           'ofmethod':cp['main']['ofmethod'].lower(),
           'rawframeind': empty(finf['nframe'], int64), #int64 for very large files on Windows Python 2.7, long is not available on Python3
-          'rawlim': (cp['main']['cmin'], cp['main']['cmax']),
+          'rawlim': (cp.getfloat('main','cmin'),
+                     cp.getfloat('main','cmax')),
           'xpix': finf['superx'], 'ypix':finf['supery'],
           'thresmode':cp['filter']['thresholdmode'].lower()}
 
@@ -86,3 +87,24 @@ def getparam(pfn):
     P.read(str(pfn))
 
     return P
+
+def keyhandler(keypressed,framebyframe):
+    if keypressed == -1: # no key pressed
+        return (framebyframe,False)
+    elif keypressed == 1048608: #space
+        return (not framebyframe, False)
+    elif keypressed == 1048603: #escape
+        return (None, True)
+    else:
+        print('keypress code: ' + str(keypressed))
+        return (framebyframe,False)
+
+def savestat(stat,fn):
+    assert isinstance(stat,DataFrame)
+    print('saving detections & statistics to {}'.format(fn))
+
+    with h5py.File(str(fn),'w',libver='latest') as f:
+        f['/detect']  = stat['detect']
+        f['/mean']    = stat['mean']
+        f['/median']  = stat['median']
+        f['/variance']= stat['variance']
