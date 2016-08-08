@@ -7,29 +7,27 @@ It is also used for the Haystack passive FM radar ionospheric activity detection
 from __future__ import division, absolute_import
 import logging
 import cv2
-print('OpenCV '+str(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
+print('OpenCV {}'.format(cv2.__version__)) #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
 #
-from configparser import ConfigParser
-from astropy.io import fits
 import h5py
 from datetime import datetime
 from pytz import UTC
-from pandas import read_excel,DataFrame
-from pathlib import Path
+from pandas import DataFrame
+from . import Path
 import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
 from time import time
 from matplotlib.pylab import draw, pause, figure, hist,close
 #
+from .io import getparam,getvidinfo
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
 from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 from .getpassivefm import getfmradarframe
 #
-from cvutils.getaviprop import getaviprop
 from cvutils.connectedComponents import setupblob
 #
-from histutils.rawDMCreader import getDMCparam,getDMCframe,getserialnum,getNeoParam
+from histutils.rawDMCreader import getDMCframe
 #plot disable
 pshow = ('thres',
          'stat',
@@ -52,13 +50,13 @@ def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
     if not flist:
         raise ValueError('no files found')
 
-    camser,camparam = getcamparam(up['paramfn'],flist)
+    P = getparam(up['paramfn'])
 
     aurstat = DataFrame(columns=['mean','median','variance','detect'])
 
-    for f,s in zip(flist,camser): #iterate over files in list
-        stat = procaurora(f,s,camparam,up,savevideo,framebyframe,verbose)
-        aurstat=aurstat.append(stat)
+    for f in flist: #iterate over files in list
+        stat = procaurora(f, P, up, savevideo,framebyframe,verbose)
+        aurstat = aurstat.append(stat)
 #%% sort,plot,save results for all files
     aurstat.sort_index(inplace=True) #sort by time
     savestat(aurstat,up['detfn'])
@@ -76,47 +74,41 @@ def loopaurorafiles(flist, up,savevideo, framebyframe, verbose):
     return aurstat
 
 
-def procaurora(f,s,camparam,up,savevideo,framebyframe,verbose=False):
+def procaurora(f, P,up,savevideo,framebyframe,verbose=False):
     tic = time()
 
-    try:
-        cp = camparam[s] #pick the parameters for this camera from pandas DataFrame
-    except (KeyError,ValueError):
-        logging.info('using first column of {} as I didnt find serial # {} in it.'.format(up['paramfn'],s))
-        cp = camparam.iloc[:,0] #fallback to first column
-
-    finf,ap,dfid = getvidinfo(f,cp,up,verbose)
+    finf,ap,dfid = getvidinfo(f, P,up,verbose)
     if finf is None:
         return
 #%% setup optional video/tiff writing (mainly for debugging or publication)
-    svh = svsetup(savevideo,complvl, ap, cp, up,pshow)
+    svh = svsetup(savevideo,complvl, ap, P, up,pshow)
 #%% setup blob
-    blobdetect = setupblob(cp['minblobarea'], cp['maxblobarea'], cp['minblobdist'])
+    blobdetect = setupblob(P['minblobarea'], P['maxblobarea'], P['minblobdist'])
 #%% cv opt. flow matrix setup
-    uv, lastflow,gmm = setupof(ap,cp)
+    uv, lastflow,gmm = setupof(ap,P)
     isgmm = lastflow is None
 #%% kernel setup
-    kern = setupkern(ap,cp)
+    kern = setupkern(ap, P)
 #%% mag plots setup
     pl,stat = setupfigs(finf,f,pshow)
 #%% start main loop
     for jfrm,ifrm in enumerate(finf['frameind'][:-1]):
 #%% load and filter
         try:
-            framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose)
-        except:
+            framegray,frameref,ap = getraw(dfid,ifrm,finf,svh,ap, P,savevideo,verbose)
+        except Exception:
             break
 #%% compute optical flow or Background/Foreground
         if ~isgmm:
             flow,ofmaggmm,stat = dooptflow(framegray,frameref,lastflow,uv,
-                                               ifrm,jfrm, ap,cp,pl,stat,pshow)
+                                               ifrm,jfrm, ap, P,pl,stat,pshow)
             lastflow = flow.copy() #I didn't check if the .copy() is strictly necessary
         else: #background/foreground
             ofmaggmm = gmm.apply(framegray)
 #%% threshold
-        thres = dothres(ofmaggmm, stat['median'].iat[jfrm],ap,cp,svh,pshow,isgmm)
+        thres = dothres(ofmaggmm, stat['median'].iat[jfrm],ap, P,svh,pshow,isgmm)
 #%% despeckle
-        despeck = dodespeck(thres,cp['medfiltsize'],svh,pshow)
+        despeck = dodespeck(thres,P['medfiltsize'],svh,pshow)
 #%% morphological ops
         morphed = domorph(despeck,kern,svh,pshow)
 #%% blob detection
@@ -313,90 +305,3 @@ def getraw(dfid,ifrm,finf,svh,ap,cp,savevideo,verbose):
             svh['video'].write(framegray)
 
     return framegray,frameref,ap
-
-def getvidinfo(fn,cp,up,verbose):
-    print('using {} for {}'.format(cp['ofmethod'],fn))
-    if verbose:
-        print('minBlob={} maxBlob={} maxNblob={}'.format(cp['minblobarea'],cp['maxblobarea'],cp['maxblobcount']) )
-
-    if fn.suffix.lower() == '.dmcdata':
-        xypix=(cp['xpix'],cp['ypix'])
-        xybin=(cp['xbin'],cp['ybin'])
-        if up['startstop'][0] is None:
-            finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose=verbose)
-        else:
-            finf = getDMCparam(fn,xypix,xybin,
-                     (up['startstop'][0], up['startstop'][1], up['framestep']),
-                      verbose=verbose)
-        finf['reader']='raw'
-
-        dfid = open(fn,'rb') #I didn't use the "with open(f) as ... " because I want to swap in other file readers per user choice
-
-    elif fn.suffix.lower() in ('.h5','.hdf5'):
-        dfid = fn
-#%% determine if optical or passive radar
-        with h5py.File(str(fn),'r') as f:
-            try: #hst image/video file
-                finf = {'reader':'h5vid'}
-                finf['nframe'] = f['rawimg'].shape[0]
-                finf['superx'] = f['rawimg'].shape[2]
-                finf['supery'] = f['rawimg'].shape[1]
-                print('HDF5 video file detected {}'.format(fn))
-            except KeyError: # Haystack passive FM radar file
-                finf = {'reader':'h5fm'}
-                finf['nframe'] = 1 # currently the passive radar uses one file per frame
-                range_km,vel_mps = getfmradarframe(fn)[:2] #assuming all frames are the same size
-                finf['superx'] = range_km.size
-                finf['supery'] = vel_mps.size
-                print('HDF5 passive FM radar file detected {}'.format(fn))
-        finf['frameind'] = np.arange(finf['nframe'],dtype=np.int64)
-    elif fn.suffix.lower() in ('.fit','.fits'):
-        """
-        have not tried memmap=True
-        with memmap=False, whole file is read in to access even single data element.
-        Linux file system caching should make this speedy even with memmap=False
-        --Except if using over network, then the first read can take a long time.
-        http://docs.astropy.org/en/stable/io/fits/#working-with-large-files
-        """
-        finf = getNeoParam(fn,up['framestep'])[0]
-        finf['reader']='fits'
-
-        dfid = fits.open(str(fn),mode='readonly',memmap=False)
-
-        #finf['frameind'] = np.arange(0,finf['nframe'],up['framestep'],dtype=np.int64)
-    else: #assume video file
-        #TODO start,stop,step is not yet implemented, simply uses every other frame
-        print('attempting to read {} with OpenCV.'.format(fn))
-        finf = {'reader':'cv2'}
-
-        dfid = cv2.VideoCapture(fn)
-        vidparam=getaviprop(dfid)
-        finf['nframe'] = vidparam['nframe']
-        finf['superx'] = vidparam['xpix']
-        finf['supery'] = vidparam['ypix']
-
-        finf['frameind']=np.arange(finf['nframe'],dtype=np.int64)
-
-
-#%% extract analysis parameters
-    ap = {'twoframe':bool(cp['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
-          'ofmethod':cp['ofmethod'].lower(),
-          'rawframeind': np.empty(finf['nframe'],np.int64), #int64 for very large files on Windows Python 2.7, long is not available on Python3
-          'rawlim': (cp['cmin'], cp['cmax']),
-          'xpix': finf['superx'], 'ypix':finf['supery'],
-          'thresmode':cp['thresholdmode'].lower()}
-
-    return finf, ap, dfid
-
-def getcamparam(paramfn,flist):
-    #uses pandas and xlrd to parse the spreadsheet parameters
-    if flist[0].suffix == '.DMCdata':
-        camser = getserialnum(flist)
-    else:
-        #FIXME add your own criteria to pick which spreadsheet paramete column to use.
-        # for now I tell it to just use the first column (same criteria for all files)
-        logging.info('using first column of spreadsheet only for camera parameters')
-        camser = [None] * len(flist)
-
-    camparam = read_excel(paramfn,index_col=0,header=0) #returns a nicely indexable DataFrame
-    return camser, camparam
