@@ -1,5 +1,5 @@
 import logging
-from pathlib import Path
+from . import Path
 import cv2
 try:
     from cv2.cv import FOURCC as fourcc #Windows needs from cv2.cv
