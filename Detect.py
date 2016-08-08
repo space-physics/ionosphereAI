@@ -8,19 +8,20 @@ from cviono import Path
 from cviono.detectaurora import loopaurorafiles
 
 def rundetect(p):
-    P = {'rejvid':p.rejectvid,
-              'framestep':p.step,
-              'startstop':p.frames,
-              'montstep':p.ms,
-              'clim':p.contrast,
-              'paramfn':p.paramfn,
-              'rejdet':p.rejectdet,
-              'outdir':Path(p.outdir).expanduser(),
-              'detfn': Path(p.outdir).expanduser() / p.detfn,
-              'fps':p.fps
-              }
+    P = {
+    'rejvid':    p.rejectvid,
+    'framestep': p.step,
+    'startstop': p.frames,
+    'montstep':  p.ms,
+    'clim':      p.contrast,
+    'paramfn':   p.paramfn,
+    'rejdet':    p.rejectdet,
+    'odir':      Path(p.odir).expanduser(),
+    'detfn':     Path(p.odir).expanduser() / p.detfn,
+    'fps':       p.fps
+    }
 
-    P['outdir'].mkdir(parents=True,exist_ok=True)
+    P['odir'].mkdir(parents=True,exist_ok=True)
 
 
     if p.savetiff:
@@ -32,7 +33,13 @@ def rundetect(p):
 #%% run program (allowing ctrl+c to exit)
     try:
         #note, if a specific file is given, vidext is ignored
-        flist = sorted(Path(p.indir).expanduser().glob('*'+p.vidext))
+        idir = Path(p.indir).expanduser()
+        if idir.is_file():
+            flist = [idir]
+        elif idir.is_dir():
+            flist = sorted(idir.glob('*'+p.vidext))
+        else:
+            raise RuntimeError('{} is not a path or file'.format(idir))
         print('found {} {} files in {}'.format(len(flist),p.vidext,p.indir))
 
         if p.profile:
@@ -61,8 +68,8 @@ if __name__=='__main__':
     p.add_argument('-t','--savetiff',help='save tiff at each step (can make enormous files)',action='store_true')
     p.add_argument('-k','--step',help='frame step skip increment',type=int,default=10)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,)*2)
-    p.add_argument('-o','--outdir',help='directory to put output files in',default='.')
-    p.add_argument('-d','--detfn',help='master file to save detections and statistics in HDF5, under outdir',default='auroraldet.h5')
+    p.add_argument('-o','--odir',help='directory to put output files in',default='.')
+    p.add_argument('-d','--detfn',help='master file to save detections and statistics in HDF5, under odir',default='auroraldet.h5')
     p.add_argument('--ms',help='keogram/montage step [1000] dont make it too small like 1 or output is as big as original file!',type=int,default=1000)
     p.add_argument('-c','--contrast',help='[low high] data numbers to bound video contrast',type=int,nargs=2,default=(None,)*2)
     p.add_argument('--rejectvid',help='reject raw video files with less than this many frames',type=int,default=10)

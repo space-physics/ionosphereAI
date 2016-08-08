@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-from __future__ import division,absolute_import
+#!/usr/bin/env python
 import h5py
 from datetime import datetime as DT
 from numpy import log10,absolute,median,ascontiguousarray

@@ -3,8 +3,7 @@ import cv2
 import numpy as np
 try:
     from cv2 import cv #necessary for Windows, "import cv" doesn't work
-except:
-#TODO: openCV 3.0 has legacy code buried in opencv-extra
+except: #TODO: openCV 3.0 has legacy code buried in opencv-extra
     pass
 #
 from cvutils.cv2draw import draw_flow,flow2magang,draw_hsv
@@ -19,17 +18,19 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
         """
         cvref = cv.fromarray(frameref)
         cvgray = cv.fromarray(framegray)
-        #result is placed in u,v
-        # matlab vision.OpticalFlow Horn-Shunck has default maxiter=10, terminate=eps, smoothness=1
-        # in TrackingOF7.m I used maxiter=8, terminate=0.1, smaothness=0.1
         """
-        ***************************
-        Note that smoothness parameter for cv.CalcOpticalFlowHS needs to be SMALLER than matlab
-        to get similar result. Useless when smoothness was 1 in python, but it's 1 in Matlab!
-        *****************************
+        result is placed in u,v
+
+        Matlab vision.OpticalFlow Horn-Shunck has default
+         maxiter=10, terminate=eps, smoothness=1
+         in TrackingOF7.m I used maxiter=8, terminate=0.1, smaothness=0.1
+
+        Note that smoothness parameter for cv.CalcOpticalFlowHS needs to be
+        SMALLER than matlab to get similar result.
+        Useless when smoothness was 1 in python, but it's 1 in Matlab!
         """
         cv.CalcOpticalFlowHS(cvref, cvgray, False, uv[0], uv[1],
-                             cp['hssmooth'],
+                             cp.getfloat('main','hssmooth'),
                              (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
 
         # reshape to numpy float32, xpix x ypix x 2
@@ -55,7 +56,7 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
     maybe this can be done more elegantly, maybe via pad or take?
     http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
     '''
-    te = cp['trimedgeof']
+    te = cp.getint('filter','trimedgeof')
     flow[:te,...] = 0.; flow[-te:,...] = 0.
     flow[:,:te,:] = 0.; flow[:,-te:,:] = 0.
 
@@ -66,9 +67,12 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
     stat['mean'].iat[jfrm] = ofmag.mean()
     stat['variance'].iat[jfrm] = np.var(ofmag)
 
-    if 'stat' in pshow:
+    try:
         pl['pmed'][0].set_ydata(stat['median'].values)
         pl['pmean'][0].set_ydata(stat['mean'].values)
+    except TypeError: # if None
+        pass
+
     if 'thres' in pshow:
         #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
         pl['iofm'].set_data(ofmag)
@@ -89,8 +93,8 @@ def dothres(ofmaggmm,medianflow,ap,cp,svh,pshow,isgmm):
     if ~isgmm: #OptFlow based
         if ap['thresmode'] == 'median':
             if medianflow>1e-6:  #median is scalar
-                lowthres = cp['ofthresmin'] * medianflow #median is scalar!
-                hithres =  cp['ofthresmax'] * medianflow #median is scalar!
+                lowthres = cp.getfloat('blob','ofthresmin') * medianflow #median is scalar!
+                hithres =  cp.getfloat('blob','ofthresmax') * medianflow #median is scalar!
             else: #median ~ 0
                 lowthres = 0
                 hithres = np.inf
@@ -201,8 +205,11 @@ def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,stat,pshow):
             svh['detect'].write(final)
 
 #%% plot detection vs. time
-    if 'det' in pshow or 'savedet' in pshow: #updates plot with current info
+#    if 'savedet' in pshow: #updates plot with current info
+    try:
         pl['pdet'][0].set_ydata(stat['detect'].values)
+    except TypeError:
+        pass
 
 #    draw(); pause(0.001) #debug
 
