@@ -8,14 +8,14 @@ from .getpassivefm import getfmradarframe
 from cvutils.getaviprop import getaviprop
 from histutils.rawDMCreader import getDMCparam,getNeoParam
 
-def getvidinfo(fn,cp,up,verbose):
-    print('using {} for {}'.format(cp['main']['ofmethod'],fn))
+def getvidinfo(fn,cp,up,verbose=False):
+    #print('using {} for {}'.format(cp['main']['ofmethod'],fn))
     if verbose:
         print('minBlob={} maxBlob={} maxNblob={}'.format(cp['blob']['minblobarea'],
                                                          cp['blob']['maxblobarea'],
                                                          cp['blob']['maxblobcount']) )
 
-    if fn.suffix.lower() == '.dmcdata':
+    if fn.suffix.lower() in ('.dmcdata','.dat'):
         xypix=(cp.getint('main','xpix'), cp.getint('main','ypix'))
         xybin=(cp.getint('main','xbin'), cp.getint('main','ybin'))
         if up['startstop'][0] is None:
@@ -33,14 +33,14 @@ def getvidinfo(fn,cp,up,verbose):
                 finf['nframe'] = f['rawimg'].shape[0]
                 finf['superx'] = f['rawimg'].shape[2]
                 finf['supery'] = f['rawimg'].shape[1]
-                print('HDF5 video file detected {}'.format(fn))
+                #print('HDF5 video file detected {}'.format(fn))
             elif 'ambiguity' in f: # Haystack passive FM radar file
                 finf = {'reader':'h5fm'}
                 finf['nframe'] = 1 # currently the passive radar uses one file per frame
                 range_km,vel_mps = getfmradarframe(fn)[:2] #assuming all frames are the same size
                 finf['superx'] = range_km.size
                 finf['supery'] = vel_mps.size
-                print('HDF5 passive FM radar file detected {}'.format(fn))
+                #print('HDF5 passive FM radar file detected {}'.format(fn))
             else:
                 raise NotImplementedError('unknown HDF5 file type')
 
@@ -71,13 +71,13 @@ def getvidinfo(fn,cp,up,verbose):
 
         finf['frameind'] = arange(finf['nframe'], dtype=int64)
 #%% extract analysis parameters
-    ap = {'twoframe':bool(cp['main']['twoframe']), # note this should be 1 or 0 input, not the word, because even the word 'False' will be bool()-> True!
-          'ofmethod':cp['main']['ofmethod'].lower(),
+    ap = {'twoframe':bool(cp.get('main','twoframe')),
+          'ofmethod':cp.get('main','ofmethod').lower(),
           'rawframeind': empty(finf['nframe'], int64), #int64 for very large files on Windows Python 2.7, long is not available on Python3
-          'rawlim': (cp.getfloat('main','cmin'),
-                     cp.getfloat('main','cmax')),
+          'rawlim': [cp.getfloat('main','cmin'), #list not tuple for auto
+                     cp.getfloat('main','cmax')],
           'xpix': finf['superx'], 'ypix':finf['supery'],
-          'thresmode':cp['filter']['thresholdmode'].lower()}
+          'thresmode':cp.get('filter','thresholdmode').lower()}
 
     return finf, ap
 
@@ -100,6 +100,8 @@ def keyhandler(keypressed,framebyframe):
         return (framebyframe,False)
 
 def savestat(stat,fn):
+    if len(stat) == 0:
+        return
     assert isinstance(stat,DataFrame)
     print('saving detections & statistics to {}'.format(fn))
 

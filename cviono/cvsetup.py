@@ -32,16 +32,18 @@ def setupkern(ap,cp):
 
     return kern
 
-def svsetup(savevideo,complvl,ap, cp, up,pshow):
-    xpix = ap['xpix']; ypix= ap['ypix']
+def svsetup(ap, cp, up):
+    savevideo = up['savevideo']
+    x = ap['xpix']; y = ap['ypix']
+    pshow = up['pshow']
 
-    dowiener = cp.getint('main','wienernhood',fallback=0)
+    dowiener = cp.getint('filter','wienernhood')
 
 
     if savevideo:
         print('dumping video output to {}'.format(up['odir']))
     svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,
-           'erode':None,'close':None,'detect':None,'save':savevideo,'complvl':complvl}
+           'erode':None,'close':None,'detect':None,'save':savevideo,'complvl':up['complvl']}
     if savevideo == 'tif':
         #complvl = 6 #0 is uncompressed
         try:
@@ -76,27 +78,29 @@ def svsetup(savevideo,complvl,ap, cp, up,pshow):
 
         These videos are casually dumped to the temporary directory.
         """
-        cc4 = fourcc(*'FFV1')
+        #cc4 = fourcc(*'FFV1')
+        cc4 = fourcc(*'FMP4')
         """
-        try 'MJPG' or 'XVID' if FFV1 doesn't work.
-        see https://github.com/scienceopen/python-test-functions/blob/master/videowritetest.py for more info
+        try 'MJPG' 'XVID' 'FMP4' if FFV1 doesn't work.
+
+        https://github.com/scienceopen/pyimagevideo
         """
         if dowiener:
-            svh['wiener'] = cv2.VideoWriter(str(up['odir'] / 'wiener.avi'),cc4, wfps,(ypix,xpix),False)
+            svh['wiener'] = cv2.VideoWriter(str(up['odir'] / 'wiener.avi'),cc4, wfps,(y, x),False)
         else:
             svh['wiener'] = None
 
-        svh['video']  = cv2.VideoWriter(str(up['odir'] / 'video.avi'), cc4,wfps, (ypix,xpix),False) if 'rawscaled' in pshow else None
-        svh['thres']  = cv2.VideoWriter(str(up['odir'] / 'thres.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
-        svh['despeck']= cv2.VideoWriter(str(up['odir'] / 'despk.avi'), cc4,wfps, (ypix,xpix),False) if 'thres' in pshow else None
-        svh['erode']  = cv2.VideoWriter(str(up['odir'] / 'erode.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
-        svh['close']  = cv2.VideoWriter(str(up['odir'] / 'close.avi'), cc4,wfps, (ypix,xpix),False) if 'morph' in pshow else None
-        svh['detect'] = cv2.VideoWriter(str(up['odir'] / 'detct.avi'), cc4,wfps, (ypix,xpix),True)  if 'final' in pshow else None
+        svh['video']  = cv2.VideoWriter(str(up['odir'] / 'video.avi'), cc4,wfps, (y, x),False) if 'rawscaled' in pshow else None
+        svh['thres']  = cv2.VideoWriter(str(up['odir'] / 'thres.avi'), cc4,wfps, (y, x),False) if 'thres' in pshow else None
+        svh['despeck']= cv2.VideoWriter(str(up['odir'] / 'despk.avi'), cc4,wfps, (y, x),False) if 'thres' in pshow else None
+        svh['erode']  = cv2.VideoWriter(str(up['odir'] / 'erode.avi'), cc4,wfps, (y, x),False) if 'morph' in pshow else None
+        svh['close']  = cv2.VideoWriter(str(up['odir'] / 'close.avi'), cc4,wfps, (y, x),False) if 'morph' in pshow else None
+        svh['detect'] = cv2.VideoWriter(str(up['odir'] / 'detct.avi'), cc4,wfps, (y, x),True)  if 'final' in pshow else None
 
         for k,v in svh.items():
             try:
                 if not v.isOpened():
-                    raise TypeError('trouble writing video for {}'.format(k))
+                    logging.error('trouble writing video for {}'.format(k))
             except AttributeError: #not a cv2 object, duck typing
                 pass
 
