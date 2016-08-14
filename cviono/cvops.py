@@ -86,7 +86,7 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
 #    draw(); pause(0.001) #debug
     return flow,ofmag, stat
 
-def dothres(ofmaggmm,medianflow,ap,cp,svh,pshow,isgmm):
+def dothres(ofmaggmm,medianflow,ap,cp,i,svh,pshow,isgmm):
     """
     flow threshold, considering median
     """
@@ -124,6 +124,7 @@ def dothres(ofmaggmm,medianflow,ap,cp,svh,pshow,isgmm):
             svh['thres'].write(thres)
 
     if 'thres' in pshow:
+        cvtxt(str(i), thres)
         cv2.imshow('thresholded', thres)
     """ threshold image by lowThres < abs(OptFlow) < highThres
     the low threshold helps elimate a lot of "false" OptFlow from camera
@@ -135,7 +136,7 @@ def dothres(ofmaggmm,medianflow,ap,cp,svh,pshow,isgmm):
     """
     return thres
 
-def dodespeck(thres,medfiltsize,svh,pshow):
+def dodespeck(thres,medfiltsize,i,svh,pshow):
 
     despeck = cv2.medianBlur(thres,ksize=medfiltsize)
 
@@ -146,6 +147,7 @@ def dodespeck(thres,medfiltsize,svh,pshow):
             svh['despeck'].write(despeck)
 
     if 'thres' in pshow:
+        cvtxt(str(i),despeck)
         cv2.imshow('despeck', despeck)
 
     return despeck
@@ -176,7 +178,7 @@ def domorph(despeck,kern,svh,pshow):
 
     return closed
 
-def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,stat,pshow):
+def doblob(morphed,blobdetect,framegray,i,svh,pl,stat,pshow):
     """
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
@@ -184,7 +186,7 @@ def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,stat,pshow):
 #%% how many blobs
     keypoints = blobdetect.detect(morphed)
     nkey = len(keypoints)
-    stat['detect'].iat[jfrm] = nkey #we don't know if it will be index or ut1 in index
+    stat['detect'].iat[i] = nkey #we don't know if it will be index or ut1 in index
 #%% plot blobs
     final = framegray.copy() # is the .copy necessary?
 
@@ -196,7 +198,9 @@ def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,stat,pshow):
                 color=(0,255,0), thickness=2)
 
     if 'final' in pshow:
+        cvtxt(str(i),final)
         cv2.imshow('final',final)
+
 
     if svh['detect'] is not None:
         if svh['save'] == 'tif':
@@ -214,3 +218,8 @@ def doblob(morphed,blobdetect,framegray,ifrm,jfrm,svh,pl,stat,pshow):
 #    draw(); pause(0.001) #debug
 
     return stat
+
+def cvtxt(txt,img):
+    cv2.putText(img, text=txt, org=(5,20),
+                fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=2,
+                color=(0,255,0), thickness=1)
