@@ -6,9 +6,6 @@ Michael Hirsch
 ./Detect.py ~/data/2011-03-01/optical  ~/data/2011-03-01/optical/cv 2011.ini -s
 
 """
-import six
-if six.PY2:
-    FileNotFoundError = OSError
 import logging
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')

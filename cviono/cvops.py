@@ -1,46 +1,21 @@
 #!/usr/bin/env python
 import cv2
 import numpy as np
-try:
-    from cv2 import cv #necessary for Windows, "import cv" doesn't work
-except: #TODO: openCV 3.0 has legacy code buried in opencv-extra
-    pass
 #
+from cvutils.calcOptFlow import optflowHornSchunk
 from cvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
 #from matplotlib.pyplot import draw,pause #for debug plot
 
-def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
+def dooptflow(Inew,Iref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
 
     if ap['ofmethod'] == 'hs':
-        """
-        http://docs.opencv.org/modules/legacy/doc/motion_analysis.html
-        """
-        cvref = cv.fromarray(frameref)
-        cvgray = cv.fromarray(framegray)
-        """
-        result is placed in u,v
-
-        Matlab vision.OpticalFlow Horn-Shunck has default
-         maxiter=10, terminate=eps, smoothness=1
-         in TrackingOF7.m I used maxiter=8, terminate=0.1, smaothness=0.1
-
-        Note that smoothness parameter for cv.CalcOpticalFlowHS needs to be
-        SMALLER than matlab to get similar result.
-        Useless when smoothness was 1 in python, but it's 1 in Matlab!
-        """
-        cv.CalcOpticalFlowHS(cvref, cvgray, False, uv[0], uv[1],
-                             cp.getfloat('main','hssmooth'),
-                             (cv.CV_TERMCRIT_ITER | cv.CV_TERMCRIT_EPS, 8, 0.1))
-
-        # reshape to numpy float32, xpix x ypix x 2
-        flow = np.dstack((np.asarray(uv[0]), np.asarray(uv[1])))
-
+        flow = optflowHornSchunk(Inew,Iref,uv, cp.getfloat('main','hssmooth'))
     elif ap['ofmethod'] == 'farneback':
         """
         http://docs.opencv.org/trunk/modules/video/doc/motion_analysis_and_object_tracking.html
         """
-        flow = cv2.calcOpticalFlowFarneback(frameref, framegray,
+        flow = cv2.calcOpticalFlowFarneback(Iref, Inew,
                                             flow=lastflow, #need flow= for opencv2/3 compatibility
                                            pyr_scale=0.5,
                                            levels=1,
@@ -78,7 +53,7 @@ def dooptflow(framegray,frameref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
         pl['iofm'].set_data(ofmag)
 
     if 'flowvec' in pshow:
-        cv2.imshow('flow vectors', draw_flow(framegray,flow) )
+        cv2.imshow('flow vectors', draw_flow(Inew,flow) )
     if 'flowhsv' in pshow:
         mag,ang = flow2magang(flow,np.uint8)
         cv2.imshow('flowHSV', draw_hsv(mag,ang,np.uint8) )
@@ -100,9 +75,9 @@ def dothres(ofmaggmm,medianflow,ap,cp,i,svh,pshow,isgmm):
                 hithres = np.inf
 
         elif ap['thresmode'] == 'runningmean':
-            exit('*** ' + ap['thresmode'] + ' not yet implemented')
+            raise NotImplementedError('*** ' + ap['thresmode'] + ' not yet implemented')
         else:
-            exit('*** ' + ap['thresmode'] + ' not yet implemented')
+            raise NotImplementedError('*** ' + ap['thresmode'] + ' not yet implemented')
     else:
         hithres = 255; lowthres=0 #TODO take from spreadsheed as gmmlowthres gmmhighthres
     """
@@ -110,12 +85,12 @@ def dothres(ofmaggmm,medianflow,ap,cp,i,svh,pshow,isgmm):
     1) make boolean of  min < flow < max
     2) convert to uint8
     3) (0,255) since that's what cv2.imshow wants
-    """
-    # the logical_and, *, and & are almost exactly the same speed. The & felt the most Pythonic.
-    #thres = np.logical_and(ofmaggmm < hithres, ofmaggmm > lowthres).astype(np.uint8) * 255
-    thres = ((ofmaggmm<hithres) & (ofmaggmm>lowthres)).astype('uint8') * 255
-    # has to be 0,255 because that's what opencv functions (imshow and computation) want
 
+    the logical_and, *, and & are almost exactly the same speed.
+    "&" felt the most Pythonic.
+     has to be 0,255 because that's what opencv functions (imshow and computation) want
+    """
+    thres = ((ofmaggmm<hithres) & (ofmaggmm>lowthres)).astype('uint8') * 255
 
     if svh['thres'] is not None:
         if svh['save'] == 'tif':
@@ -137,9 +112,11 @@ def dothres(ofmaggmm,medianflow,ap,cp,i,svh,pshow,isgmm):
     return thres
 
 def dodespeck(thres,medfiltsize,i,svh,pshow):
-
+    """
+    thres is really a binary, but OpenCV needs binary \in {0,255}
+    """
     despeck = cv2.medianBlur(thres,ksize=medfiltsize)
-
+#%%
     if svh['despeck'] is not None:
         if svh['save'] == 'tif':
             svh['despeck'].save(despeck,compress=svh['complvl'])
