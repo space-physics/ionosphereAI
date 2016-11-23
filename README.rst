@@ -1,5 +1,5 @@
-Copyright 2012-2016 Michael Hirsch
-
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.168226.svg
+   :target: https://doi.org/10.5281/zenodo.168226
 
 =============
 cv-ionosphere
