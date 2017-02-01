@@ -1,8 +1,8 @@
-from six.moves.configparser import ConfigParser
+from configparser import ConfigParser
 from numpy import arange,int64,empty
 from pandas import DataFrame
 import h5py
-from . import Path
+from pathlib import Path
 #
 from .getpassivefm import getfmradarframe
 from cvutils.getaviprop import getaviprop

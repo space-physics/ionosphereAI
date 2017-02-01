@@ -2,7 +2,7 @@
 """
 find minimum and maximum, stats in an HDF5 variable
 """
-from cviono import Path
+from pathlib import Path
 import h5py
 import numpy as np
 from warnings import warn

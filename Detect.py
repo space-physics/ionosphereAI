@@ -9,7 +9,7 @@ Michael Hirsch
 import logging
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
-from cviono import Path
+from pathlib import Path
 #
 from cviono.detectaurora import loopaurorafiles
 

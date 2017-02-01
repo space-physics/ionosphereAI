@@ -1,19 +1,16 @@
 #!/usr/bin/env python
-from os import path
-import sys
+from pathlib import Path
 import numpy as np
 import cv2
 # local import
-sys.path.append('../hist-utils')
-sys.path.append('../cv-hst')
-import rawDMCreader as rdr
-from sixteen2eight import sixteen2eight
+import histutils.rawDMCreader as rdr
+from histutils.sixteen2eight import sixteen2eight
 
 #------------------------------------
 def main(BigFN,xyPix=(512,512),xyBin=(1,1),FrameInd=(0,0),playMovie=0.01,
          Clim=(None,None), rawFrameRate=None,startUTC=None):
-    BigFN = path.expanduser(BigFN)
-    BigExt = path.splitext(BigFN)[1]
+    BigFN = Path(BigFN).expanduser()
+    BigExt = BigFn.suffix
 
     if rawFrameRate is None:
         startUTC=None
@@ -32,9 +29,10 @@ def main(BigFN,xyPix=(512,512),xyBin=(1,1),FrameInd=(0,0),playMovie=0.01,
         if all(FrameInd == 0):
             FrameInd = np.arange(0,nFrame,1,dtype=np.uint64) # has to be numpy for > comparison
         grayRef = cv2.cvtColor(fid.read()[1], cv2.COLOR_BGR2GRAY)
-    else: sys.exit('unknown file type: ' + BigExt)
+    else: 
+        raise OSError('unknown file type: {}'.format(BigExt))
 
-    print('processing '+str(nFrame) + ' frames from ' + BigFN)
+    print('processing {} frames from {}'.format(nframe,BigFN))
 
 #setup figures
     cv2.namedWindow('image', cv2.WINDOW_NORMAL)
