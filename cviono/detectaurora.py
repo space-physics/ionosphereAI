@@ -12,7 +12,7 @@ print('OpenCV {}'.format(cv2.__version__)) #some installs of OpenCV don't give a
 from datetime import datetime
 from pytz import UTC
 from pandas import DataFrame
-from . import Path
+from pathlib import Path
 from time import time
 from matplotlib.pylab import draw, pause, close
 #
