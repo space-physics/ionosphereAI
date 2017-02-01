@@ -12,7 +12,7 @@ setup(name='cviono',
             'https://github.com/scienceopen/histutils/tarball/master#egg=histutils',
             'https://github.com/scienceopen/cvutils/tarball/master#egg=cvutils'],
 	   install_requires=['histutils','cvutils',
-                        'tifffile','pathlib2',
+                        'tifffile',
                         ],
 	  )
 
