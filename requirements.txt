@@ -1,8 +1,0 @@
-setuptools
-nose
-scipy
-pandas
-numpy
-matplotlib
-h5py
-astropy
