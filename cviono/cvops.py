@@ -2,8 +2,8 @@
 import cv2
 import numpy as np
 #
-from cvutils.calcOptFlow import optflowHornSchunk
-from cvutils.cv2draw import draw_flow,flow2magang,draw_hsv
+from morecvutils.calcOptFlow import optflowHornSchunk
+from morecvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
 #from matplotlib.pyplot import draw,pause #for debug plot
 

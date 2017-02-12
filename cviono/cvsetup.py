@@ -12,7 +12,7 @@ import numpy as np
 from matplotlib.pylab import figure,subplots#draw,pause
 from matplotlib.colors import LogNorm
 #
-from cvutils.calcOptFlow import setupuv
+from morecvutils.calcOptFlow import setupuv
 
 def setupkern(ap,cp):
     openrad = cp.getint('morph','openradius')

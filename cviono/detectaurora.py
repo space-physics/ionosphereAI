@@ -21,7 +21,7 @@ from .reader import getraw, setscale
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
 from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 #
-from cvutils.connectedComponents import setupblob
+from morecvutils.connectedComponents import setupblob
 
 def loopaurorafiles(flist, up):
     if not flist:

@@ -5,7 +5,7 @@ import h5py
 from pathlib import Path
 #
 from .getpassivefm import getfmradarframe
-from cvutils.getaviprop import getaviprop
+from morecvutils.getaviprop import getaviprop
 from histutils.rawDMCreader import getDMCparam,getNeoParam
 
 def getvidinfo(fn,cp,up,verbose=False):
