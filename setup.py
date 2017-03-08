@@ -15,7 +15,6 @@ setup(name='cviono',
       'Development Status :: 4 - Beta',
       'License :: OSI Approved :: MIT License',
       'Topic :: Scientific/Engineering :: Visualization',
-      'Programming Language :: Python :: 3.5',
       'Programming Language :: Python :: 3.6',
       ],
 	   install_requires=req,
@@ -25,5 +24,4 @@ setup(name='cviono',
 try:
     import cv2
 except ImportError:
-    print('you need to install OpenCV for Python. see: \n'
-          'https://www.scivision.co/install-opencv-python-windows/')
+    print('you need to install OpenCV for Python. see: \n https://www.scivision.co/install-opencv-python-windows/')
