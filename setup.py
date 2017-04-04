@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from setuptools import setup
+from sys import stderr
 
-req = ['nose','scipy','pandas','numpy','matplotlib','h5py','astropy',
+req = ['nose','pillow','scipy','pandas','numpy','matplotlib','h5py','astropy',
         'histutils','morecvutils']
 
 
@@ -24,4 +25,4 @@ setup(name='cviono',
 try:
     import cv2
 except ImportError:
-    print('you need to install OpenCV for Python. see: \n https://www.scivision.co/install-opencv-python-windows/')
+    print('you need to install OpenCV for Python. see: \n https://www.scivision.co/install-opencv-python-windows/',file=stderr)
