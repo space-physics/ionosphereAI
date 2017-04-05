@@ -46,8 +46,14 @@ def loopaurorafiles(flist, up):
             print()
             continue
 
+        if finf['reader'] == 'spool':
+            f = flist
+
         stat = procaurora(f, P, up,ap,finf)
         aurstat = aurstat.append(stat)
+
+        if finf['reader'] == 'spool':
+            break
 #%% sort,plot,save results for all files
     try:
         aurstat.sort_index(inplace=True) #sort by time
@@ -87,8 +93,17 @@ def procaurora(f, P,up,ap,finf):
     kern = setupkern(ap, P)
 #%% mag plots setup
     pl,stat = setupfigs(finf,f, up['pshow'])
+#%% list of files or handle?
+    if finf['reader'] == 'spool':
+        F = f
+        N = range(len(F))
+    else:
+        N = finf['frameind'][:-1]
 #%% start main loop
-    for i,iraw in enumerate(finf['frameind'][:-1]):
+    for i,iraw in enumerate(N):
+        if finf['reader'] == 'spool':
+            f = F[i]
+            iraw=0
 #%% load and filter
         try:
             framegray,frameref,ap = getraw(f,iraw,finf,svh,ap, P,up)[:3]
