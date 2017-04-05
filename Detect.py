@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(
                     datefmt='%Y-%m-%d %H:%M:%S')
 from pathlib import Path
 #
-from cviono.detectaurora import loopaurorafiles
+from cviono import loopaurorafiles
 
 COMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 PSHOW = []
