@@ -5,6 +5,8 @@ Michael Hirsch
 
 ./Detect.py ~/data/2011-03-01/optical/2011-03-01T100608.000.h5  ~/data/2011-03-01/optical/cv 2011.ini
 
+./Detect.py ~/data/testdmc  /tmp dmc.ini -e .dat
+
 """
 import logging
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
