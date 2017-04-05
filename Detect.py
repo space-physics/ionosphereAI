@@ -3,7 +3,7 @@
 front end (used from Terminal) to auroral detection program
 Michael Hirsch
 
-./Detect.py ~/data/2011-03-01/optical  ~/data/2011-03-01/optical/cv 2011.ini -s
+./Detect.py ~/data/2011-03-01/optical/2011-03-01T100608.000.h5  ~/data/2011-03-01/optical/cv 2011.ini
 
 """
 import logging
@@ -16,7 +16,7 @@ from cviono import loopaurorafiles
 COMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 PSHOW = []
 
-PSHOW=('thres','stat','final')
+PSHOW=('thres','stat','morph','final')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal
 #'hist' ogram
@@ -32,7 +32,6 @@ def rundetect(p):
     'framestep': p.step,
     'startstop': p.frames,
     'montstep':  p.ms,
-    'clim':      p.contrast,
     'paramfn':   p.paramfn,
     'rejdet':    p.rejectdet,
     'odir':      Path(p.odir).expanduser(),
@@ -86,8 +85,6 @@ if __name__=='__main__':
     p.add_argument('odir',help='directory to put output files in')
     p.add_argument('paramfn',help='parameter file for cameras')
     p.add_argument('-e','--vidext',help='suffix of raw video file (.DMCdata,.h5,.fits,.dat)',default='.h5')
-
-
     p.add_argument('--fps',help='output file FPS (note VLC needs fps>=3)',type=float,default=3)
     p.add_argument('-b','--framebyframe',help='space bar toggles play/pause', action='store_true')
     p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
@@ -96,7 +93,6 @@ if __name__=='__main__':
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,)*2)
     p.add_argument('-d','--detfn',help='master file to save detections and statistics in HDF5, under odir',default='auroraldet.h5')
     p.add_argument('--ms',help='keogram/montage step [1000] dont make it too small like 1 or output is as big as original file!',type=int,default=1000)
-    p.add_argument('-c','--contrast',help='[low high] data numbers to bound video contrast',type=int,nargs=2,default=(None,)*2)
     p.add_argument('--rejectvid',help='reject raw video files with less than this many frames',type=int,default=10)
     p.add_argument('-r','--rejectdet',help='reject files that have fewer than this many detections',type=int,default=10)
 

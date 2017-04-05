@@ -32,7 +32,7 @@ def getvidinfo(fn,cp,up,verbose=False):
             finf = spoolparam(fn.parent/SPOOLINI)
             finf['reader'] = 'spool'
             finf['nframe'] = up['nfile'] * finf['nframefile']
-            finf['frameind'] = arange(finf['nframe'], dtype=int64)
+            finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int64)
             finf['kinetic'] = None # FIXME blank for now
     elif fn.suffix.lower() in ('.h5','.hdf5'):
 #%% determine if optical or passive radar
@@ -53,7 +53,7 @@ def getvidinfo(fn,cp,up,verbose=False):
             else:
                 raise NotImplementedError('unknown HDF5 file type')
 
-        finf['frameind'] = arange(finf['nframe'], dtype=int64)
+        finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int64)
     elif fn.suffix.lower() in ('.fit','.fits'):
         """
         have not tried memmap=True
