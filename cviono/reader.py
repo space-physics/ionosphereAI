@@ -11,11 +11,12 @@ from matplotlib.pyplot import figure, hist
 #
 from .getpassivefm import getfmradarframe
 from histutils.rawDMCreader import getDMCframe
+from dmcutils.neospool import readNeoSpool
 
 def setscale(fn,ap,finf):
     """
     if user has not set fixed upper/lower bounds for 16-8 bit conversion, do it automatically,
-    since not specifying fixed constrast destroys the working of auto CV detection
+    since not specifying fixed contrast destroys the working of auto CV detection
     """
     pt = [0.01,0.99] #percentiles
     mod = False
@@ -33,13 +34,13 @@ def setscale(fn,ap,finf):
 #%%
     cdiff = ap['rawlim'][1] - ap['rawlim'][0]
 
-    assert cdiff>0,'raw limits do not make sense  lower: {}   upper: {}'.format(ap['rawlim'][0],ap['rawlim'][1])
+    assert cdiff>0, f'raw limits do not make sense  lower: {ap["rawlim"][0]}   upper: {ap["rawlim"][1]}'
 
     if cdiff < 20:
         raise ValueError('your video may have very poor contrast and not work for auto detection')
 #%%
     if mod:
-        print('data number lower,upper  {}  {}'.format(ap['rawlim'][0],ap['rawlim'][1]))
+        print(f'data number lower,upper  {ap["rawlim"][0]}  {ap["rawlim"][1]}')
 
     return ap
 
@@ -72,14 +73,19 @@ def getraw(fn,ifrm,finf,svh=None,ap=None,cp=None,up=None):
 
     frameref = None #just in case not used
     if cp:
-        dowiener = cp.getint('filter','wienernhood')
+        dowiener = cp.get('filter','wienernhood')
+        if not dowiener.strip():
+            dowiener = False
+        else:
+            dowiener = int(dowiener)
+
     else:
         dowiener = None
 
     if not ap:
         ap = {'twoframe': None, 'rawlim': (None,None)}
 #%% reference frame
-    if finf['reader'] == 'raw' and fn:
+    if finf['reader'] == 'raw':
         if ap['twoframe']:
             frameref = getDMCframe(fn,ifrm,finf)[0]
             frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
@@ -92,7 +98,21 @@ def getraw(fn,ifrm,finf,svh=None,ap=None,cp=None,up=None):
         except (ValueError,IOError):
             ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
             raise
+    elif finf['reader'] == 'spool':
+        rfi = ifrm
 
+        if ap['twoframe']:
+            frameref = readNeoSpool(fn,finf,[ifrm])[0].squeeze()
+            frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
+            if dowiener:
+                frameref = wiener(frameref, dowiener)
+
+            try:
+                frame16 = readNeoSpool(fn,finf,[ifrm+1])[0].squeeze()
+                framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+            except (ValueError,IOError):
+                ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
+                raise
     elif finf['reader'] == 'cv2':
         if ap['twoframe']:
             retval,frameref = fn.read() #TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES is said not to always work vis keyframes
@@ -152,7 +172,7 @@ def getraw(fn,ifrm,finf,svh=None,ap=None,cp=None,up=None):
 
         rfi = ifrm #TODO: incorrect raw index with sequence of fits files
     else:
-        raise TypeError('unknown reader type {}'.format(finf['reader']))
+        raise TypeError(f'unknown reader type {finf["reader"]}')
 
 
 #%% current frame

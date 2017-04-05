@@ -7,6 +7,9 @@ from pathlib import Path
 from .getpassivefm import getfmradarframe
 from morecvutils.getaviprop import getaviprop
 from histutils.rawDMCreader import getDMCparam,getNeoParam
+from dmcutils.neospool import spoolparam
+
+SPOOLINI = 'acquisitionmetadata.ini' # for Solis spool files
 
 def getvidinfo(fn,cp,up,verbose=False):
     #print('using {} for {}'.format(cp['main']['ofmethod'],fn))
@@ -15,7 +18,7 @@ def getvidinfo(fn,cp,up,verbose=False):
                                                          cp['blob']['maxblobarea'],
                                                          cp['blob']['maxblobcount']) )
 
-    if fn.suffix.lower() in ('.dmcdata','.dat'):
+    if fn.suffix.lower() in ('.dmcdata',): # HIST
         xypix=(cp.getint('main','xpix'), cp.getint('main','ypix'))
         xybin=(cp.getint('main','xbin'), cp.getint('main','ybin'))
         if up['startstop'][0] is None:
@@ -25,6 +28,12 @@ def getvidinfo(fn,cp,up,verbose=False):
                      (up['startstop'][0], up['startstop'][1], up['framestep']),
                       verbose=verbose)
         finf['reader']='raw'
+    elif fn.suffix.lower() in ('.dat',): # Andor Solis spool file
+            finf = spoolparam(fn.parent/SPOOLINI)
+            finf['reader'] = 'spool'
+            finf['nframe'] = up['nfile'] * finf['nframefile']
+            finf['frameind'] = arange(finf['nframe'], dtype=int64)
+            finf['kinetic'] = None # FIXME blank for now
     elif fn.suffix.lower() in ('.h5','.hdf5'):
 #%% determine if optical or passive radar
         with h5py.File(str(fn), 'r', libver='latest') as f:
@@ -61,7 +70,7 @@ def getvidinfo(fn,cp,up,verbose=False):
         #finf['frameind'] = arange(0,finf['nframe'],up['framestep'],dtype=int64)
     else: #assume video file
         #TODO start,stop,step is not yet implemented, simply uses every other frame
-        print('attempting to read {} with OpenCV.'.format(fn))
+        print(f'attempting to read {fn} with OpenCV.')
         finf = {'reader':'cv2'}
 
         vidparam = getaviprop(fn)
@@ -84,7 +93,7 @@ def getvidinfo(fn,cp,up,verbose=False):
 def getparam(pfn):
     pfn = Path(pfn).expanduser()
     P = ConfigParser(allow_no_value=True)
-    P.read(str(pfn))
+    P.read(pfn)
 
     return P
 

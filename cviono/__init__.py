@@ -4,7 +4,6 @@ Michael Hirsch Dec 2014
 This program detects aurora in multi-terabyte raw video data files
 It is also used for the Haystack passive FM radar ionospheric activity detection
 """
-from __future__ import division, absolute_import
 import logging
 import cv2
 print(f'OpenCV {cv2.__version__}') #some installs of OpenCV don't give a consistent version number, just a build number and I didn't bother to parse this.
@@ -32,9 +31,11 @@ def loopaurorafiles(flist, up):
     aurstat = DataFrame(columns=['mean','median','variance','detect'])
 
     for f in flist: #iterate over files in list
+        up['nfile']  = len(flist)
         finf,ap = getvidinfo(f, P,up)
 
-        if finf['nframe'] < 100:
+
+        if finf['nframe'] < 100 and finf['reader'] != 'spool':
             print(f'SKIPPING {f} with only {finf["nframe"]} frames')
             continue
 
@@ -92,7 +93,7 @@ def procaurora(f, P,up,ap,finf):
         try:
             framegray,frameref,ap = getraw(f,iraw,finf,svh,ap, P,up)[:3]
         except Exception as e:
-            print(f'{}  {}'.format(f,e))
+            logging.error(f'{f}  {e}')
             break
 #%% compute optical flow or Background/Foreground
         if ~isgmm:
@@ -139,7 +140,7 @@ def procaurora(f, P,up,ap,finf):
         detfn =    Path(up['odir']).expanduser()/(f.stem +'_detections.h5')
         detpltfn = Path(up['odir']).expanduser()/(f.stem +'_detections.png')
         if detfn.is_file():
-            logging.warning('overwriting existing %s', detfn)
+            logging.warning(f'overwriting existing {detfn}')
 
         try:
             savestat(stat,detfn)
@@ -148,7 +149,7 @@ def procaurora(f, P,up,ap,finf):
             pl['fdet'].savefig(str(detpltfn),dpi=100,bbox_inches='tight')
 
         except Exception as e:
-            logging.critical('trouble saving detection result   '.format(e))
+            logging.critical(f'trouble saving detection result  {e} ')
         finally:
             svrelease(svh, up['savevideo'])
 

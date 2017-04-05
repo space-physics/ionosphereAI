@@ -37,11 +37,15 @@ def svsetup(ap, cp, up):
     x = ap['xpix']; y = ap['ypix']
     pshow = up['pshow']
 
-    dowiener = cp.getint('filter','wienernhood')
+    dowiener = cp.get('filter','wienernhood')
+    if not dowiener.strip():
+        dowiener = False
+    else:
+        dowiener = int(dowiener)
 
 
     if savevideo:
-        print('dumping video output to {}'.format(up['odir']))
+        print(f'dumping video output to {up["odir"]}')
     svh = {'video':None, 'wiener':None,'thres':None,'despeck':None,
            'erode':None,'close':None,'detect':None,'save':savevideo,'complvl':up['complvl']}
     if savevideo == 'tif':

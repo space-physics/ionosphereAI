@@ -64,8 +64,8 @@ def rundetect(p):
         elif idir.is_dir():
             flist = sorted(idir.glob('*'+p.vidext))
         else:
-            raise FileNotFoundError('{} is not a path or file'.format(idir))
-        print('found {} {} files in {}'.format(len(flist),p.vidext,p.indir))
+            raise FileNotFoundError(f'{idir} is not a path or file')
+        print(f'found {len(flist)} {p.vidext} files in {p.indir}')
 
         if p.profile:
             import cProfile,pstats
@@ -76,7 +76,7 @@ def rundetect(p):
         else:
             aurstat = loopaurorafiles(flist, P)
     except KeyboardInterrupt:
-        print('')
+        print()
 
     return aurstat
 
@@ -86,7 +86,7 @@ if __name__=='__main__':
     p.add_argument('indir',help='specify file, OR top directory over which to recursively find video files')
     p.add_argument('odir',help='directory to put output files in')
     p.add_argument('paramfn',help='parameter file for cameras')
-    p.add_argument('-e','--vidext',help='suffix of raw video file (.DMCdata,.h5,.fits)',default='.h5')
+    p.add_argument('-e','--vidext',help='suffix of raw video file (.DMCdata,.h5,.fits,.dat)',default='.h5')
 
 
     p.add_argument('--fps',help='output file FPS (note VLC needs fps>=3)',type=float,default=3)
