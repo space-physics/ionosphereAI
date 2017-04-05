@@ -108,10 +108,11 @@ def procaurora(f, P,up,ap,finf):
 #%% list of files or handle?
     if finf['reader'] == 'spool':
         F = f
-        N = range(len(F))
+        N = range(0,len(F),up['framestep'])
     else:
         N = finf['frameind'][:-1]
 #%% start main loop
+    print('start main loop')
     for i,iraw in enumerate(N):
         if finf['reader'] == 'spool':
             f = F[i]
@@ -136,13 +137,16 @@ def procaurora(f, P,up,ap,finf):
 #%% morphological ops
         morphed = domorph(despeck,kern,svh, up['pshow'])
 #%% blob detection
+        print('blob')
         stat = doblob(morphed,blobdetect,framegray,i,svh,pl,stat, up['pshow']) #lint:ok
 #%% plotting in loop
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
         """
+        print('draw')
         draw(); pause(0.01)
 
+        print(i)
         if not i % 40:
             print(f'i={iraw:0d} {stat.loc[i-40:i,"detect"].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
@@ -150,6 +154,7 @@ def procaurora(f, P,up,ap,finf):
             if (framegray == 0).sum() > 4:
                 print('* Warning: video may be saturated at value 0, missed detections can result')
 
+        print('keypress')
         if up['pshow']:
             if framebyframe: #wait indefinitely for spacebar press
                 keypressed = cv2.waitKey(0)
