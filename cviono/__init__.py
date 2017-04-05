@@ -22,11 +22,23 @@ from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 #
 from morecvutils.connectedComponents import setupblob
 
-def loopaurorafiles(flist, up):
+def loopaurorafiles(up):
+
+    P = getparam(up['paramfn'])
+
+    #note, if a specific file is given, vidext is ignored
+    idir = Path(up['indir']).expanduser()
+    if idir.is_file():
+        flist = [idir]
+    elif idir.is_dir():
+        flist = sorted(idir.glob('*'+P.get('main','vidext')))
+    else:
+        raise FileNotFoundError(f'{idir} is not a path or file')
+    print(f'found {len(flist)} files in {up["indir"]}')
+
     if not flist:
         raise ValueError('no files found')
 
-    P = getparam(up['paramfn'])
 
     aurstat = DataFrame(columns=['mean','median','variance','detect'])
 
