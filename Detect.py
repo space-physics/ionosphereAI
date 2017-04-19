@@ -7,6 +7,10 @@ Michael Hirsch
 
 ./Detect.py ~/data/testdmc  /tmp dmc.ini
 
+HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
+1. Use https://github.com/scivision/dmcutils/PlotSpool.py to plot Andor Solis .dat spool files. (verify you're reading them correctly)
+2. sort the spool files with HDF5 index output by dmcutils/FileTick.py -o index.h5
+3. ./Detect.py index.h5 (loads the files you specified in step 2 in time order)
 """
 import logging
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
@@ -15,9 +19,7 @@ from pathlib import Path
 #
 from cviono import loopaurorafiles
 
-COMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
-PSHOW = []
-
+TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 PSHOW=('thres','stat','morph','final')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal
@@ -40,10 +42,10 @@ def rundetect(p):
      'framebyframe': p.framebyframe,
      'verbose': p.verbose,
      'pshow': PSHOW,
-     'complvl': COMPLVL
+     'complvl': TIFFCOMPLVL
     }
 
-    P['odir'].mkdir(parents=True,exist_ok=True)
+    P['odir'].mkdir(parents=True, exist_ok=True)
 
 
     if p.savetiff:

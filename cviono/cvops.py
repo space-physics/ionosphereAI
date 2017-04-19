@@ -2,16 +2,18 @@
 import cv2
 import numpy as np
 #
-from morecvutils.calcOptFlow import optflowHornSchunk
+from pyoptflow import HornSchunck
 from morecvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
 #from matplotlib.pyplot import draw,pause #for debug plot
 
-def dooptflow(Inew,Iref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
+def dooptflow(Inew,Iref,lastflow,ifrm,jfrm,up,P,stat):
+    assert isinstance(up,dict)
 
-    if ap['ofmethod'] == 'hs':
-        flow = optflowHornSchunk(Inew,Iref,uv, cp.getfloat('main','hssmooth'))
-    elif ap['ofmethod'] == 'farneback':
+    if up['ofmethod'] == 'hs':
+        u,v = HornSchunck(Iref, Inew, P.getfloat('main','hssmooth'))
+        flow = np.dstack((u, v))  # this is how OpenCV expects it.
+    elif up['ofmethod'] == 'farneback':
         """
         http://docs.opencv.org/trunk/modules/video/doc/motion_analysis_and_object_tracking.html
         """
@@ -25,59 +27,65 @@ def dooptflow(Inew,Iref,lastflow,uv,ifrm,jfrm,ap,cp,pl,stat,pshow):
                                            poly_sigma=1.5,
                                            flags=1)
     else: #using non-of method
-        return None,None,None,None
-#%% zero out edges of image (which have very high flow, unnaturally)
+        return (None,)*4
+# %% Normalize [0, 1]
+    """
+    in reader.py:getraw() we scale to uint8 for OpenCV.
+    FIXME is this necessary for anything besides cv2.imshow() ?
+    """
+    flow /= 255.
+# %% zero out edges of image (which have very high flow, unnaturally)
     '''
     maybe this can be done more elegantly, maybe via pad or take?
     http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
     '''
-    te = cp.getint('filter','trimedgeof')
-    flow[:te,...] = 0.; flow[-te:,...] = 0.
-    flow[:,:te,:] = 0.; flow[:,-te:,:] = 0.
-
-    flow /= 255. #make like matlab, which has normalized data input (opencv requires uint8)
-#%% compute median and magnitude
+    te = P.getint('filter','trimedgeof')
+    flow[:te, ...] = 0.
+    flow[-te:, ...] = 0.
+    flow[:, :te, :] = 0.
+    flow[:, -te:, :] = 0.
+# %% compute median and magnitude
     ofmag = np.hypot(flow[...,0], flow[...,1])
-    stat['median'].iat[jfrm] = np.median(ofmag)#we don't know if it will be index or ut1 in index
+    stat['median'].iat[jfrm] = np.median(ofmag)  # we don't know if it will be index or ut1 in index
     stat['mean'].iat[jfrm] = ofmag.mean()
     stat['variance'].iat[jfrm] = np.var(ofmag)
 
     try:
-        pl['pmed'][0].set_ydata(stat['median'].values)
-        pl['pmean'][0].set_ydata(stat['mean'].values)
+        up['pmed'][0].set_ydata(stat['median'].values)
+        up['pmean'][0].set_ydata(stat['mean'].values)
     except TypeError: # if None
         pass
 
-    if 'thres' in pshow:
+    if 'thres' in up['pshow']:
         #cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
-        pl['iofm'].set_data(ofmag)
+        up['iofm'].set_data(ofmag)
 
-    if 'flowvec' in pshow:
+    if 'flowvec' in up['pshow']:
         cv2.imshow('flow vectors', draw_flow(Inew,flow) )
-    if 'flowhsv' in pshow:
+    if 'flowhsv' in up['pshow']:
         mag,ang = flow2magang(flow,np.uint8)
         cv2.imshow('flowHSV', draw_hsv(mag,ang,np.uint8) )
 
 #    draw(); pause(0.001) #debug
     return flow,ofmag, stat
 
-def dothres(ofmaggmm,medianflow,ap,cp,i,svh,pshow,isgmm):
+def dothres(ofmaggmm,medianflow, P, i, svh, up,isgmm):
     """
     flow threshold, considering median
     """
-    if ~isgmm: #OptFlow based
-        if ap['thresmode'] == 'median':
+    if not isgmm: #OptFlow based
+        if up['thresmode'] == 'median':
             if medianflow>1e-6:  #median is scalar
-                lowthres = cp.getfloat('blob','ofthresmin') * medianflow #median is scalar!
-                hithres =  cp.getfloat('blob','ofthresmax') * medianflow #median is scalar!
+                lowthres = P.getfloat('blob','ofthresmin') * medianflow #median is scalar!
+                hithres =  P.getfloat('blob','ofthresmax') * medianflow #median is scalar!
             else: #median ~ 0
                 lowthres = 0
                 hithres = np.inf
 
-        elif ap['thresmode'] == 'runningmean':
-            raise NotImplementedError('*** ' + ap['thresmode'] + ' not yet implemented')
+        elif up['thresmode'] == 'runningmean':
+            raise NotImplementedError(f'{up["thresmode"]} not yet implemented')
         else:
-            raise NotImplementedError('*** ' + ap['thresmode'] + ' not yet implemented')
+            raise NotImplementedError(f'{up["thresmode"]} not yet implemented')
     else:
         hithres = 255; lowthres=0 #TODO take from spreadsheed as gmmlowthres gmmhighthres
     """
@@ -98,7 +106,7 @@ def dothres(ofmaggmm,medianflow,ap,cp,i,svh,pshow,isgmm):
         elif svh['save'] == 'vid':
             svh['thres'].write(thres)
 
-    if 'thres' in pshow:
+    if 'thres' in up['pshow']:
         cvtxt(str(i), thres)
         cv2.imshow('thresholded', thres)
     """ threshold image by lowThres < abs(OptFlow) < highThres
@@ -111,7 +119,7 @@ def dothres(ofmaggmm,medianflow,ap,cp,i,svh,pshow,isgmm):
     """
     return thres
 
-def dodespeck(thres,medfiltsize,i,svh,pshow):
+def dodespeck(thres,medfiltsize,i,svh,up):
     """
     thres is really a binary, but OpenCV needs binary \in {0,255}
     """
@@ -123,19 +131,19 @@ def dodespeck(thres,medfiltsize,i,svh,pshow):
         elif svh['save'] == 'vid':
             svh['despeck'].write(despeck)
 
-    if 'thres' in pshow:
+    if 'thres' in up['pshow']:
         cvtxt(str(i),despeck)
         cv2.imshow('despeck', despeck)
 
     return despeck
 
-def domorph(despeck,kern,svh,pshow):
+def domorph(despeck,svh,up):
     """
     http://docs.opencv.org/master/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
     """
    # opened = cv2.morphologyEx(despeck, cv2.MORPH_OPEN, openkernel)
-    eroded = cv2.erode(despeck,kern['erode'])
-    closed = cv2.morphologyEx(eroded, cv2.MORPH_CLOSE, kern['close'])
+    eroded = cv2.erode(despeck, up['erode'])
+    closed = cv2.morphologyEx(eroded, cv2.MORPH_CLOSE, up['close'])
 
     if svh['erode'] is not None:
         if svh['save'] == 'tif':
@@ -149,13 +157,13 @@ def domorph(despeck,kern,svh,pshow):
         elif svh['save'] == 'vid':
             svh['close'].write(closed)
 
-    if 'morph' in pshow:
+    if 'morph' in up['pshow']:
         #cv2.imshow('opened', opened)
         cv2.imshow('morphed',closed)
 
     return closed
 
-def doblob(morphed,blobdetect,framegray,i,svh,pl,stat,pshow):
+def doblob(morphed,blobdetect,framegray,i,svh,stat,up):
     """
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
@@ -174,7 +182,7 @@ def doblob(morphed,blobdetect,framegray,i,svh,pl,stat,pshow):
                 fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5,
                 color=(0,255,0), thickness=2)
 
-    if 'final' in pshow:
+    if 'final' in up['pshow']:
         cvtxt(str(i),final)
         cv2.imshow('final',final)
 
@@ -188,7 +196,7 @@ def doblob(morphed,blobdetect,framegray,i,svh,pl,stat,pshow):
 #%% plot detection vs. time
 #    if 'savedet' in pshow: #updates plot with current info
     try:
-        pl['pdet'][0].set_ydata(stat['detect'].values)
+        up['pdet'][0].set_ydata(stat['detect'].values)
     except TypeError:
         pass
 

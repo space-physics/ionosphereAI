@@ -7,10 +7,10 @@ import histutils.rawDMCreader as rdr
 from histutils.sixteen2eight import sixteen2eight
 
 #------------------------------------
-def main(BigFN,xyPix=(512,512),xyBin=(1,1),FrameInd=(0,0),playMovie=0.01,
+def main(fn,xyPix=(512,512),xyBin=(1,1),FrameInd=(0,0),playMovie=0.01,
          Clim=(None,None), rawFrameRate=None,startUTC=None):
-    BigFN = Path(BigFN).expanduser()
-    BigExt = BigFn.suffix
+    fn = Path(fn).expanduser()
+    BigExt = fn.suffix
 
     if rawFrameRate is None:
         startUTC=None
@@ -19,7 +19,7 @@ def main(BigFN,xyPix=(512,512),xyBin=(1,1),FrameInd=(0,0),playMovie=0.01,
     if (BigExt == '.DMCdata'):
         finf = rdr.getDMCparam(
            BigFN,xyPix[0],xyPix[1],xyBin[0],xyBin[1],FrameInd)
-        fid = open(BigFN, 'rb')
+        fid = fn.open('rb')
         (grayRef,rawIndRef) = rdr.getDMCframe(fid,0,BytesPerFrame,PixelsPerImage,Nmetadata,SuperX,SuperY)
         grayRef = sixteen2eight(grayRef,Clim)
     elif (BigExt == '.avi'):
@@ -27,9 +27,9 @@ def main(BigFN,xyPix=(512,512),xyBin=(1,1),FrameInd=(0,0),playMovie=0.01,
         #print(fid.isOpened())
         nFrame = fid.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
         if all(FrameInd == 0):
-            FrameInd = np.arange(0,nFrame,1,dtype=np.uint64) # has to be numpy for > comparison
+            FrameInd = np.arange(0,nFrame,1, dtype=int) # has to be numpy for > comparison
         grayRef = cv2.cvtColor(fid.read()[1], cv2.COLOR_BGR2GRAY)
-    else: 
+    else:
         raise OSError('unknown file type: {}'.format(BigExt))
 
     print('processing {} frames from {}'.format(nframe,BigFN))

@@ -5,39 +5,41 @@ try:
 except ImportError as e:
     from cv2 import VideoWriter_fourcc as fourcc
 #
+from sys import stderr
 from pandas import DataFrame
 from datetime import datetime
 from pytz import UTC
 import numpy as np
 from matplotlib.pylab import figure,subplots#draw,pause
 from matplotlib.colors import LogNorm
-#
-from morecvutils.calcOptFlow import setupuv
 
-def setupkern(ap,cp):
-    openrad = cp.getint('morph','openradius')
+
+def setupkern(P,up):
+    openrad = P.getint('morph','openradius')
     if not openrad % 2:
         raise ValueError('openRadius must be ODD')
 
-    kern = {}
-    kern['open'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad,openrad))
-    kern['erode'] = kern['open']
-    kern['close'] = cv2.getStructuringElement(cv2.MORPH_RECT,
-                                            (cp.getint('morph','closewidth'),
-                                             cp.getint('morph','closeheight')))
-    #cv2.imshow('open kernel',openkernel)
-    print('open kernel');  print(kern['open'])
-    print('close kernel'); print(kern['close'])
-    print('erode kernel'); print(kern['erode'])
 
-    return kern
+    up['open'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad,openrad))
 
-def svsetup(ap, cp, up):
+    up['erode'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad,openrad))
+    up['close'] = cv2.getStructuringElement(cv2.MORPH_RECT,
+                                        (P.getint('morph','closewidth'),
+                                         P.getint('morph','closeheight')))
+
+    # cv2.imshow('open kernel',openkernel)
+    print('open kernel',  up['open'])
+    print('close kernel', up['close'])
+    print('erode kernel', up['erode'])
+
+    return up
+
+def svsetup(P, up):
     savevideo = up['savevideo']
-    x = ap['xpix']; y = ap['ypix']
+    x = up['xpix']; y = up['ypix']
     pshow = up['pshow']
 
-    dowiener = cp.get('filter','wienernhood')
+    dowiener = P.get('filter','wienernhood')
     if not dowiener.strip():
         dowiener = False
     else:
@@ -129,15 +131,10 @@ def svrelease(svh,savevideo):
 def setupof(ap,cp):
     xpix = ap['xpix']; ypix = ap['ypix']
 
-    umat = None; vmat = None; gmm=None
+    gmm=None
     lastflow = None #if it stays None, signals to use GMM
     if ap['ofmethod'] == 'hs':
-        try:
-            umat,vmat = setupuv((ypix,xpix))
-            lastflow = np.nan #nan instead of None to signal to use OF instead of GMM
-        except NameError as e:
-            raise ImportError("OpenCV 3 doesn't have legacy cv functions such as {}. You're using OpenCV {}.  Original error: {}".format(ap['ofmethod'],cv2.__version__,e))
-
+        pass
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
     elif ap['ofmethod'] == 'mog':
@@ -145,10 +142,10 @@ def setupof(ap,cp):
             gmm = cv2.BackgroundSubtractorMOG(history=cp['nhistory'],
                                                nmixtures=cp['nmixtures'],)
         except AttributeError as e:
-            raise ImportError('MOG is for OpenCV2 only.   ' + str(e))
+            raise ImportError(f'MOG is for OpenCV2 only.   {e}')
     elif ap['ofmethod'] == 'mog2':
         print('* CAUTION: currently inputting the same paramters gives different'+
-        ' performance between OpenCV 2 and 3. Informally OpenCV 3 works a lot better.')
+        ' performance between OpenCV 2 and 3. Informally OpenCV 3 works a lot better.',file=stderr)
         try:
             gmm = cv2.BackgroundSubtractorMOG2(history=cp['nhistory'],
                                                varThreshold=cp['varThreshold'], #default 16
@@ -165,33 +162,34 @@ def setupof(ap,cp):
             gmm = cv2.createBackgroundSubtractorKNN(history=cp['nhistory'],
                                                     detectShadows=True)
         except AttributeError as e:
-            raise ImportError('KNN is for OpenCV3 only. ' + str(e))
+            raise ImportError(f'KNN is for OpenCV3 only. {e}')
     elif ap['ofmethod'] == 'gmg':
         try:
             gmm = cv2.createBackgroundSubtractorGMG(initializationFrames=cp['nhistory'])
         except AttributeError as e:
-            raise ImportError('GMG is for OpenCV3 only, but is currently part of opencv_contrib. ' + str(e))
+            raise ImportError(f'GMG is for OpenCV3 only, but is currently part of opencv_contrib. {e}')
 
     else:
         raise TypeError('unknown method {}'.format(ap['ofmethod']))
 
-    return (umat, vmat), lastflow,gmm
+    return lastflow,gmm
 
 
-def setupfigs(finf,fn,pshow):
-#%% optical flow magnitude plot
+def setupfigs(finf, fn, up):
+# %% optical flow magnitude plot
 
-    if 'thres' in pshow:
+    if 'thres' in up['pshow']:
         fg = figure()
         axom = fg.gca()
-        hiom = axom.imshow(np.zeros((finf['supery'],finf['superx'])),vmin=1e-5, vmax=0.1,
-                           origin='bottom', norm=LogNorm())#, cmap=lcmap) #arbitrary limits
-        axom.set_title('optical flow magnitude\n{}'.format(fn))
+        hiom = axom.imshow(np.zeros((finf['supery'],finf['superx'])),
+                           vmin=1e-5, vmax=0.1,
+                           origin='bottom', norm=LogNorm()) #, cmap=lcmap) #arbitrary limits
+        axom.set_title(f'optical flow magnitude{fn}')
         fg.colorbar(hiom,ax=axom)
     else:
         hiom = None
 
-#%% stat plot
+# %% stat plot
     try:
         dt = [datetime.fromtimestamp(t,tz=UTC) for t in finf['ut1'][:-1]]
         ut = finf['ut1'][:-1]
@@ -202,43 +200,48 @@ def setupfigs(finf,fn,pshow):
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
     stat[['mean','median','variance']] = np.zeros((finf['frameind'].size-1,3),dtype=float)
 
-    hpmn, hpmd, hpdt, fgdt= statplot(dt,finf['frameind'][:-1],
-                                     stat['mean'],stat['median'],stat['detect'],
-                                     fn,pshow)
+    hpmn, hpmd, hpdt, fgdt= statplot(dt,stat,fn,up['pshow'])
 
 #    draw(); pause(0.001) #catch any plot bugs
 
-    pl= {'iofm':hiom, 'pmean':hpmn, 'pmed':hpmd, 'pdet':hpdt, 'fdet':fgdt}
+    up['iofm']  = hiom
+    up['pmean'] = hpmn
+    up['pmed']  = hpmd
+    up['pdet']  = hpdt
+    up['fdet']  = fgdt
 
-    return pl,stat
+    return up,stat
 
-def statplot(dt,ind,mean,median,detect,fn=None,pshow='stat'):
-    def _timelbl(ax,ind,x,y,lbl=None):
+def statplot(dt,stat,fn=None,pshow='stat'):
+
+
+
+    def _timelbl(ax,x,y,lbl=None):
         if x is not None:
             hpl = ax.plot(x,y,label=lbl)
             ax.set_xlabel('Time [UTC]')
         else:
-            hpl = ax.plot(ind,y,label=lbl)
+            hpl = ax.plot(stat.index,y,label=lbl)
             ax.set_xlabel('frame index #')
         return hpl
 
     if 'stat' in pshow:
         fgdt,axs = subplots(1,2,figsize=(12,5))
         ax = axs[0]
-        ax.set_title('optical flow statistics\n{}'.format(fn))
+        ax.set_title(f'optical flow statistics{fn}')
         ax.set_xlabel('frame index #')
         ax.set_ylim((0,5e-3))
 
-        hpmn = _timelbl(ax,ind,dt,mean,'mean')
-        hpmd = _timelbl(ax,ind,dt,median,'median')
+        hpmn = _timelbl(ax, dt, stat['mean'],  'mean')
+        hpmd = _timelbl(ax, dt, stat['median'], 'median')
         ax.legend(loc='best')
 #%% detections
         ax = axs[1]
-        ax.set_title('Detections of Aurora:\n{}'.format(fn))
+        ax.set_title(f'Detections of Aurora:{fn}')
         ax.set_ylabel('number of detections')
         ax.set_ylim((0,10))
 
-        hpdt = _timelbl(ax,ind,dt,detect)
+        hpdt = _timelbl(ax, dt, stat['detect'])
     else:
         hpmn = None; hpmd = None; hpdt = None; fgdt = None
 

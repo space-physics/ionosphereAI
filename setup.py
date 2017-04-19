@@ -24,5 +24,6 @@ setup(name='cviono',
 
 try:
     import cv2
+    print(f'\nOpenCV {cv2.__version__} detected')
 except ImportError:
     print('you need to install OpenCV for Python. see: \n https://www.scivision.co/install-opencv-python-windows/',file=stderr)

@@ -1,5 +1,5 @@
 from configparser import ConfigParser
-from numpy import arange,int64,empty
+from numpy import arange,empty
 from pandas import DataFrame
 import h5py
 from pathlib import Path
@@ -14,9 +14,14 @@ SPOOLINI = 'acquisitionmetadata.ini' # for Solis spool files
 def getvidinfo(fn,cp,up,verbose=False):
     #print('using {} for {}'.format(cp['main']['ofmethod'],fn))
     if verbose:
-        print('minBlob={} maxBlob={} maxNblob={}'.format(cp['blob']['minblobarea'],
-                                                         cp['blob']['maxblobarea'],
-                                                         cp['blob']['maxblobcount']) )
+        print(f'minBlob={cp["blob"]["minblobarea"]}'
+              f'maxBlob={cp["blob"]["maxblobarea"]}'
+              f'maxNblob={cp["blob"]["maxblobcount"]}')
+
+    try: # for spool case
+        fn = fn[0]
+    except TypeError:
+        pass
 
     if fn.suffix.lower() in ('.dmcdata',): # HIST
         xypix=(cp.getint('main','xpix'), cp.getint('main','ypix'))
@@ -32,7 +37,11 @@ def getvidinfo(fn,cp,up,verbose=False):
             finf = spoolparam(fn.parent/SPOOLINI)
             finf['reader'] = 'spool'
             finf['nframe'] = up['nfile'] * finf['nframefile']
-            finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int64)
+            # FIXME should we make this general to all file types?
+            if up['nfile'] > 1 and finf['nframe'] > 10* up['framestep']:
+                finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
+            else:  # revert to all frames because there aren't many, rather than annoying with zero result
+                finf['frameind'] = arange(finf['nframe'], dtype=int)
             finf['kinetic'] = None # FIXME blank for now
     elif fn.suffix.lower() in ('.h5','.hdf5'):
 #%% determine if optical or passive radar
@@ -53,7 +62,7 @@ def getvidinfo(fn,cp,up,verbose=False):
             else:
                 raise NotImplementedError('unknown HDF5 file type')
 
-        finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int64)
+        finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
     elif fn.suffix.lower() in ('.fit','.fits'):
         """
         have not tried memmap=True
@@ -67,7 +76,7 @@ def getvidinfo(fn,cp,up,verbose=False):
 
         #dfid = fits.open(str(fn),mode='readonly',memmap=False)
 
-        #finf['frameind'] = arange(0,finf['nframe'],up['framestep'],dtype=int64)
+        #finf['frameind'] = arange(0,finf['nframe'],up['framestep'],dtype=int)
     else: #assume video file
         #TODO start,stop,step is not yet implemented, simply uses every other frame
         print(f'attempting to read {fn} with OpenCV.')
@@ -78,17 +87,20 @@ def getvidinfo(fn,cp,up,verbose=False):
         finf['superx'] = vidparam['xpix']
         finf['supery'] = vidparam['ypix']
 
-        finf['frameind'] = arange(finf['nframe'], dtype=int64)
+        finf['frameind'] = arange(finf['nframe'], dtype=int)
 #%% extract analysis parameters
-    ap = {'twoframe':bool(cp.get('main','twoframe')),
-          'ofmethod':cp.get('main','ofmethod').lower(),
-          'rawframeind': empty(finf['nframe'], int64), #int64 for very large files on Windows Python 2.7, long is not available on Python3
+    ap = {'twoframe': cp.getboolean('main','twoframe'),
+          'ofmethod': cp.get('main','ofmethod').lower(),
+          'rawframeind': empty(finf['nframe'], int),
           'rawlim': [cp.getfloat('main','cmin'), #list not tuple for auto
                      cp.getfloat('main','cmax')],
           'xpix': finf['superx'], 'ypix':finf['supery'],
-          'thresmode':cp.get('filter','thresholdmode').lower()}
+          'thresmode': cp.get('filter','thresholdmode').lower()}
 
-    return finf, ap
+#%% concatenate dicts
+    up = {**up, **ap}
+
+    return finf, up
 
 def getparam(pfn):
     pfn = Path(pfn).expanduser()

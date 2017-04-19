@@ -1,4 +1,4 @@
-from warnings import warn
+from sys import stderr
 import logging
 import cv2
 from astropy.io import fits
@@ -13,36 +13,37 @@ from .getpassivefm import getfmradarframe
 from histutils.rawDMCreader import getDMCframe
 from dmcutils.neospool import readNeoSpool
 
-def setscale(fn,ap,finf):
+def setscale(fn,up,finf):
     """
     if user has not set fixed upper/lower bounds for 16-8 bit conversion, do it automatically,
     since not specifying fixed contrast destroys the working of auto CV detection
     """
-    pt = [0.01,0.99] #percentiles
+    pt = [0.01, 0.99] #percentiles
     mod = False
 
-    if not isinstance(ap['rawlim'][0],(float,int)):
+    if not isinstance(up['rawlim'][0], (float, int)):
         mod = True
         prc = samplepercentile(fn,pt[0],finf)
-        ap['rawlim'][0] = prc
+        up['rawlim'][0] = prc
 
-    if not isinstance(ap['rawlim'][1],(float,int)):
+    if not isinstance(up['rawlim'][1], (float, int)):
         mod = True
         prc = samplepercentile(fn,pt[1],finf)
-        ap['rawlim'][1] = prc
+        up['rawlim'][1] = prc
 
-#%%
-    cdiff = ap['rawlim'][1] - ap['rawlim'][0]
-
-    assert cdiff>0, f'raw limits do not make sense  lower: {ap["rawlim"][0]}   upper: {ap["rawlim"][1]}'
-
-    if cdiff < 20:
-        raise ValueError('your video may have very poor contrast and not work for auto detection')
 #%%
     if mod:
-        print(f'data number lower,upper  {ap["rawlim"][0]}  {ap["rawlim"][1]}')
+        cdiff = up['rawlim'][1] - up['rawlim'][0]
 
-    return ap
+        assert cdiff>0, f'raw limits do not make sense  lower: {up["rawlim"][0]}   upper: {up["rawlim"][1]}'
+
+        if cdiff < 20:
+            raise ValueError('your video may have very poor contrast and not work for auto detection')
+
+        print(f'data number lower,upper  {up["rawlim"][0]}  {up["rawlim"][1]}')
+
+    return up
+
 
 def samplepercentile(fn,pct,finf):
     """
@@ -56,7 +57,7 @@ def samplepercentile(fn,pct,finf):
 
     tmp = getraw(fn,0,finf)[3]
     if tmp.dtype.itemsize < 2:
-        warn('usually we use autoscale with 16-bit video, not 8-bit.')
+        print('{fn}: usually we use autoscale with 16-bit video, not 8-bit.',file=stderr)
 
     for j,i in enumerate(isamp):
         dat[j,...] = getraw(fn, i, finf)[3]
@@ -64,63 +65,57 @@ def samplepercentile(fn,pct,finf):
     return np.percentile(dat,pct).astype(int)
 
 
-def getraw(fn,ifrm,finf,svh=None,ap=None,cp=None,up=None):
+def getraw(fn,ifrm,finf,svh,P,up):
     """ this function reads the reference frame too--which makes sense if youre
        only reading every Nth frame from the multi-TB file instead of every frame
     """
-    if up and (not isinstance(ap['rawlim'][0],(float,int)) or not isinstance(ap['rawlim'][1],(float,int))):
-        warn('not specifying fixed contrast will lead to very bad automatic detection results')
+    if (not isinstance(up['rawlim'][0],(float,int)) or not isinstance(up['rawlim'][1],(float,int))):
+        print(f'{fn}: not specifying fixed contrast will lead to very bad automatic detection results',file=stderr)
 
-    frameref = None #just in case not used
-    if cp:
-        dowiener = cp.get('filter','wienernhood')
-        if not dowiener.strip():
-            dowiener = False
-        else:
-            dowiener = int(dowiener)
-
-    else:
-        dowiener = None
-
-    if not ap:
-        ap = {'twoframe': None, 'rawlim': (None,None)}
+    frameref = None  # for non-twoframe case
+    dowiener = P.getint('filter','wienernhood', fallback=None)
 #%% reference frame
     if finf['reader'] == 'raw':
-        if ap['twoframe']:
+        if up['twoframe']:
             frameref = getDMCframe(fn,ifrm,finf)[0]
-            frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
+            frameref = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
             if dowiener:
                 frameref = wiener(frameref, dowiener)
 
         try:
             frame16,rfi = getDMCframe(fn,ifrm+1,finf)
-            framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+            framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
         except (ValueError,IOError):
-            ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
+            up['rawframeind'] = np.delete(up['rawframeind'], np.s_[ifrm:])
             raise
     elif finf['reader'] == 'spool':
+        """
+        Here we choose to read only the first frame pair from each spool file,
+        as each spool file is generally less than about 10 frames.
+        To skip further in time, skip more files.
+        """
         rfi = ifrm
 
-        if ap['twoframe']:
+        if up['twoframe']:
             frameref = readNeoSpool(fn,finf,[ifrm])[0].squeeze()
-            frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
+            frameref = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
             if dowiener:
                 frameref = wiener(frameref, dowiener)
 
             try:
                 frame16 = readNeoSpool(fn,finf,[ifrm+1])[0].squeeze()
-                framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+                framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
             except (ValueError,IOError):
-                ap['rawframeind'] = np.delete(ap['rawframeind'], np.s_[ifrm:])
+                up['rawframeind'] = np.delete(up['rawframeind'], np.s_[ifrm:])
                 raise
     elif finf['reader'] == 'cv2':
-        if ap['twoframe']:
+        if up['twoframe']:
             retval,frameref = fn.read() #TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES is said not to always work vis keyframes
             if not retval:
                 if ifrm==0:
                     logging.error('could not read video file, sorry')
                 print('done reading video.')
-                return None, None, ap
+                return None, None, up
             if frameref.ndim>2:
                 frameref = cv2.cvtColor(frameref, cv2.COLOR_RGB2GRAY)
             if dowiener:
@@ -137,38 +132,38 @@ def getraw(fn,ifrm,finf,svh=None,ap=None,cp=None,up=None):
         else:
             framegray = frame16 #copy NOT needed
     elif finf['reader'] == 'h5fm':   #one frame per file
-        if ap['twoframe']:
+        if up['twoframe']:
             frameref = getfmradarframe(fn[ifrm])[2]
-            frameref = bytescale(frameref, ap['rawlim'][0], ap['rawlim'][1])
+            frameref = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
         frame16 = getfmradarframe(fn[ifrm+1])[2]
         rfi = ifrm
-        framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+        framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
     elif finf['reader'] == 'h5vid':
         with h5py.File(str(fn),'r',libver='latest') as f:
-            if ap['twoframe']:
+            if up['twoframe']:
                 frameref = bytescale(f['/rawimg'][ifrm,...],
-                                     ap['rawlim'][0], ap['rawlim'][1])
+                                     up['rawlim'][0], up['rawlim'][1])
                 if dowiener:
                     frameref = wiener(frameref, dowiener)
 
             #keep frame16 for histogram
             frame16 = f['/rawimg'][ifrm+1,...]
         framegray = bytescale(frame16,
-                                 ap['rawlim'][0], ap['rawlim'][1])
+                                 up['rawlim'][0], up['rawlim'][1])
         rfi = ifrm
 
     elif finf['reader'] == 'fits':
         #memmap = False required thru Astropy 1.1.1 due to BZERO used...
         with fits.open(str(fn),mode='readonly',memmap=False) as f:
-            if ap['twoframe']:
+            if up['twoframe']:
                 frameref = bytescale(f[0].data[ifrm,...],
-                                     ap['rawlim'][0], ap['rawlim'][1])
+                                     up['rawlim'][0], up['rawlim'][1])
                 if dowiener:
                     frameref = wiener(frameref, dowiener)
 
             frame16 = f[0].data[ifrm+1,...]
 
-        framegray = bytescale(frame16, ap['rawlim'][0], ap['rawlim'][1])
+        framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
 
         rfi = ifrm #TODO: incorrect raw index with sequence of fits files
     else:
@@ -176,8 +171,8 @@ def getraw(fn,ifrm,finf,svh=None,ap=None,cp=None,up=None):
 
 
 #%% current frame
-    if 'rawframeind' in ap:
-        ap['rawframeind'][ifrm] = rfi
+    if 'rawframeind' in up:
+        up['rawframeind'][ifrm] = rfi
 
     if dowiener:
         framegray = wiener(framegray, dowiener)
@@ -206,4 +201,4 @@ def getraw(fn,ifrm,finf,svh=None,ap=None,cp=None,up=None):
         elif up['savevideo'] == 'vid':
             svh['video'].write(framegray)
 
-    return framegray,frameref,ap,frame16
+    return framegray, frameref, up, frame16
