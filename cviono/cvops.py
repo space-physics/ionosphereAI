@@ -7,7 +7,7 @@ from morecvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 
 #from matplotlib.pyplot import draw,pause #for debug plot
 
-def dooptflow(Inew,Iref,lastflow,ifrm,jfrm,up,P,stat):
+def dooptflow(Inew, Iref, lastflow, ifrm, jfrm, up, P, stat):
     assert isinstance(up,dict)
 
     if up['ofmethod'] == 'hs':

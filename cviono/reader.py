@@ -97,17 +97,14 @@ def getraw(fn,ifrm,finf,svh,P,up):
         rfi = ifrm
 
         if up['twoframe']:
-            frameref = readNeoSpool(fn,finf,[ifrm])[0].squeeze()
-            frameref = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
+            frames = readNeoSpool(fn,finf,[ifrm,ifrm+1])[0].squeeze()
+            frameref = bytescale(frames[0,...], up['rawlim'][0], up['rawlim'][1])
             if dowiener:
                 frameref = wiener(frameref, dowiener)
 
-            try:
-                frame16 = readNeoSpool(fn,finf,[ifrm+1])[0].squeeze()
-                framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
-            except (ValueError,IOError):
-                up['rawframeind'] = np.delete(up['rawframeind'], np.s_[ifrm:])
-                raise
+            frame16 = frames[1,...]
+            framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
+
     elif finf['reader'] == 'cv2':
         if up['twoframe']:
             retval,frameref = fn.read() #TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES is said not to always work vis keyframes

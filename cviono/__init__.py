@@ -25,7 +25,7 @@ from morecvutils.connectedComponents import setupblob
 
 def loopaurorafiles(up):
 
-    P = getparam(up['paramfn'])
+    P = getparam(up['paramfn']) # ConfigParser object
 
     # note, if a specific file is given, vidext is ignored
     idir = Path(up['indir']).expanduser()
@@ -37,7 +37,7 @@ def loopaurorafiles(up):
         raise FileNotFoundError(f'{idir} is not a path or file')
 
     if not flist:
-        raise FileNotFoundError('no files found: {up["indir"]}')
+        raise FileNotFoundError(f'no files found: {up["indir"]}')
 
     up['nfile'] = len(flist)
 
@@ -109,7 +109,10 @@ def procaurora(f, P,up,finf):
     up, stat = setupfigs(finf, f, up)
 # %% list of files or handle?
     if finf['reader'] == 'spool':
-        flist = f
+        try:
+            flist = finf['flist'].tolist()  # should be the same length as the number of spool *.dat in the directory
+        except KeyError:
+            flist = f
         N = range(0, len(flist), up['framestep'])
     else:
         N = finf['frameind'][:-1]
@@ -117,7 +120,7 @@ def procaurora(f, P,up,finf):
     print('start main loop')
     for i, iraw in enumerate(N):
         if finf['reader'] == 'spool':
-            f = flist[i]
+            f = finf['path'] / flist[i]
             iraw = 0
 # %% load and filter
         try:
@@ -133,7 +136,7 @@ def procaurora(f, P,up,finf):
         else:  # background/foreground
             mag = gmm.apply(framegray)
 # %% threshold
-        thres = dothres(mag, stat['median'].iat[i], P, i, svh,  up, gmm is None)
+        thres = dothres(mag, stat['median'].iat[i], P, i, svh,  up, gmm is not None)
 #%% despeckle
         despeck = dodespeck(thres,P.getint('filter','medfiltsize'),i,svh, up)
 #%% morphological ops

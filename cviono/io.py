@@ -1,6 +1,6 @@
 from configparser import ConfigParser
 from numpy import arange,empty
-from pandas import DataFrame
+from pandas import DataFrame,read_hdf
 import h5py
 from pathlib import Path
 #
@@ -12,6 +12,19 @@ from dmcutils.neospool import spoolparam
 SPOOLINI = 'acquisitionmetadata.ini' # for Solis spool files
 
 def getvidinfo(fn,cp,up,verbose=False):
+    def _spoolcase(fn,cp,up):
+        finf = spoolparam(fn.parent/SPOOLINI)
+        finf['reader'] = 'spool'
+        finf['nframe'] = up['nfile'] * finf['nframefile']
+        # FIXME should we make this general to all file types?
+        if up['nfile'] > 1 and finf['nframe'] > 10* up['framestep']:
+            finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
+        else:  # revert to all frames because there aren't many, rather than annoying with zero result
+            finf['frameind'] = arange(finf['nframe'], dtype=int)
+        finf['kinetic'] = None # FIXME blank for now
+
+        return finf
+
     #print('using {} for {}'.format(cp['main']['ofmethod'],fn))
     if verbose:
         print(f'minBlob={cp["blob"]["minblobarea"]}'
@@ -34,17 +47,9 @@ def getvidinfo(fn,cp,up,verbose=False):
                       verbose=verbose)
         finf['reader']='raw'
     elif fn.suffix.lower() in ('.dat',): # Andor Solis spool file
-            finf = spoolparam(fn.parent/SPOOLINI)
-            finf['reader'] = 'spool'
-            finf['nframe'] = up['nfile'] * finf['nframefile']
-            # FIXME should we make this general to all file types?
-            if up['nfile'] > 1 and finf['nframe'] > 10* up['framestep']:
-                finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
-            else:  # revert to all frames because there aren't many, rather than annoying with zero result
-                finf['frameind'] = arange(finf['nframe'], dtype=int)
-            finf['kinetic'] = None # FIXME blank for now
+        finf = _spoolcase(fn,cp,up)
     elif fn.suffix.lower() in ('.h5','.hdf5'):
-#%% determine if optical or passive radar
+# %% determine if optical or passive radar
         with h5py.File(str(fn), 'r', libver='latest') as f:
             if 'rawimg' in f: #hst image/video file
                 finf = {'reader':'h5vid'}
@@ -59,10 +64,15 @@ def getvidinfo(fn,cp,up,verbose=False):
                 finf['superx'] = range_km.size
                 finf['supery'] = vel_mps.size
                 #print('HDF5 passive FM radar file detected {}'.format(fn))
+            elif 'filetick' in f: # Andor Solis spool file index from dmcutils/Filetick.py
+                finf = _spoolcase(fn,cp,up)
+                finf['flist'] = True
+                finf['path'] = fn.parent
             else:
                 raise NotImplementedError('unknown HDF5 file type')
 
-        finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
+        if not 'frameind' in finf:
+            finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
     elif fn.suffix.lower() in ('.fit','.fits'):
         """
         have not tried memmap=True
@@ -88,16 +98,19 @@ def getvidinfo(fn,cp,up,verbose=False):
         finf['supery'] = vidparam['ypix']
 
         finf['frameind'] = arange(finf['nframe'], dtype=int)
-#%% extract analysis parameters
+
+    if 'flist' in finf:
+        finf['flist'] = read_hdf(fn,'filetick')
+# %% extract analysis parameters
     ap = {'twoframe': cp.getboolean('main','twoframe'),
           'ofmethod': cp.get('main','ofmethod').lower(),
           'rawframeind': empty(finf['nframe'], int),
-          'rawlim': [cp.getfloat('main','cmin'), #list not tuple for auto
+          'rawlim': [cp.getfloat('main','cmin'),  # list not tuple for auto
                      cp.getfloat('main','cmax')],
           'xpix': finf['superx'], 'ypix':finf['supery'],
           'thresmode': cp.get('filter','thresholdmode').lower()}
 
-#%% concatenate dicts
+# %% concatenate dicts
     up = {**up, **ap}
 
     return finf, up
