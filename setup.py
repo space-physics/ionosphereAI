@@ -1,16 +1,23 @@
 #!/usr/bin/env python
+req = ['nose','pillow','scipy','pandas','numpy','matplotlib','h5py','astropy']
+pipreq=['histutils','morecvutils','fitsio']
+# %%
+import pip
+try:
+    import conda.cli
+    conda.cli.main('install',*req)
+except Exception as e:
+    pip.main(['install'] + req)
+pip.main(['install'] + pipreq)
+# %%
 from setuptools import setup
 from sys import stderr
-
-req = ['nose','pillow','scipy','pandas','numpy','matplotlib','h5py','astropy',
-        'histutils','morecvutils']
-
 
 setup(name='cviono',
       packages=['cviono'],
       author='Michael Hirsch, Ph.D.',
       description='detect ionospheric phenomena using computer vision algorithms',
-      version='0.9',
+      version='0.9.1',
       classifiers=[
       'Intended Audience :: Science/Research',
       'Development Status :: 4 - Beta',
@@ -18,8 +25,7 @@ setup(name='cviono',
       'Topic :: Scientific/Engineering :: Visualization',
       'Programming Language :: Python :: 3.6',
       ],
-	   install_requires=req,
-	   extras_require={'tifffile':['tifffile'],'opencv':['opencv']}
+	   extras_require={'tifffile':['tifffile']}
 	  )
 
 try:
