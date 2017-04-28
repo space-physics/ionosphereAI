@@ -27,7 +27,8 @@ from pathlib import Path
 from cviono import loopaurorafiles
 
 TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
-PSHOW=('thres','stat','morph','final')
+#PSHOW=('thres','stat','morph','final')
+PSHOW=('thres','stat','final')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal
 #'hist' ogram
@@ -88,7 +89,7 @@ if __name__=='__main__':
     p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
     p.add_argument('-t','--savetiff',help='save tiff at each step (can make enormous files)',action='store_true')
     p.add_argument('-k','--step',help='frame step skip increment',type=int,default=10)
-    p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2,default=(None,)*2)
+    p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2)
     p.add_argument('-d','--detfn',help='master file to save detections and statistics in HDF5, under odir',default='auroraldet.h5')
 
     p.add_argument('-v','--verbose',help='verbosity',action='store_true')

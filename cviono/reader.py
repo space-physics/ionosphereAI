@@ -78,13 +78,9 @@ def getraw(fn,ifrm,finf,svh,P,up):
     if finf['reader'] == 'raw':
         if up['twoframe']:
             frameref = getDMCframe(fn,ifrm,finf)[0]
-            frameref = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
-            if dowiener:
-                frameref = wiener(frameref, dowiener)
 
         try:
             frame16,rfi = getDMCframe(fn,ifrm+1,finf)
-            framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
         except (ValueError,IOError):
             up['rawframeind'] = np.delete(up['rawframeind'], np.s_[ifrm:])
             raise
@@ -98,16 +94,11 @@ def getraw(fn,ifrm,finf,svh,P,up):
 
         if up['twoframe']:
             frames = readNeoSpool(fn,finf,[ifrm,ifrm+1])[0].squeeze()
-            frameref = bytescale(frames[0,...], up['rawlim'][0], up['rawlim'][1])
-            if dowiener:
-                frameref = wiener(frameref, dowiener)
-
+            frameref = frames[0, ...]
             frame16 = frames[1,...]
-            framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
-
     elif finf['reader'] == 'cv2':
         if up['twoframe']:
-            retval,frameref = fn.read() #TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES is said not to always work vis keyframes
+            retval, frameref = fn.read() #TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES is said not to always work vis keyframes
             if not retval:
                 if ifrm==0:
                     logging.error('could not read video file, sorry')
@@ -115,8 +106,6 @@ def getraw(fn,ifrm,finf,svh,P,up):
                 return None, None, up
             if frameref.ndim>2:
                 frameref = cv2.cvtColor(frameref, cv2.COLOR_RGB2GRAY)
-            if dowiener:
-                frameref = wiener(frameref, dowiener)
 
         retval,frame16 = fn.read() #TODO this is skipping every other frame!
         # TODO can we use dfid.set(cv.CV_CAP_PROP_POS_FRAMES,ifrm) to set 0-based index of next frame?
@@ -131,48 +120,34 @@ def getraw(fn,ifrm,finf,svh,P,up):
     elif finf['reader'] == 'h5fm':   #one frame per file
         if up['twoframe']:
             frameref = getfmradarframe(fn[ifrm])[2]
-            frameref = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
         frame16 = getfmradarframe(fn[ifrm+1])[2]
         rfi = ifrm
-        framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
     elif finf['reader'] == 'h5vid':
         with h5py.File(str(fn),'r',libver='latest') as f:
             if up['twoframe']:
-                frameref = bytescale(f['/rawimg'][ifrm,...],
-                                     up['rawlim'][0], up['rawlim'][1])
-                if dowiener:
-                    frameref = wiener(frameref, dowiener)
-
-            #keep frame16 for histogram
+                frameref = f['/rawimg'][ifrm,...]
             frame16 = f['/rawimg'][ifrm+1,...]
-        framegray = bytescale(frame16,
-                                 up['rawlim'][0], up['rawlim'][1])
         rfi = ifrm
-
     elif finf['reader'] == 'fits':
         #memmap = False required thru Astropy 1.1.1 due to BZERO used...
-        with fits.open(str(fn),mode='readonly',memmap=False) as f:
+        with fits.open(fn, mode='readonly', memmap=False) as f:
             if up['twoframe']:
-                frameref = bytescale(f[0].data[ifrm,...],
-                                     up['rawlim'][0], up['rawlim'][1])
-                if dowiener:
-                    frameref = wiener(frameref, dowiener)
-
+                frameref = f[0].data[ifrm,...]
             frame16 = f[0].data[ifrm+1,...]
-
-        framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
-
         rfi = ifrm #TODO: incorrect raw index with sequence of fits files
     else:
         raise TypeError(f'unknown reader type {finf["reader"]}')
-
-
 #%% current frame
     if 'rawframeind' in up:
         up['rawframeind'][ifrm] = rfi
 
     if dowiener:
-        framegray = wiener(framegray, dowiener)
+        frameref  = wiener(frameref, dowiener)
+        framegray = wiener(frame16, dowiener)
+
+    if finf['reader'] != 'cv2':
+        frameref  = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
+        framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
 
     if up and 'raw' in up['pshow']:
         # cv2.imshow just divides by 256, NOT autoscaled!

@@ -8,10 +8,10 @@ from morecvutils.cv2draw import draw_flow,flow2magang,draw_hsv
 #from matplotlib.pyplot import draw,pause #for debug plot
 
 def dooptflow(Inew, Iref, lastflow, ifrm, jfrm, up, P, stat):
-    assert isinstance(up,dict)
+    assert isinstance(up, dict)
 
     if up['ofmethod'] == 'hs':
-        u,v = HornSchunck(Iref, Inew, P.getfloat('main','hssmooth'))
+        u,v = HornSchunck(Iref, Inew, P.getfloat('main','hssmooth'), P.getint('main','hsiter'))
         flow = np.dstack((u, v))  # this is how OpenCV expects it.
     elif up['ofmethod'] == 'farneback':
         """

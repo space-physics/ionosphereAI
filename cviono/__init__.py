@@ -123,11 +123,7 @@ def procaurora(f, P,up,finf):
             f = finf['path'] / flist[i]
             iraw = 0
 # %% load and filter
-        try:
-            framegray, frameref, up = getraw(f, iraw, finf, svh, P, up)[:3]
-        except Exception as e:
-            logging.error(f'{f}  {e}')
-            break
+        framegray, frameref, up = getraw(f, iraw, finf, svh, P, up)[:3]
 # %% compute optical flow or Background/Foreground
         if gmm is None:
             flow, mag, stat = dooptflow(framegray, frameref, lastflow,

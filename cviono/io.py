@@ -44,12 +44,15 @@ def getvidinfo(fn, cp, up, verbose=False):
     if fn.suffix.lower() in ('.dmcdata',): # HIST
         xypix=(cp.getint('main','xpix'), cp.getint('main','ypix'))
         xybin=(cp.getint('main','xbin'), cp.getint('main','ybin'))
-        if up['startstop'][0] is None:
+        if up['startstop'] is None:
             finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose=verbose)
-        else:
+        elif len(up['startstop'])==2:
             finf = getDMCparam(fn,xypix,xybin,
                      (up['startstop'][0], up['startstop'][1], up['framestep']),
                       verbose=verbose)
+        else:
+            raise ValueError('start stop must both or neither be specified')
+
         finf['reader']='raw'
     elif fn.suffix.lower() in ('.dat',): # Andor Solis spool file
         finf = _spoolcase(fn, cp, up, {})
@@ -57,8 +60,11 @@ def getvidinfo(fn, cp, up, verbose=False):
         finf = {}
         try:  # can't read inside context
             finf['flist'] = read_hdf(fn,'filetick')
+            if up['startstop'] is not None:
+                finf['flist'] = finf['flist'][up['startstop'][0]:up['startstop'][1]]
+
             up['nfile'] = finf['flist'].shape[0]
-            print(f'{up["nfile"]} files found in index {fn}')
+            print(f'taking {up["nfile"]} files from index {fn}')
         except KeyError:
             pass
 # %% determine if optical or passive radar
