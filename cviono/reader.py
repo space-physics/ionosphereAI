@@ -1,7 +1,8 @@
 from sys import stderr
 import logging
 import cv2
-from astropy.io import fits
+#from astropy.io import fits
+import fitsio  # so much faster than Astropy.io.fits
 import h5py
 import numpy as np
 from scipy.signal import wiener
@@ -65,7 +66,7 @@ def samplepercentile(fn,pct,finf):
     return np.percentile(dat,pct).astype(int)
 
 
-def getraw(fn, ifrm, finf,svh,P,up):
+def getraw(fn, i,ifrm, finf,svh,P,up):
     """ this function reads the reference frame too--which makes sense if youre
        only reading every Nth frame from the multi-TB file instead of every frame
     """
@@ -126,11 +127,12 @@ def getraw(fn, ifrm, finf,svh,P,up):
             frame16 = f['/rawimg'][ifrm+1,...]
         rfi = ifrm
     elif finf['reader'] == 'fits':
-        #memmap = False required thru Astropy 1.1.1 due to BZERO used...
-        with fits.open(fn, mode='readonly', memmap=False) as f:
-            if up['twoframe']:
-                frameref = f[0].data[ifrm,...]
-            frame16 = f[0].data[ifrm+1,...]
+        #memmap = False required thru Astropy 1.3.2 due to BZERO used...
+        #with fits.open(fn, mode='readonly', memmap=False) as f:
+        with fitsio.FITS(str(fn),'r') as f:
+            if up['twoframe']: # int(int64) ~ 175 ns
+                frameref = f[0][int(i),:,:].squeeze() # no ellipses for fitsio
+            frame16 =      f[0][int(i+1),:,:].squeeze()
         rfi = ifrm #TODO: incorrect raw index with sequence of fits files
     else:
         raise TypeError(f'unknown reader type {finf["reader"]}')

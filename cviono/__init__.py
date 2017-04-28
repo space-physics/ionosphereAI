@@ -111,7 +111,7 @@ def procaurora(f, P,up,finf):
     try:
         flist = finf['flist'].iloc[finf['frameind']].tolist()
     except KeyError:
-        flist = [f]
+        pass
 
     N = finf['frameind'][:-1]
 # %% start main loop
@@ -120,8 +120,9 @@ def procaurora(f, P,up,finf):
         if finf['reader'] == 'spool':
             f = finf['path'] / flist[i]
             iraw = 0
+     #   print(f,i,iraw)
 # %% load and filter
-        framegray, frameref, up = getraw(f, iraw, finf, svh, P, up)[:3]
+        framegray, frameref, up = getraw(f, iraw-N[0],iraw, finf, svh, P, up)[:3]
 # %% compute optical flow or Background/Foreground
         if gmm is None:
             flow, mag, stat = dooptflow(framegray, frameref, lastflow,
@@ -141,6 +142,7 @@ def procaurora(f, P,up,finf):
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
         """
+
         draw(); pause(0.01)
 
         if not i % 40:

@@ -231,7 +231,7 @@ def statplot(dt,stat,fn=None,pshow='stat'):
         ax = axs[0]
         ax.set_title(f'optical flow statistics{fn}')
         ax.set_xlabel('frame index #')
-        ax.set_ylim((0,5e-3))
+        ax.set_ylim((0,0.1))
 
         hpmn = _timelbl(ax, dt, stat['mean'],  'mean')
         hpmd = _timelbl(ax, dt, stat['median'], 'median')

@@ -14,6 +14,10 @@ HS very well too, alpha=10, iter=1 or 2 (iter not critical)
 SPOOL FILES DIRECTLY (poor choice, should use index.h5 since the spool file names are NOT time monotonic!)
 ./Detect.py ~/data/testdmc  /tmp dmc.ini
 
+FITS FILES
+./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-fits.ini -k 10
+
+
 SPOOL FILES TIME-INDEXED
 1. find time order of spool files, stores in index.h5 by filename
 ./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/ -o index.h5
