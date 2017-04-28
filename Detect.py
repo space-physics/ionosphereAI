@@ -4,7 +4,7 @@ front end (used from Terminal) to auroral detection program
 Michael Hirsch
 
 # New CCD
-./Detect.py ~/data/2013-04-14-HST0/2013-04-14T07-00-CamSer7196.DMCdata /tmp/2013-04-14 hst.ini
+./Detect.py ~/data/2013-04-14-HST0/2013-04-14T07-00-CamSer7196.DMCdata /tmp/2013-04-14 hst0.ini -f 364000 365000 -k1
 
 # Old CCD
 ./Detect.py ~/data/2011-03-01/optical/2011-03-01T100608.000.h5  ~/data/2011-03-01/optical/cv 2011.ini
