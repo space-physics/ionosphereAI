@@ -111,7 +111,7 @@ def procaurora(f, P,up,finf):
     try:
         flist = finf['flist'].iloc[finf['frameind']].tolist()
     except KeyError:
-        pass
+        flist=f
 
     N = finf['frameind'][:-1]
 # %% start main loop

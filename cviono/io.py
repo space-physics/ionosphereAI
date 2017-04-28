@@ -28,6 +28,8 @@ def getvidinfo(fn, cp, up, verbose=False):
             finf['frameind'] = arange(finf['nframe'], dtype=int)
         finf['kinetic'] = None # FIXME blank for now
 
+        finf['path'] = fn.parent
+
         return finf
 
     #print('using {} for {}'.format(cp['main']['ofmethod'],fn))
