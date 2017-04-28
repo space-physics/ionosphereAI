@@ -132,11 +132,11 @@ def getparam(pfn):
     return P
 
 def keyhandler(keypressed,framebyframe):
-    if keypressed == -1: # no key pressed
+    if keypressed == 255: # no key pressed  (used to be -1)
         return (framebyframe,False)
-    elif keypressed == 1048608: #space
+    elif keypressed == 32: #space  (used to be 1048608)
         return (not framebyframe, False)
-    elif keypressed == 1048603: #escape
+    elif keypressed == 27: #escape (used to be 1048603)
         return (None, True)
     else:
         print('keypress code: ' + str(keypressed))
