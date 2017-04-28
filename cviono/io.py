@@ -1,5 +1,5 @@
 from configparser import ConfigParser
-from numpy import arange,empty
+from numpy import arange
 from pandas import DataFrame,read_hdf
 import h5py
 from pathlib import Path
