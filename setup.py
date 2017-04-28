@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 req = ['nose','pillow','scipy','pandas','numpy','matplotlib','h5py','astropy']
-pipreq=['histutils','morecvutils','fitsio']
+pipreq=['histutils','morecvutils','fitsio','pyoptflow',]
 # %%
 import pip
 try:
