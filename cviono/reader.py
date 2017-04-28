@@ -1,14 +1,16 @@
 from sys import stderr
 import logging
 import cv2
-#from astropy.io import fits
-import fitsio  # so much faster than Astropy.io.fits
 import h5py
 import numpy as np
 from scipy.signal import wiener
 from scipy.misc import bytescale
-#
 from matplotlib.pyplot import figure, hist
+try:
+    #from astropy.io import fits
+    import fitsio  # so much faster than Astropy.io.fits
+except ImportError:
+    pass
 #
 from .getpassivefm import getfmradarframe
 from histutils.rawDMCreader import getDMCframe
