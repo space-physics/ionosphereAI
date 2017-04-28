@@ -69,18 +69,20 @@ def dooptflow(Inew, Iref, lastflow, ifrm, jfrm, up, P, stat):
 #    draw(); pause(0.001) #debug
     return flow,ofmag, stat
 
-def dothres(ofmaggmm,medianflow, P, i, svh, up,isgmm):
+def dothres(ofmaggmm,medianflow, P, i, svh, up,isgmm, verbose=False):
     """
     flow threshold, considering median
     """
     if not isgmm: #OptFlow based
         if up['thresmode'] == 'median':
-            if medianflow>1e-6:  #median is scalar
+#            if medianflow>1e-6:  #median is scalar
                 lowthres = P.getfloat('blob','ofthresmin') * medianflow #median is scalar!
                 hithres =  P.getfloat('blob','ofthresmax') * medianflow #median is scalar!
-            else: #median ~ 0
-                lowthres = 0
-                hithres = np.inf
+                if verbose:
+                    print(lowthres,hithres)
+#            else: #median ~ 0
+#                lowthres = 0
+#                hithres = np.inf
 
         elif up['thresmode'] == 'runningmean':
             raise NotImplementedError(f'{up["thresmode"]} not yet implemented')

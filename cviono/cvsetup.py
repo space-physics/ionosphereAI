@@ -182,10 +182,10 @@ def setupfigs(finf, fn, up):
         fg = figure()
         axom = fg.gca()
         hiom = axom.imshow(np.zeros((finf['supery'],finf['superx'])),
-                           vmin=1e-5, vmax=0.1,  # arbitrary limits
+                           vmin=1e-5, vmax=1,  # arbitrary limits
                            origin='top',  # origin=top like OpenCV
                            norm=LogNorm())  # cmap=lcmap)
-        axom.set_title(f'optical flow magnitude{fn}')
+        axom.set_title(f'optical flow magnitude')
         fg.colorbar(hiom,ax=axom)
     else:
         hiom = None
