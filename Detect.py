@@ -3,8 +3,12 @@
 front end (used from Terminal) to auroral detection program
 Michael Hirsch
 
-./Detect.py ~/data/2011-03-01/optical/2011-03-01T100608.000.h5  ~/data/2011-03-01/optical/cv 2011.ini
+# New CCD
+./Detect.py ~/data/2013-04-14-HST0/2013-04-14T07-00-CamSer7196.DMCdata /tmp/2013-04-14 hst.ini
 
+# Old CCD
+./Detect.py ~/data/2011-03-01/optical/2011-03-01T100608.000.h5  ~/data/2011-03-01/optical/cv 2011.ini
+------------------------------------------------
 SPOOL FILES DIRECTLY (poor choice, should use index.h5 since the spool file names are NOT time monotonic!)
 ./Detect.py ~/data/testdmc  /tmp dmc.ini
 

@@ -53,7 +53,9 @@ def getvidinfo(fn, cp, up, verbose=False):
         else:
             raise ValueError('start stop must both or neither be specified')
 
-        finf['reader']='raw'
+        finf['reader'] = 'raw'
+        finf['nframe'] = finf['nframeextract']
+        finf['frameind'] = finf['frameindrel']
     elif fn.suffix.lower() in ('.dat',): # Andor Solis spool file
         finf = _spoolcase(fn, cp, up, {})
     elif fn.suffix.lower() in ('.h5', '.hdf5'):
@@ -119,7 +121,7 @@ def getvidinfo(fn, cp, up, verbose=False):
 # %% extract analysis parameters
     ap = {'twoframe': cp.getboolean('main','twoframe'),
           'ofmethod': cp.get('main','ofmethod').lower(),
-          'rawframeind': empty(finf['nframe'], int),
+#          'rawframeind': empty(finf['nframe'], int),
           'rawlim': [cp.getfloat('main','cmin'),  # list not tuple for auto
                      cp.getfloat('main','cmax')],
           'xpix': finf['superx'], 'ypix':finf['supery'],

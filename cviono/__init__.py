@@ -108,14 +108,12 @@ def procaurora(f, P,up,finf):
 # %% mag plots setup
     up, stat = setupfigs(finf, f, up)
 # %% list of files or handle?
-    if finf['reader'] == 'spool':
-        try:
-            flist = finf['flist'].iloc[finf['frameind']].tolist()
-        except KeyError:
-            flist = f
+    try:
+        flist = finf['flist'].iloc[finf['frameind']].tolist()
+    except KeyError:
+        flist = [f]
 
     N = finf['frameind'][:-1]
-    assert len(N) == len(flist)-1
 # %% start main loop
     print('start main loop')
     for i, iraw in enumerate(N):

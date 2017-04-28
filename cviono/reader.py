@@ -65,7 +65,7 @@ def samplepercentile(fn,pct,finf):
     return np.percentile(dat,pct).astype(int)
 
 
-def getraw(fn,ifrm,finf,svh,P,up):
+def getraw(fn, ifrm, finf,svh,P,up):
     """ this function reads the reference frame too--which makes sense if youre
        only reading every Nth frame from the multi-TB file instead of every frame
     """
@@ -76,14 +76,11 @@ def getraw(fn,ifrm,finf,svh,P,up):
     dowiener = P.getint('filter','wienernhood', fallback=None)
 #%% reference frame
     if finf['reader'] == 'raw':
-        if up['twoframe']:
-            frameref = getDMCframe(fn,ifrm,finf)[0]
+        with fn.open('rb') as f:
+            if up['twoframe']:
+                frameref = getDMCframe(f, ifrm, finf)[0]
+                frame16,rfi = getDMCframe(f, ifrm+1, finf)
 
-        try:
-            frame16,rfi = getDMCframe(fn,ifrm+1,finf)
-        except (ValueError,IOError):
-            up['rawframeind'] = np.delete(up['rawframeind'], np.s_[ifrm:])
-            raise
     elif finf['reader'] == 'spool':
         """
         Here we choose to read only the first frame pair from each spool file,
@@ -138,8 +135,8 @@ def getraw(fn,ifrm,finf,svh,P,up):
     else:
         raise TypeError(f'unknown reader type {finf["reader"]}')
 #%% current frame
-    if 'rawframeind' in up:
-        up['rawframeind'][ifrm] = rfi
+#    if 'rawframeind' in up:
+#        up['rawframeind'][ifrm] = rfi
 
     if dowiener:
         frameref  = wiener(frameref, dowiener)
