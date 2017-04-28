@@ -128,7 +128,7 @@ def svrelease(svh,savevideo):
         print(str(e))
 
 
-def setupof(ap,cp):
+def setupof(ap:dict, P):
     xpix = ap['xpix']; ypix = ap['ypix']
 
     gmm=None
@@ -137,40 +137,25 @@ def setupof(ap,cp):
         pass
     elif ap['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
+# %% GMM
     elif ap['ofmethod'] == 'mog':
-        try:
-            gmm = cv2.BackgroundSubtractorMOG(history=cp['nhistory'],
-                                               nmixtures=cp['nmixtures'],)
-        except AttributeError as e:
-            raise ImportError(f'MOG is for OpenCV2 only.   {e}')
-    elif ap['ofmethod'] == 'mog2':
-        print('* CAUTION: currently inputting the same paramters gives different'+
-        ' performance between OpenCV 2 and 3. Informally OpenCV 3 works a lot better.',file=stderr)
-        try:
-            gmm = cv2.BackgroundSubtractorMOG2(history=cp['nhistory'],
-                                               varThreshold=cp['varThreshold'], #default 16
-#                                                nmixtures=cp['nmixtures'],
-)
-        except AttributeError as e:
-            gmm = cv2.createBackgroundSubtractorMOG2(history=cp['nhistory'],
-                                                     varThreshold=cp['varThreshold'],
-                                                     detectShadows=True)
-            gmm.setNMixtures(cp['nmixtures'])
-            gmm.setComplexityReductionThreshold(cp['CompResThres'])
+        # http://docs.opencv.org/3.2.0/d7/d7b/classcv_1_1BackgroundSubtractorMOG2.html
+            gmm = cv2.createBackgroundSubtractorMOG2(history = P.getint('gmm','nhistory'),
+                                                     varThreshold = P.getfloat('gmm','varThreshold'),
+                                                     detectShadows = True)
+            gmm.setNMixtures(P.getint('gmm','nmixtures'))
+            gmm.setComplexityReductionThreshold(P.getfloat('gmm','CompResThres'))
     elif ap['ofmethod'] == 'knn':
-        try:
-            gmm = cv2.createBackgroundSubtractorKNN(history=cp['nhistory'],
+            gmm = cv2.createBackgroundSubtractorKNN(history = P.getint('gmm','nhistory'),
                                                     detectShadows=True)
-        except AttributeError as e:
-            raise ImportError(f'KNN is for OpenCV3 only. {e}')
     elif ap['ofmethod'] == 'gmg':
         try:
-            gmm = cv2.createBackgroundSubtractorGMG(initializationFrames=cp['nhistory'])
+            gmm = cv2.createBackgroundSubtractorGMG(initializationFrames= P.getint('gmm','nhistory'))
         except AttributeError as e:
-            raise ImportError(f'GMG is for OpenCV3 only, but is currently part of opencv_contrib. {e}')
+            raise ImportError(f'GMG is for OpenCV3,  part of opencv_contrib. {e}')
 
     else:
-        raise TypeError('unknown method {}'.format(ap['ofmethod']))
+        raise TypeError(f'unknown method {ap["ofmethod"]}')
 
     return lastflow,gmm
 
