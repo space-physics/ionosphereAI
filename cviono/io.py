@@ -95,19 +95,11 @@ def getvidinfo(fn, cp, up, verbose=False):
         if not 'frameind' in finf:
             finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
     elif fn.suffix.lower() in ('.fit','.fits'):
-        """
-        have not tried memmap=True
-        with memmap=False, whole file is read in to access even single data element.
-        Linux file system caching should make this speedy even with memmap=False
-        --Except if using over network, then the first read can take a long time.
-        http://docs.astropy.org/en/stable/io/fits/#working-with-large-files
-        """
-        finf = getNeoParam(fn,up['framestep'])[0]
+        finf = getNeoParam(fn,up['framestep'])
         finf['reader']='fits'
-
-        #dfid = fits.open(str(fn),mode='readonly',memmap=False)
-
-        #finf['frameind'] = arange(0,finf['nframe'],up['framestep'],dtype=int)
+    elif fn.suffix.lower() in ('.tif','.tiff'):
+        finf = getNeoParam(fn,up['framestep'])
+        finf['reader']='tiff'
     else: #assume video file
         #TODO start,stop,step is not yet implemented, simply uses every other frame
         print(f'attempting to read {fn} with OpenCV.')

@@ -15,7 +15,10 @@ SPOOL FILES DIRECTLY (poor choice, should use index.h5 since the spool file name
 ./Detect.py ~/data/testdmc  /tmp dmc.ini
 
 FITS FILES
-./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-fits.ini -k 10
+./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-fits.ini -k 30
+
+TIFF FILES
+./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-tiff.ini -k 30
 
 
 SPOOL FILES TIME-INDEXED

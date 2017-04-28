@@ -11,6 +11,11 @@ try:
     import fitsio  # so much faster than Astropy.io.fits
 except ImportError:
     pass
+try:
+    import tifffile  # tifffile is excruciatingly slow on each file access
+    #import libtiff
+except ImportError:
+    pass
 #
 from .getpassivefm import getfmradarframe
 from histutils.rawDMCreader import getDMCframe
@@ -133,9 +138,23 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         #with fits.open(fn, mode='readonly', memmap=False) as f:
         with fitsio.FITS(str(fn),'r') as f:
             if up['twoframe']: # int(int64) ~ 175 ns
-                frameref = f[0][int(i),:,:].squeeze() # no ellipses for fitsio
-            frame16 =      f[0][int(i+1),:,:].squeeze()
+                frameref = f[0][int(ifrm),:,:].squeeze() # no ellipses for fitsio
+            frame16 =      f[0][int(ifrm+1),:,:].squeeze()
         rfi = ifrm #TODO: incorrect raw index with sequence of fits files
+    elif finf['reader'] == 'tiff':
+        if 'htiff' not in up: # first read
+            print('first open',fn)
+            up['htiff'] = tifffile.TiffFile(str(fn))
+        elif up['htiff'].filename != fn.name:
+            print('opening',fn)
+            up['htiff'].close()
+            up['htiff'] = tifffile.TiffFile(str(fn))
+       # f= libtiff.TIFF3D.open(str(fn)) # ctypes.ArgumentError: argument 1: <class 'TypeError'>: wrong type
+        if up['twoframe']:
+            frameref = up['htiff'][ifrm].asarray()
+        frame16 =      up['htiff'][ifrm+1].asarray()
+
+        rfi = ifrm
     else:
         raise TypeError(f'unknown reader type {finf["reader"]}')
 #%% current frame

@@ -140,13 +140,13 @@ def setupof(ap:dict, P):
 # %% GMM
     elif ap['ofmethod'] == 'mog':
         # http://docs.opencv.org/3.2.0/d7/d7b/classcv_1_1BackgroundSubtractorMOG2.html
-            gmm = cv2.createBackgroundSubtractorMOG2(history = P.getint('gmm','nhistory'),
-                                                     varThreshold = P.getfloat('gmm','varThreshold'),
-                                                     detectShadows = True)
-            gmm.setNMixtures(P.getint('gmm','nmixtures'))
-            gmm.setComplexityReductionThreshold(P.getfloat('gmm','CompResThres'))
+        gmm = cv2.createBackgroundSubtractorMOG2(history = P.getint('gmm','nhistory'),
+                                                 varThreshold = P.getfloat('gmm','varThreshold'),
+                                                 detectShadows = False)
+        gmm.setNMixtures(P.getint('gmm','nmixtures'))
+        gmm.setComplexityReductionThreshold(P.getfloat('gmm','CompResThres'))
     elif ap['ofmethod'] == 'knn':
-            gmm = cv2.createBackgroundSubtractorKNN(history = P.getint('gmm','nhistory'),
+        gmm = cv2.createBackgroundSubtractorKNN(history = P.getint('gmm','nhistory'),
                                                     detectShadows=True)
     elif ap['ofmethod'] == 'gmg':
         try:
@@ -179,7 +179,7 @@ def setupfigs(finf, fn, up):
     try:
         dt = [datetime.fromtimestamp(t,tz=UTC) for t in finf['ut1'][:-1]]
         ut = finf['ut1'][:-1]
-    except KeyError:
+    except (TypeError,KeyError):
         dt = ut = None
 
     stat = DataFrame(index=ut,columns=['mean','median','variance','detect'])
