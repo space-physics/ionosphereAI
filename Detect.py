@@ -9,8 +9,10 @@ SPOOL FILES DIRECTLY (poor choice, should use index.h5 since the spool file name
 ./Detect.py ~/data/testdmc  /tmp dmc.ini
 
 SPOOL FILES TIME-INDEXED
-./dmcutils/FileTick.py -o index.h5  # finds time order of spool files, stores in index.h5 by filename
-./Detect.py ~/U/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini
+1. find time order of spool files, stores in index.h5 by filename
+./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/ -o index.h5
+2. detect aurora
+./Detect.py ~/data/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini
 
 HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
 1. Use https://github.com/scivision/dmcutils/PlotSpool.py to plot Andor Solis .dat spool files. (verify you're reading them correctly)

@@ -11,11 +11,16 @@ from dmcutils.neospool import spoolparam
 
 SPOOLINI = 'acquisitionmetadata.ini' # for Solis spool files
 
-def getvidinfo(fn,cp,up,verbose=False):
-    def _spoolcase(fn,cp,up):
+def getvidinfo(fn, cp, up, verbose=False):
+    def _spoolcase(fn, cp, up, f0):
         finf = spoolparam(fn.parent/SPOOLINI)
+        finf = {**finf, **f0}
+
         finf['reader'] = 'spool'
-        finf['nframe'] = up['nfile'] * finf['nframefile']
+        if fn.suffix=='.h5':  # index file listing
+            finf['nframe'] = up['nfile']  # first frame of each spool file
+        else:
+            finf['nframe'] = up['nfile'] * finf['nframefile']
         # FIXME should we make this general to all file types?
         if up['nfile'] > 1 and finf['nframe'] > 10* up['framestep']:
             finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
@@ -47,8 +52,15 @@ def getvidinfo(fn,cp,up,verbose=False):
                       verbose=verbose)
         finf['reader']='raw'
     elif fn.suffix.lower() in ('.dat',): # Andor Solis spool file
-        finf = _spoolcase(fn,cp,up)
-    elif fn.suffix.lower() in ('.h5','.hdf5'):
+        finf = _spoolcase(fn, cp, up, {})
+    elif fn.suffix.lower() in ('.h5', '.hdf5'):
+        finf = {}
+        try:  # can't read inside context
+            finf['flist'] = read_hdf(fn,'filetick')
+            up['nfile'] = finf['flist'].shape[0]
+            print(f'{up["nfile"]} files found in index {fn}')
+        except KeyError:
+            pass
 # %% determine if optical or passive radar
         with h5py.File(str(fn), 'r', libver='latest') as f:
             if 'rawimg' in f: #hst image/video file
@@ -65,8 +77,7 @@ def getvidinfo(fn,cp,up,verbose=False):
                 finf['supery'] = vel_mps.size
                 #print('HDF5 passive FM radar file detected {}'.format(fn))
             elif 'filetick' in f: # Andor Solis spool file index from dmcutils/Filetick.py
-                finf = _spoolcase(fn,cp,up)
-                finf['flist'] = True
+                finf = _spoolcase(fn,cp,up, finf)
                 finf['path'] = fn.parent
             else:
                 raise NotImplementedError('unknown HDF5 file type')
@@ -99,8 +110,6 @@ def getvidinfo(fn,cp,up,verbose=False):
 
         finf['frameind'] = arange(finf['nframe'], dtype=int)
 
-    if 'flist' in finf:
-        finf['flist'] = read_hdf(fn,'filetick')
 # %% extract analysis parameters
     ap = {'twoframe': cp.getboolean('main','twoframe'),
           'ofmethod': cp.get('main','ofmethod').lower(),
