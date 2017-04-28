@@ -134,7 +134,7 @@ def getvidinfo(fn, cp, up, verbose=False):
 
 def getparam(pfn):
     pfn = Path(pfn).expanduser()
-    P = ConfigParser(allow_no_value=True)
+    P = ConfigParser(allow_no_value=True,inline_comment_prefixes=[';'])
     P.read(pfn)
 
     return P
