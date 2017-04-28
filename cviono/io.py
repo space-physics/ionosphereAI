@@ -151,12 +151,10 @@ def keyhandler(keypressed,framebyframe):
         return (framebyframe,False)
 
 def savestat(stat,fn):
-    if len(stat) == 0:
-        return
     assert isinstance(stat,DataFrame)
     print('saving detections & statistics to {}'.format(fn))
 
-    with h5py.File(str(fn),'w',libver='latest') as f:
+    with h5py.File(fn,'w',libver='latest') as f:
         f['/detect']  = stat['detect']
         f['/mean']    = stat['mean']
         f['/median']  = stat['median']

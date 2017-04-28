@@ -64,7 +64,7 @@ def loopaurorafiles(up):
 
         fgst = statplot(dt,aurstat,fn=up['odir'],pshow='stat')[3]
         draw(); pause(0.001)
-        fgst.savefig(str(up['detfn'].with_suffix('.png')),bbox_inches='tight',dpi=100)
+        fgst.savefig(str(up['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
 
         return aurstat
     except UnboundLocalError:
@@ -115,12 +115,12 @@ def procaurora(f, P,up,finf):
 
     N = finf['frameind'][:-1]
 # %% start main loop
-    print('start main loop')
+    #print('start main loop')
     for i, iraw in enumerate(N):
         if finf['reader'] == 'spool':
             f = finf['path'] / flist[i]
             iraw = 0
-     #   print(f,i,iraw)
+        #print(f,i,iraw)
 # %% load and filter
         framegray, frameref, up = getraw(f, iraw-N[0],iraw, finf, svh, P, up)[:3]
 # %% compute optical flow or Background/Foreground
@@ -146,7 +146,7 @@ def procaurora(f, P,up,finf):
         draw(); pause(0.01)
 
         if not i % 40:
-            print(f'i={iraw:0d} {stat.loc[i-40:i,"detect"].values}')
+            print(f'i={iraw:0d} {stat["detect"].iloc[i-40:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 print('* Warning: video may be saturated at value 255, missed detections can result')
             if (framegray == 0).sum() > 4:
