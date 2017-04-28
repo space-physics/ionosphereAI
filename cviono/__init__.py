@@ -110,12 +110,12 @@ def procaurora(f, P,up,finf):
 # %% list of files or handle?
     if finf['reader'] == 'spool':
         try:
-            flist = finf['flist'].tolist()  # should be the same length as the number of spool *.dat in the directory
+            flist = finf['flist'].iloc[finf['frameind']].tolist()
         except KeyError:
             flist = f
-        N = range(0, len(flist), up['framestep'])
-    else:
-        N = finf['frameind'][:-1]
+
+    N = finf['frameind'][:-1]
+    assert len(N) == len(flist)-1
 # %% start main loop
     print('start main loop')
     for i, iraw in enumerate(N):
