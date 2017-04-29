@@ -61,8 +61,8 @@ def loopaurorafiles(U):
             dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
         else:
             dt=None
-
-        fgst = statplot(dt, aurstat, 'stat', U['odir'])[3]
+# %% master detection plot
+        fgst = statplot(dt, aurstat, 'stat', P, U['odir'])[3]
         draw(); pause(0.001)
         fgst.savefig(str(U['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
 

@@ -128,34 +128,34 @@ def svrelease(svh,savevideo):
         print(str(e))
 
 
-def setupof(ap:dict, P):
-    xpix = ap['xpix']; ypix = ap['ypix']
+def setupof(U:dict, P):
+    xpix = U['xpix']; ypix = U['ypix']
 
     gmm=None
     lastflow = None #if it stays None, signals to use GMM
-    if ap['ofmethod'] == 'hs':
+    if U['ofmethod'] == 'hs':
         pass
-    elif ap['ofmethod'] == 'farneback':
+    elif U['ofmethod'] == 'farneback':
         lastflow = np.zeros((ypix,xpix,2))
 # %% GMM
-    elif ap['ofmethod'] == 'mog':
+    elif U['ofmethod'] == 'mog':
         # http://docs.opencv.org/3.2.0/d7/d7b/classcv_1_1BackgroundSubtractorMOG2.html
         gmm = cv2.createBackgroundSubtractorMOG2(history = P.getint('gmm','nhistory'),
                                                  varThreshold = P.getfloat('gmm','varThreshold'),
                                                  detectShadows = False)
         gmm.setNMixtures(P.getint('gmm','nmixtures'))
         gmm.setComplexityReductionThreshold(P.getfloat('gmm','CompResThres'))
-    elif ap['ofmethod'] == 'knn':
+    elif U['ofmethod'] == 'knn':
         gmm = cv2.createBackgroundSubtractorKNN(history = P.getint('gmm','nhistory'),
                                                     detectShadows=True)
-    elif ap['ofmethod'] == 'gmg':
+    elif U['ofmethod'] == 'gmg':
         try:
             gmm = cv2.createBackgroundSubtractorGMG(initializationFrames= P.getint('gmm','nhistory'))
         except AttributeError as e:
             raise ImportError(f'GMG is for OpenCV3,  part of opencv_contrib. {e}')
 
     else:
-        raise TypeError(f'unknown method {ap["ofmethod"]}')
+        raise TypeError(f'unknown method {U["ofmethod"]}')
 
     return lastflow,gmm
 
@@ -170,8 +170,8 @@ def setupfigs(finf, fn, U,P):
                            vmin=1e-5, vmax=1,  # arbitrary limits
                            origin='top',  # origin=top like OpenCV
                            norm=LogNorm())  # cmap=lcmap)
-        axom.set_title(f'optical flow magnitude')
-        fg.colorbar(hiom,ax=axom)
+        axom.set_title('optical flow magnitude')
+        fg.colorbar(hiom, ax=axom)
     else:
         hiom = None
 
@@ -186,7 +186,7 @@ def setupfigs(finf, fn, U,P):
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
     stat[['mean','median','variance']] = np.zeros((finf['frameind'].size-1,3), dtype=float)
 
-    hpmn, hpmd, hpdt, fgdt= statplot(dt,stat,fn, U['pshow'])
+    hpmn, hpmd, hpdt, fgdt= statplot(dt, stat, U, P, fn)
 
 #    draw(); pause(0.001) #catch any plot bugs
 
@@ -198,9 +198,8 @@ def setupfigs(finf, fn, U,P):
 
     return U, stat
 
-def statplot(dt, stat, pshow, fn=''):
-
-
+def statplot(dt, stat, U, P, fn=''):
+    hpmn = None; hpmd = None; hpdt = None; fgdt = None
 
     def _timelbl(ax,x,y,lbl=None):
         if x is not None:
@@ -211,24 +210,29 @@ def statplot(dt, stat, pshow, fn=''):
             ax.set_xlabel('frame index #')
         return hpl
 
-    if 'stat' in pshow:
-        fgdt,axs = subplots(1,2,figsize=(12,5))
-        ax = axs[0]
-        ax.set_title('optical flow statistics')
-        ax.set_xlabel('frame index #')
-        ax.set_ylim((0,0.1))
+    if 'stat' in U['pshow']:
+        if P['main']['ofmethod'] in ('hs','farneback'):
+            Np=2
+            fg = figure(figsize=(12,5))
+            ax = fg.add_subplot(Np,1,1)
+            ax.set_title('optical flow statistics')
+            ax.set_xlabel('frame index #')
+            ax.set_ylim((0,0.1))
 
-        hpmn = _timelbl(ax, dt, stat['mean'],  'mean')
-        hpmd = _timelbl(ax, dt, stat['median'], 'median')
-        ax.legend(loc='best')
+            hpmn = _timelbl(ax, dt, stat['mean'],  'mean')
+            hpmd = _timelbl(ax, dt, stat['median'], 'median')
+            ax.legend(loc='best')
 #%% detections
-        ax = axs[1]
+        else:
+            fg = figure()
+            Np=1
+
+        ax = fg.add_subplot(Np,1,Np)
         ax.set_title('Detections of Aurora')
         ax.set_ylabel('number of detections')
         ax.set_ylim((0,10))
 
         hpdt = _timelbl(ax, dt, stat['detect'])
-    else:
-        hpmn = None; hpmd = None; hpdt = None; fgdt = None
+
 
     return hpmn, hpmd, hpdt, fgdt
