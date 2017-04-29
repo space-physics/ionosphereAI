@@ -210,6 +210,8 @@ def statplot(dt, stat, U, P, fn=''):
         elif isinstance(x[0],(datetime,np.datetime64)):
             hpl = ax.plot(x,y,label=lbl)
             ax.set_xlabel('Time [UTC]')
+        else:
+            hpl = None
 
         return hpl
 
