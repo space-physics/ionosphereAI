@@ -14,16 +14,13 @@ SPOOLINI = 'acquisitionmetadata.ini' # for Solis spool files
 def getvidinfo(fn, P, U, verbose=False):
     def _spoolcase(fn, P, U, f0):
         finf = spoolparam(fn.parent/SPOOLINI,
-                          P.getint('main','xpix')//P.getint('main','xbin',fallback=1),
-                          P.getint('main','ypix')//P.getint('main','ybin',fallback=1),
+                          P.getint('main','xpix',fallback=None), P.getint('main','ypix',fallback=None),
                           P.getint('main','stride',fallback=0))
         finf = {**finf, **f0}
 
         finf['reader'] = 'spool'
-        if fn.suffix=='.h5':  # index file listing
-            finf['nframe'] = U['nfile']  # first frame of each spool file
-        else:
-            finf['nframe'] = U['nfile'] * finf['nframefile']
+        finf['nframe'] = U['nfile']  # first frame pair of each spool file
+
         # FIXME should we make this general to all file types?
         if U['nfile'] > 1 and finf['nframe'] > 10* U['framestep']:
             finf['frameind'] = arange(0,finf['nframe'], U['framestep'], dtype=int)

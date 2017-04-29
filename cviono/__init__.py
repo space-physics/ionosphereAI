@@ -88,7 +88,6 @@ def procfiles(f,P,U):
 
 
 def procaurora(f, P,U,finf):
-    framebyframe = U['framebyframe']
     tic = time()
 
     if finf is None:
@@ -143,20 +142,20 @@ def procaurora(f, P,U,finf):
         if U['pshow']:
             draw(); pause(0.01)
 
-        if not i % 40:
-            print(f'i={iraw:0d} {stat["detect"].iloc[i-40:i].values}')
+        if not i % 50:
+            print(f'i={iraw:0d} {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 print('* Warning: video may be saturated at value 255, missed detections can result')
             if (framegray == 0).sum() > 4:
                 print('* Warning: video may be saturated at value 0, missed detections can result')
 
         if U['pshow']:
-            if framebyframe: #wait indefinitely for spacebar press
+            if U['framebyframe']: #wait indefinitely for spacebar press
                 keypressed = cv2.waitKey(0)
-                framebyframe,dobreak = keyhandler(keypressed,framebyframe)
+                U['framebyframe'],dobreak = keyhandler(keypressed,U['framebyframe'])
             else:
                 keypressed = cv2.waitKey(1)
-                framebyframe, dobreak = keyhandler(keypressed,framebyframe)
+                framebyframe, dobreak = keyhandler(keypressed,U['framebyframe'])
 
             if dobreak:
                 break
