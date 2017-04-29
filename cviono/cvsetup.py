@@ -186,7 +186,7 @@ def setupfigs(finf, fn, U,P):
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
     stat[['mean','median','variance']] = np.zeros((finf['frameind'].size-1,3), dtype=float)
 
-    hpmn, hpmd, hpdt, fgdt= statplot(dt, stat, U, P, fn)
+    hpmn, hpmd, hpdt, fgdt = statplot(dt, stat, U, P, fn)
 
 #    draw(); pause(0.001) #catch any plot bugs
 
@@ -199,7 +199,7 @@ def setupfigs(finf, fn, U,P):
     return U, stat
 
 def statplot(dt, stat, U, P, fn=''):
-    hpmn = None; hpmd = None; hpdt = None; fgdt = None
+    hpmn = None; hpmd = None; hpdt = None; fg=None
 
     def _timelbl(ax,x,y,lbl=None):
         if x is not None:
@@ -235,4 +235,4 @@ def statplot(dt, stat, U, P, fn=''):
         hpdt = _timelbl(ax, dt, stat['detect'])
 
 
-    return hpmn, hpmd, hpdt, fgdt
+    return hpmn, hpmd, hpdt, fg
