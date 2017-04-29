@@ -135,28 +135,32 @@ def getparam(pfn):
     if not pfn.is_file():
         raise FileNotFoundError(f'{pfn} not found!')
 
-    P = ConfigParser(allow_no_value=True,inline_comment_prefixes=[';'])
+    P = ConfigParser(allow_no_value=True, inline_comment_prefixes=[';'])
     P.read(pfn)
 
     return P
 
 def keyhandler(keypressed,framebyframe):
     if keypressed == 255: # no key pressed  (used to be -1)
-        return (framebyframe,False)
+        return (framebyframe, False)
     elif keypressed == 32: #space  (used to be 1048608)
         return (not framebyframe, False)
     elif keypressed == 27: #escape (used to be 1048603)
         return (None, True)
     else:
-        print('keypress code: ' + str(keypressed))
-        return (framebyframe,False)
+        print('keypress code: ',keypressed)
+        return (framebyframe, False)
 
-def savestat(stat,fn):
-    assert isinstance(stat,DataFrame)
-    print('saving detections & statistics to {}'.format(fn))
+def savestat(stat:DataFrame, fn:Path):
+    assert isinstance(stat, DataFrame)
+    print('saving detections & statistics to', fn)
 
     with h5py.File(fn,'w',libver='latest') as f:
         f['/detect']  = stat['detect']
-        f['/mean']    = stat['mean']
-        f['/median']  = stat['median']
-        f['/variance']= stat['variance']
+
+        if stat['mean'].nonzero()[0].any():
+            f['/mean']    = stat['mean']
+        if stat['median'].nonzero()[0].any():
+            f['/median']  = stat['median']
+        if stat['variance'].nonzero()[0].any():
+            f['/variance']= stat['variance']

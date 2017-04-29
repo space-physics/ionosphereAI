@@ -53,22 +53,20 @@ def loopaurorafiles(U):
             stat = procfiles(f,P,U)
             aurstat = aurstat.append(stat)
 # %% sort,plot,save results for all files
-    try:
-        aurstat.sort_index(inplace=True)  # sort by time
-        savestat(aurstat, U['detfn'])
+    aurstat.sort_index(inplace=True)  # sort by time
+    savestat(aurstat, U['detfn'])
 
-        if aurstat.index[0] > 1e9: #ut1 instead of index
-            dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
-        else:
-            dt=None
+    if aurstat.index[0] > 1e9: #ut1 instead of index
+        dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
+    else:
+        dt=None
 # %% master detection plot
-        fgst = statplot(dt, aurstat, 'stat', P, U['odir'])[3]
-        draw(); pause(0.001)
-        fgst.savefig(str(U['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
+    U['pshow'] += ('stat',)
+    fgst = statplot(dt, aurstat, U, P, U['odir'])[3]
+    draw(); pause(0.1)
+    fgst.savefig(str(U['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
 
-        return aurstat
-    except UnboundLocalError:
-        raise RuntimeError(f'no good files found in {flist[0].parent}')
+    return aurstat
 
 def procfiles(f,P,U):
     finf, U = getvidinfo(f, P, U)
@@ -142,8 +140,8 @@ def procaurora(f, P,U,finf):
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
         """
-
-        draw(); pause(0.01)
+        if U['pshow']:
+            draw(); pause(0.01)
 
         if not i % 40:
             print(f'i={iraw:0d} {stat["detect"].iloc[i-40:i].values}')
@@ -173,10 +171,9 @@ def procaurora(f, P,U,finf):
 
         try:
             savestat(stat,detfn)
-
-            print(f'saving detection plot to {detpltfn}')
-            U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
-
+            if U['pshow']:
+                print(f'saving detection plot to {detpltfn}')
+                U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
         except Exception as e:
             logging.critical(f'trouble saving detection result  {e} ')
         finally:

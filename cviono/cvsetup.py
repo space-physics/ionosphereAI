@@ -10,7 +10,7 @@ from pandas import DataFrame
 from datetime import datetime
 from pytz import UTC
 import numpy as np
-from matplotlib.pylab import figure,subplots#draw,pause
+from matplotlib.pylab import figure
 from matplotlib.colors import LogNorm
 
 
@@ -174,13 +174,12 @@ def setupfigs(finf, fn, U,P):
         fg.colorbar(hiom, ax=axom)
     else:
         hiom = None
-
 # %% stat plot
     try:
         dt = [datetime.fromtimestamp(t,tz=UTC) for t in finf['ut1'][:-1]]
         ut = finf['ut1'][:-1]
     except (TypeError,KeyError):
-        dt = ut = None
+        dt = ut = finf['frameind'][:-1]
 
     stat = DataFrame(index=ut,columns=['mean','median','variance','detect'])
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
@@ -202,12 +201,16 @@ def statplot(dt, stat, U, P, fn=''):
     hpmn = None; hpmd = None; hpdt = None; fg=None
 
     def _timelbl(ax,x,y,lbl=None):
-        if x is not None:
-            hpl = ax.plot(x,y,label=lbl)
-            ax.set_xlabel('Time [UTC]')
-        else:
+        if x is None:
             hpl = ax.plot(stat.index,y,label=lbl)
             ax.set_xlabel('frame index #')
+        elif isinstance(x[0], (int,np.int64)):
+            hpl = ax.plot(x,y,label=lbl)
+            ax.set_xlabel('Spool File index # (row of index.h5)')
+        elif isinstance(x[0],(datetime,np.datetime64)):
+            hpl = ax.plot(x,y,label=lbl)
+            ax.set_xlabel('Time [UTC]')
+
         return hpl
 
     if 'stat' in U['pshow']:
@@ -230,7 +233,7 @@ def statplot(dt, stat, U, P, fn=''):
         ax = fg.add_subplot(Np,1,Np)
         try:
             fn = fn[0]
-        except IndexError:
+        except TypeError:
             pass
         ax.set_title(f'Detections of Aurora {fn.name}')
         ax.set_ylabel('number of detections')

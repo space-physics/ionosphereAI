@@ -26,7 +26,7 @@ SPOOL FILES TIME-INDEXED
 ./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/ -o index.h5
 2. detect aurora  (-k 10 is max, 30 is too much)
 
-./Detect.py ~/data/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini -k 10
+./Detect.py ~/data/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini
 
 ./Detect.py ~/H/neo2012-12-25/spool_5/index.h5 ~/Dropbox/DMC/2012-12-25 dmc2012.ini -k 2
 
@@ -73,7 +73,6 @@ def rundetect(p):
 
     P['odir'].mkdir(parents=True, exist_ok=True)
 
-
     if p.savetiff:
         P['savevideo']='tif'
     elif p.savevideo:
@@ -106,14 +105,14 @@ if __name__=='__main__':
     p.add_argument('-b','--framebyframe',help='space bar toggles play/pause', action='store_true')
     p.add_argument('-s','--savevideo',help='save video at each step (can make enormous files)',action='store_true')
     p.add_argument('-t','--savetiff',help='save tiff at each step (can make enormous files)',action='store_true')
-    p.add_argument('-k','--step',help='frame step skip increment',type=int,default=10)
+    p.add_argument('-k','--step',help='frame step skip increment',type=int,default=1)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2)
     p.add_argument('-d','--detfn',help='master file to save detections and statistics in HDF5, under odir',default='auroraldet.h5')
     p.add_argument('-v','--verbose',help='verbosity',action='store_true')
     p.add_argument('--profile',help='profile debug',action='store_true')
     p = p.parse_args()
 
-    aurstat = rundetect(p)
-
     if not p.verbose:
         PSHOW=()
+
+    aurstat = rundetect(p)
