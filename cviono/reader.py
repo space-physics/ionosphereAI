@@ -137,9 +137,12 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         #memmap = False required thru Astropy 1.3.2 due to BZERO used...
         #with fits.open(fn, mode='readonly', memmap=False) as f:
         with fitsio.FITS(str(fn),'r') as f:
+            """
+            i not ifrm for fits!
+            """
             if up['twoframe']: # int(int64) ~ 175 ns
-                frameref = f[0][int(ifrm),:,:].squeeze() # no ellipses for fitsio
-            frame16 =      f[0][int(ifrm+1),:,:].squeeze()
+                frameref = f[0][int(i),:,:].squeeze() # no ellipses for fitsio
+            frame16 =      f[0][int(i+1),:,:].squeeze()
         rfi = ifrm #TODO: incorrect raw index with sequence of fits files
     elif finf['reader'] == 'tiff':
         if 'htiff' not in up: # first read
