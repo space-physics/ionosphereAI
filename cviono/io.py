@@ -11,19 +11,22 @@ from dmcutils.neospool import spoolparam
 
 SPOOLINI = 'acquisitionmetadata.ini' # for Solis spool files
 
-def getvidinfo(fn, cp, up, verbose=False):
-    def _spoolcase(fn, cp, up, f0):
-        finf = spoolparam(fn.parent/SPOOLINI)
+def getvidinfo(fn, P, U, verbose=False):
+    def _spoolcase(fn, P, U, f0):
+        finf = spoolparam(fn.parent/SPOOLINI,
+                          P.getint('main','xpix')//P.getint('main','xbin',fallback=1),
+                          P.getint('main','ypix')//P.getint('main','ybin',fallback=1),
+                          P.getint('main','stride',fallback=0))
         finf = {**finf, **f0}
 
         finf['reader'] = 'spool'
         if fn.suffix=='.h5':  # index file listing
-            finf['nframe'] = up['nfile']  # first frame of each spool file
+            finf['nframe'] = U['nfile']  # first frame of each spool file
         else:
-            finf['nframe'] = up['nfile'] * finf['nframefile']
+            finf['nframe'] = U['nfile'] * finf['nframefile']
         # FIXME should we make this general to all file types?
-        if up['nfile'] > 1 and finf['nframe'] > 10* up['framestep']:
-            finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
+        if U['nfile'] > 1 and finf['nframe'] > 10* U['framestep']:
+            finf['frameind'] = arange(0,finf['nframe'], U['framestep'], dtype=int)
         else:  # revert to all frames because there aren't many, rather than annoying with zero result
             finf['frameind'] = arange(finf['nframe'], dtype=int)
         finf['kinetic'] = None # FIXME blank for now
@@ -32,11 +35,11 @@ def getvidinfo(fn, cp, up, verbose=False):
 
         return finf
 
-    #print('using {} for {}'.format(cp['main']['ofmethod'],fn))
+    #print('using {} for {}'.format(P['main']['ofmethod'],fn))
     if verbose:
-        print(f'minBlob={cp["blob"]["minblobarea"]}'
-              f'maxBlob={cp["blob"]["maxblobarea"]}'
-              f'maxNblob={cp["blob"]["maxblobcount"]}')
+        print(f'minBlob={P["blob"]["minblobarea"]}'
+              f'maxBlob={P["blob"]["maxblobarea"]}'
+              f'maxNblob={P["blob"]["maxblobcount"]}')
 
     try: # for spool case
         fn = fn[0]
@@ -44,13 +47,13 @@ def getvidinfo(fn, cp, up, verbose=False):
         pass
 
     if fn.suffix.lower() in ('.dmcdata',): # HIST
-        xypix=(cp.getint('main','xpix'), cp.getint('main','ypix'))
-        xybin=(cp.getint('main','xbin'), cp.getint('main','ybin'))
-        if up['startstop'] is None:
-            finf = getDMCparam(fn,xypix,xybin,up['framestep'],verbose=verbose)
-        elif len(up['startstop'])==2:
+        xypix=(P.getint('main','xpix'), P.getint('main','ypix'))
+        xybin=(P.getint('main','xbin'), P.getint('main','ybin'))
+        if U['startstop'] is None:
+            finf = getDMCparam(fn,xypix,xybin, U['framestep'],verbose=verbose)
+        elif len(U['startstop'])==2:
             finf = getDMCparam(fn,xypix,xybin,
-                     (up['startstop'][0], up['startstop'][1], up['framestep']),
+                     (U['startstop'][0], U['startstop'][1], U['framestep']),
                       verbose=verbose)
         else:
             raise ValueError('start stop must both or neither be specified')
@@ -59,16 +62,16 @@ def getvidinfo(fn, cp, up, verbose=False):
         finf['nframe'] = finf['nframeextract']
         finf['frameind'] = finf['frameindrel']
     elif fn.suffix.lower() in ('.dat',): # Andor Solis spool file
-        finf = _spoolcase(fn, cp, up, {})
+        finf = _spoolcase(fn, P, U, {})
     elif fn.suffix.lower() in ('.h5', '.hdf5'):
         finf = {}
         try:  # can't read inside context
             finf['flist'] = read_hdf(fn,'filetick')
-            if up['startstop'] is not None:
-                finf['flist'] = finf['flist'][up['startstop'][0]:up['startstop'][1]]
+            if U['startstop'] is not None:
+                finf['flist'] = finf['flist'][U['startstop'][0]:U['startstop'][1]]
 
-            up['nfile'] = finf['flist'].shape[0]
-            print(f'taking {up["nfile"]} files from index {fn}')
+            U['nfile'] = finf['flist'].shape[0]
+            print(f'taking {U["nfile"]} files from index {fn}')
         except KeyError:
             pass
 # %% determine if optical or passive radar
@@ -87,18 +90,18 @@ def getvidinfo(fn, cp, up, verbose=False):
                 finf['supery'] = vel_mps.size
                 #print('HDF5 passive FM radar file detected {}'.format(fn))
             elif 'filetick' in f: # Andor Solis spool file index from dmcutils/Filetick.py
-                finf = _spoolcase(fn,cp,up, finf)
+                finf = _spoolcase(fn,P,U, finf)
                 finf['path'] = fn.parent
             else:
                 raise NotImplementedError('unknown HDF5 file type')
 
         if not 'frameind' in finf:
-            finf['frameind'] = arange(0,finf['nframe'], up['framestep'], dtype=int)
+            finf['frameind'] = arange(0,finf['nframe'], U['framestep'], dtype=int)
     elif fn.suffix.lower() in ('.fit','.fits'):
-        finf = getNeoParam(fn,up['framestep'])
+        finf = getNeoParam(fn, U['framestep'])
         finf['reader']='fits'
     elif fn.suffix.lower() in ('.tif','.tiff'):
-        finf = getNeoParam(fn,up['framestep'])
+        finf = getNeoParam(fn, U['framestep'])
         finf['reader']='tiff'
     else: #assume video file
         #TODO start,stop,step is not yet implemented, simply uses every other frame
@@ -113,21 +116,25 @@ def getvidinfo(fn, cp, up, verbose=False):
         finf['frameind'] = arange(finf['nframe'], dtype=int)
 
 # %% extract analysis parameters
-    ap = {'twoframe': cp.getboolean('main','twoframe'),
-          'ofmethod': cp.get('main','ofmethod').lower(),
+    A = {'twoframe': P.getboolean('main','twoframe'),
+          'ofmethod': P.get('main','ofmethod').lower(),
 #          'rawframeind': empty(finf['nframe'], int),
-          'rawlim': [cp.getfloat('main','cmin'),  # list not tuple for auto
-                     cp.getfloat('main','cmax')],
+          'rawlim': [P.getfloat('main','cmin'),  # list not tuple for auto
+                     P.getfloat('main','cmax')],
           'xpix': finf['superx'], 'ypix':finf['supery'],
-          'thresmode': cp.get('filter','thresholdmode').lower()}
+          'thresmode': P.get('filter','thresholdmode').lower()}
 
 # %% concatenate dicts
-    up = {**up, **ap}
+    U = {**U, **A}
 
-    return finf, up
+    return finf, U
 
 def getparam(pfn):
     pfn = Path(pfn).expanduser()
+
+    if not pfn.is_file():
+        raise FileNotFoundError(f'{pfn} not found!')
+
     P = ConfigParser(allow_no_value=True,inline_comment_prefixes=[';'])
     P.read(pfn)
 

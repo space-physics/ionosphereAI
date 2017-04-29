@@ -24,8 +24,12 @@ TIFF FILES
 SPOOL FILES TIME-INDEXED
 1. find time order of spool files, stores in index.h5 by filename
 ./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/ -o index.h5
-2. detect aurora
+2. detect aurora  (-k 10 is max, 30 is too much)
+
 ./Detect.py ~/data/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini -k 10
+
+./Detect.py ~/H/neo2012-12-25/spool_5/index.h5 ~/Dropbox/DMC/2012-12-25 dmc2012.ini -k 2
+
 
 HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
 1. Use https://github.com/scivision/dmcutils/PlotSpool.py to plot Andor Solis .dat spool files. (verify you're reading them correctly)

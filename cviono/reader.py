@@ -98,7 +98,7 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         rfi = ifrm
 
         if up['twoframe']:
-            frames = readNeoSpool(fn,finf,[ifrm,ifrm+1])[0].squeeze()
+            frames = readNeoSpool(fn, finf, [ifrm,ifrm+1], zerocols=P.getint('main','zerocols'))[0].squeeze()
             frameref = frames[0, ...]
             frame16 = frames[1,...]
     elif finf['reader'] == 'cv2':
