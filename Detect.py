@@ -105,9 +105,11 @@ if __name__=='__main__':
     p.add_argument('-k','--step',help='frame step skip increment',type=int,default=10)
     p.add_argument('-f','--frames',help='start stop frames (default all)',type=int,nargs=2)
     p.add_argument('-d','--detfn',help='master file to save detections and statistics in HDF5, under odir',default='auroraldet.h5')
-
     p.add_argument('-v','--verbose',help='verbosity',action='store_true')
     p.add_argument('--profile',help='profile debug',action='store_true')
     p = p.parse_args()
 
     aurstat = rundetect(p)
+
+    if not p.verbose:
+        PSHOW=()
