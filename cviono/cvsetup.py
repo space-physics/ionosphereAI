@@ -228,7 +228,7 @@ def statplot(dt, stat, U, P, fn=''):
             Np=1
 
         ax = fg.add_subplot(Np,1,Np)
-        ax.set_title('Detections of Aurora')
+        ax.set_title(f'Detections of Aurora {fn.name}')
         ax.set_ylabel('number of detections')
         ax.set_ylim((0,10))
 
