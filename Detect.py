@@ -41,8 +41,8 @@ from cviono import loopaurorafiles
 
 TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 #PSHOW=('thres','stat','morph','final')
-#SHOW=('thres','stat','final')
-PSHOW=('stat','final')
+PSHOW=('thres','stat','final')
+#PSHOW=('stat','final')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal
 #'hist' ogram

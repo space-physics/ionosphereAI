@@ -160,10 +160,10 @@ def setupof(ap:dict, P):
     return lastflow,gmm
 
 
-def setupfigs(finf, fn, up):
+def setupfigs(finf, fn, U,P):
 # %% optical flow magnitude plot
 
-    if 'thres' in up['pshow']:
+    if 'threscolor' in U['pshow'] and P.get('main','ofmethod') in ('hs,farneback'):
         fg = figure()
         axom = fg.gca()
         hiom = axom.imshow(np.zeros((finf['supery'],finf['superx'])),
@@ -184,21 +184,21 @@ def setupfigs(finf, fn, up):
 
     stat = DataFrame(index=ut,columns=['mean','median','variance','detect'])
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
-    stat[['mean','median','variance']] = np.zeros((finf['frameind'].size-1,3),dtype=float)
+    stat[['mean','median','variance']] = np.zeros((finf['frameind'].size-1,3), dtype=float)
 
-    hpmn, hpmd, hpdt, fgdt= statplot(dt,stat,fn,up['pshow'])
+    hpmn, hpmd, hpdt, fgdt= statplot(dt,stat,fn, U['pshow'])
 
 #    draw(); pause(0.001) #catch any plot bugs
 
-    up['iofm']  = hiom
-    up['pmean'] = hpmn
-    up['pmed']  = hpmd
-    up['pdet']  = hpdt
-    up['fdet']  = fgdt
+    U['iofm']  = hiom
+    U['pmean'] = hpmn
+    U['pmed']  = hpmd
+    U['pdet']  = hpdt
+    U['fdet']  = fgdt
 
-    return up,stat
+    return U, stat
 
-def statplot(dt,stat,fn=None,pshow='stat'):
+def statplot(dt, stat, pshow, fn=''):
 
 
 
@@ -214,7 +214,7 @@ def statplot(dt,stat,fn=None,pshow='stat'):
     if 'stat' in pshow:
         fgdt,axs = subplots(1,2,figsize=(12,5))
         ax = axs[0]
-        ax.set_title(f'optical flow statistics{fn}')
+        ax.set_title('optical flow statistics')
         ax.set_xlabel('frame index #')
         ax.set_ylim((0,0.1))
 
@@ -223,7 +223,7 @@ def statplot(dt,stat,fn=None,pshow='stat'):
         ax.legend(loc='best')
 #%% detections
         ax = axs[1]
-        ax.set_title(f'Detections of Aurora:{fn}')
+        ax.set_title('Detections of Aurora')
         ax.set_ylabel('number of detections')
         ax.set_ylim((0,10))
 

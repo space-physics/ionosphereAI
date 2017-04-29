@@ -23,12 +23,12 @@ from matplotlib.pylab import draw, pause, close
 from morecvutils.connectedComponents import setupblob
 
 
-def loopaurorafiles(up):
+def loopaurorafiles(U):
 
-    P = getparam(up['paramfn']) # ConfigParser object
+    P = getparam(U['paramfn']) # ConfigParser object
 
     # note, if a specific file is given, vidext is ignored
-    idir = Path(up['indir']).expanduser()
+    idir = Path(U['indir']).expanduser()
     if idir.is_file():
         flist = [idir]
     elif idir.is_dir():
@@ -37,76 +37,76 @@ def loopaurorafiles(up):
         raise FileNotFoundError(f'{idir} is not a path or file')
 
     if not flist:
-        raise FileNotFoundError(f'no files found: {up["indir"]}')
+        raise FileNotFoundError(f'no files found: {U["indir"]}')
 
-    up['nfile'] = len(flist)
+    U['nfile'] = len(flist)
 
-    print(f'found {up["nfile"]} files: {up["indir"]}')
+    print(f'found {U["nfile"]} files: {U["indir"]}')
 
     aurstat = DataFrame(columns=['mean', 'median', 'variance', 'detect'])
 # %% process files
     if P.get('main','vidext') == '.dat':
-        stat = procfiles(flist,P,up)
+        stat = procfiles(flist,P,U)
         aurstat = aurstat.append(stat)
     else:
         for f in flist:  # iterate over files in list
-            stat = procfiles(f,P,up)
+            stat = procfiles(f,P,U)
             aurstat = aurstat.append(stat)
 # %% sort,plot,save results for all files
     try:
         aurstat.sort_index(inplace=True)  # sort by time
-        savestat(aurstat, up['detfn'])
+        savestat(aurstat, U['detfn'])
 
         if aurstat.index[0] > 1e9: #ut1 instead of index
             dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
         else:
             dt=None
 
-        fgst = statplot(dt,aurstat,fn=up['odir'],pshow='stat')[3]
+        fgst = statplot(dt, aurstat, 'stat', U['odir'])[3]
         draw(); pause(0.001)
-        fgst.savefig(str(up['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
+        fgst.savefig(str(U['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
 
         return aurstat
     except UnboundLocalError:
         raise RuntimeError(f'no good files found in {flist[0].parent}')
 
-def procfiles(f,P,up):
-    finf, up = getvidinfo(f, P, up)
+def procfiles(f,P,U):
+    finf, U = getvidinfo(f, P, U)
 
     if finf['nframe'] < 100 and finf['reader'] != 'spool':
         print(f'SKIPPING {f} with only {finf["nframe"]} frames')
         return
 
     try:
-        up = setscale(f, up, finf)  # in case auto contrast per file
+        U = setscale(f, U, finf)  # in case auto contrast per file
     except ValueError as e:
         logging.error(f'{f}  {e}')
         print()
         return
 
-    stat = procaurora(f, P, up, finf)
+    stat = procaurora(f, P, U, finf)
 
     return stat
 
 
-def procaurora(f, P,up,finf):
-    framebyframe = up['framebyframe']
+def procaurora(f, P,U,finf):
+    framebyframe = U['framebyframe']
     tic = time()
 
     if finf is None:
         return
 #%% setup optional video/tiff writing (mainly for debugging or publication)
-    svh = svsetup(P, up)
+    svh = svsetup(P, U)
 #%% setup blob
     blobdetect = setupblob(P.getfloat('blob','minblobarea'),
                            P.getfloat('blob','maxblobarea'),
                            P.getfloat('blob','minblobdist'))
 #%% cv opt. flow matrix setup
-    lastflow,gmm = setupof(up,P)
+    lastflow,gmm = setupof(U,P)
 # %% kernel setup
-    up = setupkern(P,up)
+    U = setupkern(P, U)
 # %% mag plots setup
-    up, stat = setupfigs(finf, f, up)
+    U, stat = setupfigs(finf, f, U, P)
 # %% list of files or handle?
     try:
         flist = finf['flist'].iloc[finf['frameind']].tolist()
@@ -122,22 +122,22 @@ def procaurora(f, P,up,finf):
             iraw = 0
         #print(f,i,iraw)
 # %% load and filter
-        framegray, frameref, up = getraw(f, iraw-N[0],iraw, finf, svh, P, up)[:3]
+        framegray, frameref, U = getraw(f, iraw-N[0],iraw, finf, svh, P, U)[:3]
 # %% compute optical flow or Background/Foreground
         if gmm is None:
             flow, mag, stat = dooptflow(framegray, frameref, lastflow,
-                                             iraw, i, up, P, stat)
+                                             iraw, i, U, P, stat)
             lastflow = flow.copy()  # FIXME is the .copy() strictly necessary?
         else:  # background/foreground
             mag = gmm.apply(framegray)
 # %% threshold
-        thres = dothres(mag, stat['median'].iat[i], P, i, svh,  up, gmm is not None)
+        thres = dothres(mag, stat['median'].iat[i], P, i, svh,  U, gmm is not None)
 #%% despeckle
-        despeck = dodespeck(thres,P.getint('filter','medfiltsize'),i,svh, up)
+        despeck = dodespeck(thres,P.getint('filter','medfiltsize'),i,svh, U)
 #%% morphological ops
-        morphed = domorph(despeck, svh, up)
+        morphed = domorph(despeck, svh, U)
 #%% blob detection
-        stat = doblob(morphed,blobdetect,framegray,i,svh,stat, up) #lint:ok
+        stat = doblob(morphed,blobdetect,framegray,i,svh,stat, U) #lint:ok
 #%% plotting in loop
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
@@ -152,7 +152,7 @@ def procaurora(f, P,up,finf):
             if (framegray == 0).sum() > 4:
                 print('* Warning: video may be saturated at value 0, missed detections can result')
 
-        if up['pshow']:
+        if U['pshow']:
             if framebyframe: #wait indefinitely for spacebar press
                 keypressed = cv2.waitKey(0)
                 framebyframe,dobreak = keyhandler(keypressed,framebyframe)
@@ -165,9 +165,9 @@ def procaurora(f, P,up,finf):
 #%% done looping this file  save results for this file
     print(f'{time()-tic:.1f} seconds to process {f}')
 
-    if up['odir']:
-        detfn =    Path(up['odir']).expanduser()/(f.stem +'_detections.h5')
-        detpltfn = Path(up['odir']).expanduser()/(f.stem +'_detections.png')
+    if U['odir']:
+        detfn =    Path(U['odir']).expanduser()/(f.stem +'_detections.h5')
+        detpltfn = Path(U['odir']).expanduser()/(f.stem +'_detections.png')
         if detfn.is_file():
             logging.warning(f'overwriting existing {detfn}')
 
@@ -175,12 +175,12 @@ def procaurora(f, P,up,finf):
             savestat(stat,detfn)
 
             print(f'saving detection plot to {detpltfn}')
-            up['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
+            U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
 
         except Exception as e:
             logging.critical(f'trouble saving detection result  {e} ')
         finally:
-            svrelease(svh, up['savevideo'])
+            svrelease(svh, U['savevideo'])
 
     close('all')
 

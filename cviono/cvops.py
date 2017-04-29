@@ -88,10 +88,16 @@ def dothres(ofmaggmm,medianflow, P, i, svh, up,isgmm, verbose=False):
             raise NotImplementedError(f'{up["thresmode"]} not yet implemented')
         else:
             raise NotImplementedError(f'{up["thresmode"]} not yet implemented')
+
+        thres = ((ofmaggmm<hithres) & (ofmaggmm>lowthres)).astype(np.uint8) * 255
     else:
-        hithres = 255; lowthres=0 #TODO take from spreadsheed as gmmlowthres gmmhighthres
+        """
+        0: background, 127: shadow, 255: foreground
+        """
+        thres = (255 * (ofmaggmm==255)).astype(np.uint8)
+
     """
-    This is the oppostite of np.clip
+    This is the opposite of np.clip
     1) make boolean of  min < flow < max
     2) convert to uint8
     3) (0,255) since that's what cv2.imshow wants
@@ -100,7 +106,7 @@ def dothres(ofmaggmm,medianflow, P, i, svh, up,isgmm, verbose=False):
     "&" felt the most Pythonic.
      has to be 0,255 because that's what opencv functions (imshow and computation) want
     """
-    thres = ((ofmaggmm<hithres) & (ofmaggmm>lowthres)).astype('uint8') * 255
+
 
     if svh['thres'] is not None:
         if svh['save'] == 'tif':
@@ -165,7 +171,7 @@ def domorph(despeck,svh,up):
 
     return closed
 
-def doblob(morphed,blobdetect,framegray,i,svh,stat,up):
+def doblob(morphed,blobdetect,framegray, i, svh, stat, U):
     """
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
@@ -184,8 +190,8 @@ def doblob(morphed,blobdetect,framegray,i,svh,stat,up):
                 fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5,
                 color=(0,255,0), thickness=2)
 
-    if 'final' in up['pshow']:
-        cvtxt(str(i),final)
+    if 'final' in U['pshow']:
+        cvtxt(str(i), final)
         cv2.imshow('final',final)
 
 
@@ -198,11 +204,9 @@ def doblob(morphed,blobdetect,framegray,i,svh,stat,up):
 #%% plot detection vs. time
 #    if 'savedet' in pshow: #updates plot with current info
     try:
-        up['pdet'][0].set_ydata(stat['detect'].values)
+        U['pdet'][0].set_ydata(stat['detect'].values)
     except TypeError:
         pass
-
-#    draw(); pause(0.001) #debug
 
     return stat
 
