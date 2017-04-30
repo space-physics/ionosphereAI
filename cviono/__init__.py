@@ -43,7 +43,7 @@ def loopaurorafiles(U):
 
     print(f'found {U["nfile"]} files: {U["indir"]}')
 
-    aurstat = DataFrame(columns=['mean', 'median', 'variance', 'detect'])
+    aurstat = DataFrame(columns=['mean', 'median', 'variance', 'detect']) # FIXME this is where detect is being cast to float, despite being int in individual dataFrames
 # %% process files
     if P.get('main','vidext') == '.dat':
         stat = procfiles(flist,P,U)
@@ -54,7 +54,7 @@ def loopaurorafiles(U):
             aurstat = aurstat.append(stat)
 # %% sort,plot,save results for all files
     aurstat.sort_index(inplace=True)  # sort by time
-    savestat(aurstat, U['detfn'])
+    savestat(aurstat, U['detfn'], idir)
 
     if aurstat.index[0] > 1e9: #ut1 instead of index
         dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
@@ -63,8 +63,9 @@ def loopaurorafiles(U):
 # %% master detection plot
     U['pshow'] += ('stat',)
     fgst = statplot(dt, aurstat, U, P, U['odir'])[3]
-    draw(); pause(0.1)
+    draw(); pause(0.01)
     fgst.savefig(str(U['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
+    fgst.savefig(str(U['detfn'].with_suffix('.svg')), bbox_inches='tight', dpi=100)
 
     return aurstat
 
