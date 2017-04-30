@@ -170,7 +170,7 @@ def procaurora(f, P,U,finf):
 
         try:
             savestat(stat,detfn)
-            if U['pshow']:
+            if 'stat' in U['pshow']:
                 print(f'saving detection plot to {detpltfn}')
                 U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
         except Exception as e:

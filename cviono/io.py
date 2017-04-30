@@ -90,7 +90,7 @@ def getvidinfo(fn, P, U, verbose=False):
                 finf = _spoolcase(fn,P,U, finf)
                 finf['path'] = fn.parent
             else:
-                raise NotImplementedError('unknown HDF5 file type')
+                raise ValueError(f'{fn}: unknown input HDF5 file type')
 
         if not 'frameind' in finf:
             finf['frameind'] = arange(0,finf['nframe'], U['framestep'], dtype=int)

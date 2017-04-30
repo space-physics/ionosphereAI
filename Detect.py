@@ -31,7 +31,7 @@ SPOOL FILES TIME-INDEXED
 ./Detect.py ~/H/neo2012-12-25/spool_5/index.h5 ~/Dropbox/DMC/2012-12-25 dmc2012.ini
 
 2017 files
-Detect.py f:\archive.27Mar2017\2017-03-27\spool\index.h5 f:\archive.27Mar2017 dmc2017.ini
+Detect.py f:\archive.27Mar2017\2017-03-27\spool\index.h5 f:\archive.27Mar2017 dmc2017.ini -v
 
 
 HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
