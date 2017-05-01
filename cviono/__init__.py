@@ -118,7 +118,7 @@ def procaurora(f, P,U,finf):
 # %% start main loop
     #print('start main loop')
     with h5py.File(U['detfn'],'r+') as f5:
-        f5.create_dataset('/preview', (N,64,64), dtype=np.uint16)
+        f5.create_dataset('/preview', (N.size,64,64), dtype=np.uint16)
 
     j=0
     for i, iraw in enumerate(N):
