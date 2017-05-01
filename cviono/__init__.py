@@ -118,8 +118,9 @@ def procaurora(f, P,U,finf):
     N = finf['frameind'][:-1]
 # %% start main loop
     #print('start main loop')
-    with h5py.File(U['detfn'],'r+') as f5:
-        f5.create_dataset('/preview', (N.size,64,64), dtype=np.uint16)
+    if finf['reader'] == 'spool':
+        with h5py.File(U['detfn'], 'w', libver='latest') as f5:
+            f5.create_dataset('/preview', (N.size,64,64), dtype=np.uint16)
 
     j=0
     for i, iraw in enumerate(N):
@@ -153,8 +154,9 @@ def procaurora(f, P,U,finf):
 
         if not i % 50:
             j+=1
-            with h5py.File(U['detfn'],'r+',libver='latest') as f5:
-                f5['/preview'][j,...] = imresize(frame16,(64,64))
+            if finf['reader'] == 'spool':
+                with h5py.File(U['detfn'],'r+',libver='latest') as f5:
+                    f5['/preview'][j,...] = imresize(frame16,(64,64))
 
             print(f'{j/N.size*100:.1f}% {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora

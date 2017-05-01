@@ -152,7 +152,9 @@ def savestat(stat:DataFrame, fn:Path, idir:Path):
     assert isinstance(stat, DataFrame)
     print('saving detections & statistics to', fn)
 
-    with h5py.File(fn, 'r+', libver='latest') as f:
+    writemode='r+' if fn.is_file() else 'w'
+
+    with h5py.File(fn, writemode, libver='latest') as f:
         f['/input'] = str(idir)
         f['/detect']  = stat['detect']
 
