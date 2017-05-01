@@ -118,6 +118,6 @@ if __name__=='__main__':
     p = p.parse_args()
 
     if not p.verbose:
-        PSHOW=()
+        PSHOW=[]
 
     aurstat = rundetect(p)
