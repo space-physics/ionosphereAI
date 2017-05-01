@@ -24,6 +24,7 @@ import numpy as np
 from scipy.misc import imresize
 from matplotlib.pylab import draw, pause, close
 #
+from histutils import setupimgh5
 from morecvutils.connectedComponents import setupblob
 
 
@@ -119,8 +120,7 @@ def procaurora(f, P,U,finf):
 # %% start main loop
     #print('start main loop')
     if finf['reader'] == 'spool':
-        with h5py.File(U['detfn'], 'w', libver='latest') as f5:
-            f5.create_dataset('/preview', (N.size,64,64), dtype=np.uint16)
+        setupimgh5(U['detfn'], N, 64, 64, np.uint16, writemode='w',key='/preview')
 
     j=0
     for i, iraw in enumerate(N):
@@ -158,7 +158,7 @@ def procaurora(f, P,U,finf):
                 with h5py.File(U['detfn'], 'r+', libver='latest') as f5:
                     f5['/preview'][j, ...] = imresize(frame16,(64,64))
 
-            print(f'{iraw/N.size*100:.2f}% {stat["detect"].iloc[i-50:i].values}')
+            print(f'{iraw/N[-1]*100:.2f}% {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 print('* Warning: video saturated at 255', file=stderr)
             if (framegray == 0).sum() > 4:
