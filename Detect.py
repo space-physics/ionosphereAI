@@ -23,7 +23,7 @@ TIFF FILES
 
 SPOOL FILES TIME-INDEXED
 1. find time order of spool files, stores in index.h5 by filename
-./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/ -o index.h5
+./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/
 2. detect aurora  (-k 10 is max, 30 is too much)
 
 ./Detect.py ~/data/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini
