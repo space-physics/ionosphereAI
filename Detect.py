@@ -31,8 +31,9 @@ SPOOL FILES TIME-INDEXED
 ./Detect.py ~/H/neo2012-12-25/spool_5/index.h5 ~/Dropbox/DMC/2012-12-25 dmc2012.ini
 
 2017 files
-Detect.py f:\archive.27Mar2017\2017-03-27\spool\index.h5 f:\archive.27Mar2017\ex.h5 dmc2017.ini -v
+Detect.py f:\archive.27Mar2017\2017-03-27\spool\index.h5 f:\archive.27Mar2017\ dmc2017.ini -v
 
+python Detect.py z:\2017-04-27\spool\index.h5 z:\2017-04-27\ dmc2017.ini -k10
 
 HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
 1. Use https://github.com/scivision/dmcutils/PlotSpool.py to plot Andor Solis .dat spool files. (verify you're reading them correctly)
@@ -48,7 +49,7 @@ from cviono import loopaurorafiles
 
 TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 #PSHOW=('thres','stat','morph','final')
-PSHOW=('thres','stat','final')
+PSHOW=('final')
 #PSHOW=('stat','final')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal

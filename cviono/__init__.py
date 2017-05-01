@@ -170,7 +170,7 @@ def procaurora(f, P,U,finf):
             logging.warning(f'overwriting existing {detfn}')
 
         try:
-            savestat(stat,detfn)
+            savestat(stat,detfn, U['indir'])
             if 'stat' in U['pshow']:
                 print(f'saving detection plot to {detpltfn}')
                 U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
