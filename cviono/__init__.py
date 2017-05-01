@@ -13,6 +13,7 @@ from .reader import getraw, setscale
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
 from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 #
+from sys import stderr
 import h5py
 from datetime import datetime
 from pytz import UTC
@@ -155,11 +156,11 @@ def procaurora(f, P,U,finf):
             with h5py.File(U['detfn'],'r+',libver='latest') as f5:
                 f5['/preview'][j,...] = imresize(frame16,(64,64))
 
-            print(f'i={iraw:0d} {stat["detect"].iloc[i-50:i].values}')
+            print(f'{j/N.size*100:.1f}% {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
-                print('* Warning: video may be saturated at value 255, missed detections can result')
+                print('* Warning: video saturated at 255', file=stderr)
             if (framegray == 0).sum() > 4:
-                print('* Warning: video may be saturated at value 0, missed detections can result')
+                print('* Warning: video saturated at 0', file=stderr)
 
         if U['pshow']:
             if U['framebyframe']: #wait indefinitely for spacebar press
