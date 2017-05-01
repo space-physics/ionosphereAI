@@ -4,7 +4,7 @@ import cv2
 import h5py
 import numpy as np
 from scipy.signal import wiener
-from scipy.misc import bytescale
+#from scipy.misc import bytescale
 from matplotlib.pyplot import figure, hist
 try:
     #from astropy.io import fits
@@ -20,6 +20,7 @@ except ImportError:
 from .getpassivefm import getfmradarframe
 from histutils.rawDMCreader import getDMCframe
 from dmcutils.neospool import readNeoSpool
+from histutils import sixteen2eight
 
 def setscale(fn,up,finf):
     """
@@ -169,8 +170,10 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         framegray = wiener(frame16, dowiener)
 
     if finf['reader'] != 'cv2':
-        frameref  = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
-        framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
+        frameref = sixteen2eight(frameref,up['rawlim'])
+        framegray = sixteen2eight(frame16,up['rawlim'])
+        #frameref  = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
+        #framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
 
     if up and 'raw' in up['pshow']:
         # cv2.imshow just divides by 256, NOT autoscaled!
