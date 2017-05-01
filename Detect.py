@@ -49,7 +49,7 @@ from cviono import loopaurorafiles
 
 TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 #PSHOW=('thres','stat','morph','final')
-PSHOW=('final')
+PSHOW=['final']
 #PSHOW=('stat','final')
 #'raw' #often not useful due to no autoscale
 #'rawscaled'      #True  #why not just showfinal
@@ -61,6 +61,7 @@ PSHOW=('final')
 #'final'
 
 def rundetect(p):
+    assert isinstance(PSHOW,list)
     P = {
     'indir': p.indir,
     'framestep': p.step,

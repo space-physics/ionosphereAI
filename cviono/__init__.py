@@ -13,11 +13,14 @@ from .reader import getraw, setscale
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
 from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 #
+import h5py
 from datetime import datetime
 from pytz import UTC
 from pandas import DataFrame
 from pathlib import Path
 from time import time
+import numpy as np
+from scipy.misc import imresize
 from matplotlib.pylab import draw, pause, close
 #
 from morecvutils.connectedComponents import setupblob
@@ -61,7 +64,7 @@ def loopaurorafiles(U):
     else:
         dt=None
 # %% master detection plot
-    U['pshow'] += ('stat',)
+    U['pshow'] += ['stat']
     fgst = statplot(dt, aurstat, U, P, U['odir'])[3]
     draw(); pause(0.01)
     fgst.savefig(str(U['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
@@ -114,13 +117,17 @@ def procaurora(f, P,U,finf):
     N = finf['frameind'][:-1]
 # %% start main loop
     #print('start main loop')
+    with h5py.File(U['detfn'],'r+') as f5:
+        f5.create_dataset('/preview', (N,64,64), dtype=np.uint16)
+
+    j=0
     for i, iraw in enumerate(N):
         if finf['reader'] == 'spool':
             f = finf['path'] / flist[i]
             iraw = 0
         #print(f,i,iraw)
 # %% load and filter
-        framegray, frameref, U = getraw(f, iraw-N[0],iraw, finf, svh, P, U)[:3]
+        framegray, frameref, U, frame16 = getraw(f, iraw-N[0],iraw, finf, svh, P, U)
 # %% compute optical flow or Background/Foreground
         if gmm is None:
             flow, mag, stat = dooptflow(framegray, frameref, lastflow,
@@ -144,6 +151,10 @@ def procaurora(f, P,U,finf):
             draw(); pause(0.01)
 
         if not i % 50:
+            j+=1
+            with h5py.File(U['detfn'],'r+',libver='latest') as f5:
+                f5['/preview'][j,...] = imresize(frame16,(64,64))
+
             print(f'i={iraw:0d} {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 print('* Warning: video may be saturated at value 255, missed detections can result')
