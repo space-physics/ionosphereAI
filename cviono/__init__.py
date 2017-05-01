@@ -155,10 +155,10 @@ def procaurora(f, P,U,finf):
         if not i % 50:
             j+=1
             if finf['reader'] == 'spool':
-                with h5py.File(U['detfn'],'r+',libver='latest') as f5:
-                    f5['/preview'][j,...] = imresize(frame16,(64,64))
+                with h5py.File(U['detfn'], 'r+', libver='latest') as f5:
+                    f5['/preview'][j, ...] = imresize(frame16,(64,64))
 
-            print(f'{j/N.size*100:.1f}% {stat["detect"].iloc[i-50:i].values}')
+            print(f'{iraw/N.size*100:.2f}% {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 print('* Warning: video saturated at 255', file=stderr)
             if (framegray == 0).sum() > 4:
@@ -184,10 +184,11 @@ def procaurora(f, P,U,finf):
             logging.warning(f'overwriting existing {detfn}')
 
         try:
-            savestat(stat,detfn, U['indir'])
-            if 'stat' in U['pshow']:
-                print(f'saving detection plot to {detpltfn}')
-                U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
+            if finf['reader'] != 'spool':
+                savestat(stat,detfn, U['indir'])
+                if 'stat' in U['pshow']:
+                    print(f'saving detection plot to {detpltfn}')
+                    U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
         except Exception as e:
             logging.critical(f'trouble saving detection result  {e} ')
         finally:
