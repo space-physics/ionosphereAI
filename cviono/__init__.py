@@ -21,7 +21,7 @@ from pandas import DataFrame
 from pathlib import Path
 from time import time
 import numpy as np
-from scipy.misc import imresize
+from scipy.ndarray import zoom
 from matplotlib.pylab import draw, pause, close
 #
 from histutils import setupimgh5
@@ -156,7 +156,7 @@ def procaurora(f, P,U,finf):
             j+=1
             if finf['reader'] == 'spool':
                 with h5py.File(U['detfn'], 'r+', libver='latest') as f5:
-                    f5['/preview'][j, ...] = imresize(frame16,(64,64))
+                    f5['/preview'][j, ...] = zoom(frame16, 0.1, 0)
 
             print(f'{iraw/N[-1]*100:.2f}% {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
