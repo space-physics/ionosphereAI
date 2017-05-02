@@ -40,6 +40,7 @@ HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
 2. sort the spool files with HDF5 index output by dmcutils/FileTick.py -o index.h5
 3. ./Detect.py index.h5 (loads the files you specified in step 2 in time order)
 """
+from sys import argv
 import logging
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -63,6 +64,7 @@ PSHOW=['final']
 def rundetect(p):
     assert isinstance(PSHOW,list)
     P = {
+    'cmd': ' '.join(argv),
     'indir': p.indir,
     'framestep': p.step,
     'startstop': p.frames,

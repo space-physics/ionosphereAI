@@ -120,7 +120,7 @@ def procaurora(f, P,U,finf):
 # %% start main loop
     #print('start main loop')
     if finf['reader'] == 'spool':
-        setupimgh5(U['detfn'], N.size, 64, 64, np.uint16, writemode='w',key='/preview')
+        setupimgh5(U['detfn'], N.size, 64, 64, np.uint16, writemode='w',key='/preview',U['cmd'])
 
     j=0
     for i, iraw in enumerate(N):
