@@ -7,12 +7,12 @@ from shutil import copy2
 import h5py
 from matplotlib.pyplot import figure,draw,pause,show
 
-def patchdet(infn, slic=None, quiet=False):
+def patchdet(infn, slic=None, vlim=None, quiet=False):
 
     infn = Path(infn).expanduser()
 
     if slic is None:
-        plotdet(infn)
+        plotdet(infn, vlim=vlim)
         return
 
     assert isinstance(slic,slice),'Must be a slice to patch file, or None to display contents'
@@ -27,10 +27,10 @@ def patchdet(infn, slic=None, quiet=False):
     with h5py.File(outfn,'r+') as f:
         f['/detect'][slic] = 0
 
-    plotdet(infn,outfn, quiet)
+    plotdet(infn,outfn, vlim, quiet)
 
 
-def plotdet(infn,outfn=None, quiet=False):
+def plotdet(infn,outfn=None, vlim=None, quiet=False):
 
     with h5py.File(infn,'r') as f:
         indet = f['/detect'][:]
@@ -39,7 +39,12 @@ def plotdet(infn,outfn=None, quiet=False):
             print('plotting movie of',infn)
             fg = figure()
             ax = fg.gca()
-            h = ax.imshow(f['/preview'][1])
+
+            if vlim is None:
+                h = ax.imshow(f['/preview'][1])
+            else:
+                h = ax.imshow(f['/preview'][1],vmin=vlim[0],vmax=vlim[1])
+
             fg.colorbar(h,ax=ax)
             ht = ax.set_title('')
 
@@ -79,6 +84,7 @@ if __name__ == '__main__':
     p.add_argument('fn',help='HDF5 file to manuall patch over (remove false detections due to sunrise)')
     p.add_argument('-s','--startstop',help='length 1 or 2 (start,stop) slice',nargs='+',type=int)
     p.add_argument('-q','--quiet',help='dont show preview movie',action='store_true')
+    p.add_argument('-vlim',help='preview brightness',nargs=2,type=int)
     p = p.parse_args()
 
     if p.startstop is not None:
@@ -91,7 +97,7 @@ if __name__ == '__main__':
     else:
         slic = None
 
-    patchdet(p.fn, slic, p.quiet)
+    patchdet(p.fn, slic, p.vlim, p.quiet)
 
     show()
 
