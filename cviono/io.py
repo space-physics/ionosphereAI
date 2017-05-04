@@ -148,7 +148,7 @@ def keyhandler(keypressed,framebyframe):
         print('keypress code: ',keypressed)
         return (framebyframe, False)
 
-def savestat(stat:DataFrame, fn:Path, idir:Path):
+def savestat(stat:DataFrame, fn:Path, idir:Path, U:dict):
     assert isinstance(stat, DataFrame)
     print('saving detections & statistics to', fn)
 
@@ -157,6 +157,9 @@ def savestat(stat:DataFrame, fn:Path, idir:Path):
     with h5py.File(fn, writemode, libver='latest') as f:
         f['/input'] = str(idir)
         f['/detect']  = stat['detect']
+
+        f['/nfile'] = U['nfile']
+        f['framestep'] = U['framestep']
 
         if stat['mean'].nonzero()[0].any():
             f['/mean']    = stat['mean']

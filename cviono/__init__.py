@@ -21,8 +21,8 @@ from pandas import DataFrame
 from pathlib import Path
 from time import time
 import numpy as np
-from scipy.ndarray import zoom
-from matplotlib.pylab import draw, pause, close
+from scipy.ndimage import zoom
+from matplotlib.pylab import figure,draw, pause, close
 #
 from histutils import setupimgh5
 from morecvutils.connectedComponents import setupblob
@@ -59,7 +59,7 @@ def loopaurorafiles(U):
             aurstat = aurstat.append(stat)
 # %% sort,plot,save results for all files
     aurstat.sort_index(inplace=True)  # sort by time
-    savestat(aurstat, U['detfn'], idir)
+    savestat(aurstat, U['detfn'], idir, U)
 
     if aurstat.index[0] > 1e9: #ut1 instead of index
         dt = [datetime.fromtimestamp(t,tz=UTC) for t in stat.index]
@@ -120,7 +120,9 @@ def procaurora(f, P,U,finf):
 # %% start main loop
     #print('start main loop')
     if finf['reader'] == 'spool':
-        setupimgh5(U['detfn'], N.size, 64, 64, np.uint16, writemode='w',key='/preview',cmdlog=U['cmd'])
+        zy,zx = zoom(getraw(finf['path']/flist[0], 0,0, finf, svh, P, U)[3], 0.1, order=0).shape
+        #zy,zx=(64,64)
+        setupimgh5(U['detfn'], np.ceil(N.size/50)+1, zy, zx, np.uint16, writemode='w',key='/preview',cmdlog=U['cmd'])
 
     j=0
     for i, iraw in enumerate(N):
@@ -156,9 +158,32 @@ def procaurora(f, P,U,finf):
             j+=1
             if finf['reader'] == 'spool':
                 with h5py.File(U['detfn'], 'r+', libver='latest') as f5:
-                    f5['/preview'][j, ...] = zoom(frame16, 0.1, 0)
+                    #ipy = slice(finf['supery']//2-zy//2,finf['supery']//2+zy//2)
+                    #ipx = slice(finf['superx']//2-zx//2,finf['superx']//2+zx//2)
+                    #preview = frame16[ipy,ipx].astype(np.uint16)
+                    preview = zoom(frame16, 0.1, order=0,mode='nearest')
+#                    assert (frame16[ipy,ipx] == preview).all(),'preview failure to convert'
 
-            print(f'{iraw/N[-1]*100:.2f}% {stat["detect"].iloc[i-50:i].values}')
+                    updatestr = f'mean frame {i}: {preview.mean():.1f}  j= {j}'
+                    print(updatestr)
+                    f5['/preview'][j,...] = preview
+
+
+#                with h5py.File(U['detfn'], 'r', libver='latest') as f5:
+#                    assert (f5['/preview'][j,...] == preview).all(),'preview failure to store'
+#                    assert not (f5['/preview'][j,...] == 0).all(),'preview all 0 frame'
+
+#                if U['verbose']:
+#                    fgv = figure(1002)
+#                    fgv.clf()
+#                    ax = fgv.gca()
+#                    hi = ax.imshow(preview)
+#                    ax.set_title(updatestr)
+#                    fgv.colorbar(hi,ax=ax)
+#                    draw(); pause(0.001)
+
+
+            print(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-50:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 print('* Warning: video saturated at 255', file=stderr)
             if (framegray == 0).sum() > 4:
@@ -185,7 +210,7 @@ def procaurora(f, P,U,finf):
 
         try:
             if finf['reader'] != 'spool':
-                savestat(stat,detfn, U['indir'])
+                savestat(stat,detfn, U['indir'],U)
                 if 'stat' in U['pshow']:
                     print(f'saving detection plot to {detpltfn}')
                     U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
