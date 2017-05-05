@@ -160,6 +160,7 @@ def savestat(stat:DataFrame, fn:Path, idir:Path, U:dict):
 
         f['/nfile'] = U['nfile']
         f['framestep'] = U['framestep']
+        f['previewDecim'] = U['previewdecim']
 
         if stat['mean'].nonzero()[0].any():
             f['/mean']    = stat['mean']

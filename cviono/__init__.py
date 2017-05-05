@@ -122,7 +122,7 @@ def procaurora(f, P,U,finf):
     if finf['reader'] == 'spool':
         zy,zx = zoom(getraw(finf['path']/flist[0], 0,0, finf, svh, P, U)[3], 0.1, order=0).shape
         #zy,zx=(64,64)
-        setupimgh5(U['detfn'], np.ceil(N.size/50)+1, zy, zx, np.uint16, writemode='w',key='/preview',cmdlog=U['cmd'])
+        setupimgh5(U['detfn'], np.ceil(N.size/U['previewdecim'])+1, zy, zx, np.uint16, writemode='w',key='/preview',cmdlog=U['cmd'])
 
     j=0
     for i, iraw in enumerate(N):
@@ -154,7 +154,7 @@ def procaurora(f, P,U,finf):
         if U['pshow']:
             draw(); pause(0.01)
 
-        if not i % 50:
+        if not i % U['previewdecim']:
             j+=1
             if finf['reader'] == 'spool':
                 with h5py.File(U['detfn'], 'r+', libver='latest') as f5:
@@ -183,7 +183,7 @@ def procaurora(f, P,U,finf):
 #                    draw(); pause(0.001)
 
 
-            print(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-50:i].values}')
+            print(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-U["previewdecim"]:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 print('* Warning: video saturated at 255', file=stderr)
             if (framegray == 0).sum() > 4:

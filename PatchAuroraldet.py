@@ -48,7 +48,7 @@ def plotdet(infn,outfn=None, vlim=None, quiet=False):
             fg.colorbar(h,ax=ax)
             ht = ax.set_title('')
 
-            Nfile = f['/nfile'][:]
+            Nfile = f['/nfile'].value
             decim = f['/previewDecim'][:]
             step = f['/framestep'][:]
 
@@ -70,10 +70,10 @@ def plotdet(infn,outfn=None, vlim=None, quiet=False):
     ax.set_title(f'{outfn}  Auroral Detections')
     ax.legend()
 
-    outimg = str(outfn.with_suffix('.png'))
+    outimg = outfn.with_suffix('.png')
     print('saving',outimg)
 
-    fg.savefig(outimg, bbox_inches='tight',dpi=100)
+    fg.savefig(str(outimg), bbox_inches='tight',dpi=100)
 
 
 
@@ -98,7 +98,5 @@ if __name__ == '__main__':
         slic = None
 
     patchdet(p.fn, slic, p.vlim, p.quiet)
-
-    show()
 
     show()

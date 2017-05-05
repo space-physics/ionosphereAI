@@ -51,6 +51,7 @@ from cviono import loopaurorafiles
 TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 #PSHOW=('thres','stat','morph','final')
 PSHOW=[]
+PreviewDecim=50
 #PSHOW=['final']
 #PSHOW=('stat','final')
 #'raw' #often not useful due to no autoscale
@@ -76,7 +77,8 @@ def rundetect(p):
      'framebyframe': p.framebyframe,
      'verbose': p.verbose,
      'pshow': PSHOW,
-     'complvl': TIFFCOMPLVL
+     'complvl': TIFFCOMPLVL,
+     'previewdecim':PreviewDecim,
     }
 
     P['odir'].mkdir(parents=True, exist_ok=True)
