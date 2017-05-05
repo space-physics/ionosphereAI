@@ -49,8 +49,8 @@ def plotdet(infn,outfn=None, vlim=None, quiet=False):
             ht = ax.set_title('')
 
             Nfile = f['/nfile'].value
-            decim = f['/previewDecim'][:]
-            step = f['/framestep'][:]
+            decim = f['/previewDecim'].value
+            step = f['/framestep'].value
 
             for i,I in enumerate(f['/preview']):
                 h.set_data(I)
