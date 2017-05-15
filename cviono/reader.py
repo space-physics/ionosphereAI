@@ -88,7 +88,7 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         with fn.open('rb') as f:
             if up['twoframe']:
                 frameref = getDMCframe(f, ifrm, finf)[0]
-                frame16,rfi = getDMCframe(f, ifrm+1, finf)
+            frame16,rfi = getDMCframe(f, ifrm+1, finf)
 
     elif finf['reader'] == 'spool':
         """
@@ -97,11 +97,14 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         To skip further in time, skip more files.
         """
         rfi = ifrm
+        iread = (ifrm,ifrm+1) if up['twoframe'] else ifrm+1
 
+        frames, ticks, tsec = readNeoSpool(fn, finf, iread, zerocols=P.getint('main','zerocols',fallback=0))
         if up['twoframe']:
-            frames, ticks, tsec = readNeoSpool(fn, finf, [ifrm,ifrm+1], zerocols=P.getint('main','zerocols',fallback=0))
             frameref = frames[0, ...]
             frame16 = frames[1, ...]
+        else:
+            frame16 = frames[0, ...]
     elif finf['reader'] == 'cv2':
         if up['twoframe']:
             retval, frameref = fn.read() #TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES is said not to always work vis keyframes
@@ -166,11 +169,13 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
 #        up['rawframeind'][ifrm] = rfi
 
     if dowiener:
-        frameref  = wiener(frameref, dowiener)
+        if up['twoframe']:
+            frameref  = wiener(frameref, dowiener)
         framegray = wiener(frame16, dowiener)
 
     if finf['reader'] != 'cv2':
-        frameref = sixteen2eight(frameref,up['rawlim'])
+        if up['twoframe']:
+            frameref = sixteen2eight(frameref,up['rawlim'])
         framegray = sixteen2eight(frame16,up['rawlim'])
         #frameref  = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
         #framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
