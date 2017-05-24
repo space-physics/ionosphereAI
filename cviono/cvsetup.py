@@ -89,7 +89,7 @@ def svsetup(P, up):
         """
         try 'MJPG' 'XVID' 'FMP4' if FFV1 doesn't work.
 
-        https://github.com/scienceopen/pyimagevideo
+        https://github.com/scivision/pyimagevideo
         """
         if dowiener:
             svh['wiener'] = cv2.VideoWriter(str(up['odir'] / 'wiener.avi'),cc4, wfps,(y, x),False)
