@@ -156,15 +156,15 @@ def savestat(stat:DataFrame, fn:Path, idir:Path, U:dict):
 
     with h5py.File(fn, writemode, libver='latest') as f:
         f['/input'] = str(idir)
-        f['/detect']  = stat['detect']
+        f['/detect']  = stat['detect'].values
 
         f['/nfile'] = U['nfile']
         f['framestep'] = U['framestep']
         f['previewDecim'] = U['previewdecim']
 
         if stat['mean'].nonzero()[0].any():
-            f['/mean']    = stat['mean']
+            f['/mean']    = stat['mean'].values
         if stat['median'].nonzero()[0].any():
-            f['/median']  = stat['median']
+            f['/median']  = stat['median'].values
         if stat['variance'].nonzero()[0].any():
-            f['/variance']= stat['variance']
+            f['/variance']= stat['variance'].values
