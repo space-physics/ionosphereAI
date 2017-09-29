@@ -156,7 +156,7 @@ def savestat(stat:DataFrame, fn:Path, idir:Path, U:dict):
 
     with h5py.File(fn, writemode, libver='latest') as f:
         f['/input'] = str(idir)
-        f['/detect']  = stat['detect'].values
+        f['/detect']  = stat['detect'].values.astype(int)  # FIXME: why is type 'O'?
 
         f['/nfile'] = U['nfile']
         f['framestep'] = U['framestep']
