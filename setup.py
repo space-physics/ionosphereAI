@@ -25,7 +25,8 @@ setup(name='cviono',
       'Topic :: Scientific/Engineering :: Visualization',
       'Programming Language :: Python :: 3.6',
       ],
-	   extras_require={'tifffile':['tifffile']}
+	   extras_require={'tifffile':['tifffile']},
+      install_requires=req+pipreq,
 	  )
 
 try:

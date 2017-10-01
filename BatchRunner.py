@@ -6,10 +6,13 @@ does NOT automatically delete original data
 Steps
 0) create list of directories to process
 1) create index of randomly ordered filenames, opening each one to determine its relative elapsed time, creating index.h5
+2) detect auroral events of interest, store their indices
 """
 import sys
 from pathlib import Path
 import subprocess
+#
+dmcconf = 'dmc2017.ini'
 # %%
 from argparse import ArgumentParser
 p = ArgumentParser()
@@ -27,5 +30,8 @@ dlist = [x for x in indir.iterdir() if (x/'spool').is_dir()]
 
 for d in dlist:
 # %% 1) create spool/index.h5
-    indexcmd = ['python','FileTick.py', d /'spool','-s1296', '-z0']
-    subprocess.check_call(indexcmd,cwd=codedir/'dmcutils')
+    cmd = ['python','FileTick.py', d /'spool','-s1296', '-z0']
+    subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+# %% 2) detect aurora
+    cmd = ['python','Detect.py', d / 'spool/index.h5', outdir/d, dmcconf,'-k10']
+    subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
