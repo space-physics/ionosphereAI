@@ -13,7 +13,6 @@ from .reader import getraw, setscale
 from .cvops import dooptflow,dothres,dodespeck,domorph,doblob
 from .cvsetup import setupkern,svsetup,svrelease,setupof,setupfigs,statplot
 #
-from sys import stderr
 import h5py
 from datetime import datetime
 from pytz import UTC
@@ -22,7 +21,7 @@ from pathlib import Path
 from time import time
 import numpy as np
 from scipy.ndimage import zoom
-from matplotlib.pylab import figure,draw, pause, close
+from matplotlib.pylab import draw, pause, close
 #
 from histutils import setupimgh5
 from morecvutils.connectedComponents import setupblob
@@ -48,16 +47,19 @@ def loopaurorafiles(U):
 
     print(f'found {U["nfile"]} files: {U["indir"]}')
 
-    aurstat = DataFrame(columns=['mean', 'median', 'variance', 'detect']) # FIXME this is where detect is being cast to float, despite being int in individual dataFrames
 # %% process files
     if P.get('main','vidext') == '.dat':
-        stat = procfiles(flist,P,U)
-        aurstat = aurstat.append(stat)
+        aurstat = procfiles(flist,P,U)
     else:
+        aurstat = DataFrame(columns=['mean', 'median', 'variance', 'detect']) # FIXME this is where detect is being cast to float, despite being int in individual dataFrames
         for f in flist:  # iterate over files in list
             stat = procfiles(f,P,U)
             aurstat = aurstat.append(stat)
+
+    if aurstat is None:
+        return
 # %% sort,plot,save results for all files
+
     aurstat.sort_index(inplace=True)  # sort by time
     savestat(aurstat, U['detfn'], idir, U)
 
@@ -117,6 +119,9 @@ def procaurora(f, P,U,finf):
         flist=f
 
     N = finf['frameind'][:-1]
+    if len(N)==0:
+        logging.error(f'no files found to detect in {f}')
+        return
 # %% start main loop
     #print('start main loop')
     if finf['reader'] == 'spool':
@@ -185,9 +190,9 @@ def procaurora(f, P,U,finf):
 
             print(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-U["previewdecim"]:i].values}')
             if (framegray == 255).sum() > 40: #arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
-                print('* Warning: video saturated at 255', file=stderr)
+                logging.warning('video saturated at 255')
             if (framegray == 0).sum() > 4:
-                print('* Warning: video saturated at 0', file=stderr)
+                logging.warning('video saturated at 0')
 
         if U['pshow']:
             if U['framebyframe']: #wait indefinitely for spacebar press

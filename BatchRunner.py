@@ -33,5 +33,10 @@ for d in dlist:
     cmd = ['python','FileTick.py', d /'spool','-s1296', '-z0']
     subprocess.check_call(cmd, cwd=codedir/'dmcutils')
 # %% 2) detect aurora
-    cmd = ['python','Detect.py', d / 'spool/index.h5', outdir/d, dmcconf,'-k10']
+    cmd = ['python','Detect.py', d / 'spool/index.h5', outdir/d.stem, dmcconf,'-k10']
     subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
+# %% #) extract auroral data
+    cmd = ['python','ConvertSpool2h5.py', d/'spool/index.h5',
+           '-det', outdir/d.stem/'auroraldet.h5',
+           '-o', outdir/d.stem/'extracted.h5', '-z0']
+    subprocess.check_call(cmd, cwd=codedir/'dmcutils')
