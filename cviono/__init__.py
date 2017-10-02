@@ -38,7 +38,8 @@ def loopaurorafiles(U):
     elif idir.is_dir():
         flist = sorted(idir.glob('*'+P.get('main', 'vidext')))
     else:
-        raise FileNotFoundError(f'{idir} is not a path or file')
+        logging.error(f'{idir} is not a path or file')
+        return
 
     if not flist:
         raise FileNotFoundError(f'no files found: {U["indir"]}')

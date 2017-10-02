@@ -31,12 +31,22 @@ dlist = [x for x in indir.iterdir() if (x/'spool').is_dir()]
 for d in dlist:
 # %% 1) create spool/index.h5
     cmd = ['python','FileTick.py', d /'spool','-s1296', '-z0']
+
     subprocess.check_call(cmd, cwd=codedir/'dmcutils')
 # %% 2) detect aurora
     cmd = ['python','Detect.py', d / 'spool/index.h5', outdir/d.stem, dmcconf,'-k10']
+
     subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
-# %% #) extract auroral data
+# %% 3) extract auroral data
     cmd = ['python','ConvertSpool2h5.py', d/'spool/index.h5',
            '-det', outdir/d.stem/'auroraldet.h5',
-           '-o', outdir/d.stem/'extracted.h5', '-z0']
+           '-o', outdir/d.stem/(d.stem+'extracted.h5'), '-z0']
+
     subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+# %% 4) create AVI preview of extracted data
+    cmd = ['python','Convert_HDF5_to_AVI.py',
+           outdir/d.stem/(d.stem+'extracted.h5'),
+           '-o',outdir/d.stem/(d.stem+'extracted.avi')
+           ]
+
+    subprocess.check_call(cmd, cwd=codedir/'pyimagevideo')
