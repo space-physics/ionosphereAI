@@ -7,32 +7,39 @@ Steps
 0) create list of directories to process
 1) create index of randomly ordered filenames, opening each one to determine its relative elapsed time, creating index.h5
 2) detect auroral events of interest, store their indices
+
+
+NOTE: str() in cmd is a workaround for Windows deficiency--don't remove unless you know the Python Windows bug is fixed!
 """
 import sys
 from pathlib import Path
 import subprocess
 #
 CONF = 'dmc2017.ini'
+INDEXFN = 'spool/index.h5'
 
 def write_index(d:Path, codedir:Path):
     """
     create spool/index.h5
     """
-    cmd = ['python','FileTick.py', d /'spool','-s1296', '-z0']
+    cmd = ['python','FileTick.py',
+           str(d/'spool'), str(d/INDEXFN),
+           '-s1296', '-z0']
+
     print(cmd)
 
     subprocess.check_call(cmd, cwd=codedir/'dmcutils')
 
 
 def detect_aurora(d:Path, outdir:Path, codedir:Path):
-    cmd = ['python','Detect.py', d / 'spool/index.h5', outdir/d.stem, CONF,'-k10']
+    cmd = ['python','Detect.py', d/INDEXFN, outdir/d.stem, CONF,'-k10']
     print(cmd)
 
     subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
 
 
 def extract_aurora(d:Path, outdir:Path, codedir:Path):
-    cmd = ['python','ConvertSpool2h5.py', d/'spool/index.h5',
+    cmd = ['python','ConvertSpool2h5.py', d/INDEXFN,
        '-det', outdir/d.stem/'auroraldet.h5',
        '-o', outdir/d.stem/(d.stem+'extracted.h5'), '-z0']
 
@@ -44,8 +51,7 @@ def extract_aurora(d:Path, outdir:Path, codedir:Path):
 def preview_extract(d:Path, outdir:Path, codedir:Path):
     cmd = ['python','Convert_HDF5_to_AVI.py',
        outdir/d.stem/(d.stem+'extracted.h5'),
-       '-o',outdir/d.stem/(d.stem+'extracted.avi')
-       ]
+       outdir/d.stem/(d.stem+'extracted.avi')]
 
     print(cmd)
 
