@@ -78,7 +78,11 @@ def loopaurorafiles(U):
     return aurstat
 
 def procfiles(f,P,U):
-    finf, U = getvidinfo(f, P, U)
+    try:
+        finf, U = getvidinfo(f, P, U)
+    except IOError as e:
+        logging.error(f'Could not open {f}    {e}')
+        return
 
     if finf['nframe'] < 100 and finf['reader'] != 'spool':
         print(f'SKIPPING {f} with only {finf["nframe"]} frames')
