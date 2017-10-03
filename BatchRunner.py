@@ -28,7 +28,8 @@ def write_index(d:Path, codedir:Path):
 
     print(cmd)
 
-    subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+    ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
+    return ret.returncode
 
 
 def detect_aurora(d:Path, outdir:Path, codedir:Path):
@@ -38,27 +39,33 @@ def detect_aurora(d:Path, outdir:Path, codedir:Path):
 
     print(cmd)
 
-    subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
+    ret = subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
+    return ret.returncode
 
 
 def extract_aurora(d:Path, outdir:Path, codedir:Path):
-    cmd = ['python','ConvertSpool2h5.py', d/INDEXFN,
-       '-det', outdir/d.stem/'auroraldet.h5',
-       '-o', outdir/d.stem/(d.stem+'extracted.h5'), '-z0']
+    cmd = ['python','ConvertSpool2h5.py',
+           str(d/INDEXFN),
+       '-det', str(outdir/d.stem/'auroraldet.h5'),
+       '-o', str(outdir/d.stem/(d.stem+'extracted.h5')),
+       '-z0']
 
     print(cmd)
 
-    subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+    return ret.returncode
 
 
 def preview_extract(d:Path, outdir:Path, codedir:Path):
     cmd = ['python','Convert_HDF5_to_AVI.py',
-       outdir/d.stem/(d.stem+'extracted.h5'),
-       outdir/d.stem/(d.stem+'extracted.avi')]
+           str(outdir/d.stem/(d.stem+'extracted.h5')),
+           str(outdir/d.stem/(d.stem+'extracted.avi'))]
 
     print(cmd)
 
-    subprocess.check_call(cmd, cwd=codedir/'pyimagevideo')
+    ret = subprocess.check_call(cmd, cwd=codedir/'pyimagevideo')
+    return ret.returncode
+
 
 if __name__ == '__main__':
 
@@ -78,10 +85,14 @@ if __name__ == '__main__':
 
     for d in dlist:
 # %% 1) create spool/index.h5
-        write_index(d, codedir)
+        ret = write_index(d, codedir)
+        if ret != 0: continue
 # %% 2) detect aurora
-        detect_aurora(d, outdir, codedir)
+        ret = detect_aurora(d, outdir, codedir)
+        if ret != 0: continue
 # %% 3) extract auroral data
-        extract_aurora(d, outdir, codedir)
+        ret = extract_aurora(d, outdir, codedir)
+        if ret != 0: continue
 # %% 4) create AVI preview of extracted data
-        preview_extract(d, outdir, codedir)
+        ret = preview_extract(d, outdir, codedir)
+        if ret != 0: continue
