@@ -32,7 +32,10 @@ def write_index(d:Path, codedir:Path):
 
 
 def detect_aurora(d:Path, outdir:Path, codedir:Path):
-    cmd = ['python','Detect.py', d/INDEXFN, outdir/d.stem, CONF,'-k10']
+    cmd = ['python','Detect.py',
+           str(d/INDEXFN), str(outdir/d.stem),
+           CONF,'-k10']
+
     print(cmd)
 
     subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
