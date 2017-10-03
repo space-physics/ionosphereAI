@@ -39,7 +39,7 @@ def detect_aurora(d:Path, outdir:Path, codedir:Path):
 
     print(cmd)
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
+    ret = subprocess.run(cmd, cwd=codedir/'cv_ionosphere')
     return ret.returncode
 
 
@@ -52,7 +52,7 @@ def extract_aurora(d:Path, outdir:Path, codedir:Path):
 
     print(cmd)
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+    ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
     return ret.returncode
 
 
@@ -63,7 +63,7 @@ def preview_extract(d:Path, outdir:Path, codedir:Path):
 
     print(cmd)
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'pyimagevideo')
+    ret = subprocess.run(cmd, cwd=codedir/'pyimagevideo')
     return ret.returncode
 
 
