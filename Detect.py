@@ -80,6 +80,9 @@ def rundetect(p):
      'complvl': TIFFCOMPLVL,
      'previewdecim':PreviewDecim,
     }
+    
+    if P['detfn'].is_file():
+        raise IOError(f'{P["detfn"]} already exists.')
 
     P['odir'].mkdir(parents=True, exist_ok=True)
 
