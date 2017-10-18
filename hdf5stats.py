@@ -5,7 +5,7 @@ find minimum and maximum, stats in an HDF5 variable
 from pathlib import Path
 import h5py
 import numpy as np
-from warnings import warn
+import warnings
 
 from argparse import ArgumentParser
 p = ArgumentParser()
@@ -17,9 +17,9 @@ fn = Path(p.fn).expanduser()
 
 key = p.var
 
-with h5py.File(str(fn),'r') as f:
+with h5py.File(fn, 'r') as f:
     if f[key].size > 10e9:
-        warn('these operations might take a long time due to large variable size {} elements'.format(f[key].size))
+        warnings.warn(f'this might take a long time: large variable size {f[key].size} elements')
 
     dat = f[key][:]
 
@@ -27,13 +27,13 @@ with h5py.File(str(fn),'r') as f:
 fmin = dat.min()
 fmax = dat.max()
 
-print('min, max:  {}  {}'.format(fmin,fmax))
+print('min, max: ',fmin,fmax)
 
 prc = np.array([0.01,0.05,0.5,0.95,0.99])
 ptile = np.percentile(dat,prc)
-print('for the {} percentiles'.format(prc*100))
+print(f'for the {prc*100} percentiles')
 print(ptile)
 
 if ptile[-1] - ptile[0] < 20:
-    print('if {} is a video file, it might have poor contrast or not have many changes'.format(fn))
+    print(f'if {fn} is a video file, it might have poor contrast or not have many changes')
 

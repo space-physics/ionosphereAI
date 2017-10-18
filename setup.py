@@ -11,7 +11,7 @@ except Exception as e:
 pip.main(['install'] + pipreq)
 # %%
 from setuptools import setup
-from sys import stderr
+import warnings
 
 setup(name='cviono',
       packages=['cviono'],
@@ -33,4 +33,4 @@ try:
     import cv2
     print(f'\nOpenCV {cv2.__version__} detected')
 except ImportError:
-    print('you need to install OpenCV for Python. see: \n https://www.scivision.co/install-opencv-python-windows/',file=stderr)
+    warnings.warn('Need to install OpenCV for Python. \n https://www.scivision.co/install-opencv-python-windows/')

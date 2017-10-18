@@ -72,7 +72,7 @@ def getvidinfo(fn, P, U, verbose=False):
         except KeyError:
             pass
 # %% determine if optical or passive radar
-        with h5py.File(str(fn), 'r', libver='latest') as f:
+        with h5py.File(fn, 'r', libver='latest') as f:
             if 'rawimg' in f: #hst image/video file
                 finf = {'reader':'h5vid'}
                 finf['nframe'] = f['rawimg'].shape[0]

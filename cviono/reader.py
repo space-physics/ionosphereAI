@@ -120,7 +120,7 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         # TODO can we use dfid.set(cv.CV_CAP_PROP_POS_FRAMES,ifrm) to set 0-based index of next frame?
         rfi = ifrm
         if not retval:
-            raise IOError('could not read video from {}'.format(fn))
+            raise IOError(f'could not read video from {fn}')
 
         if frame16.ndim>2:
             framegray = cv2.cvtColor(frame16, cv2.COLOR_RGB2GRAY)
@@ -132,7 +132,7 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         frame16 = getfmradarframe(fn[ifrm+1])[2]
         rfi = ifrm
     elif finf['reader'] == 'h5vid':
-        with h5py.File(str(fn),'r',libver='latest') as f:
+        with h5py.File(fn, 'r',libver='latest') as f:
             if up['twoframe']:
                 frameref = f['/rawimg'][ifrm,...]
             frame16 = f['/rawimg'][ifrm+1,...]

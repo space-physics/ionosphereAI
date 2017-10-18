@@ -55,8 +55,8 @@ def svsetup(P, up):
         try:
             from tifffile import TiffWriter  #pip install tifffile
         except ImportError as e:
-            logging.error('I cannot save iterated video results due to missing tifffile module \n'
-                          'try   pip install tifffile \n {}'.format(e))
+            logging.error(f'I cannot save iterated video results due to missing tifffile module \n'
+                          'try   pip install tifffile \n {e}')
             return svh
 
         if dowiener:
@@ -106,7 +106,7 @@ def svsetup(P, up):
         for k,v in svh.items():
             try:
                 if not v.isOpened():
-                    logging.error('trouble writing video for {}'.format(k))
+                    logging.error(f'trouble writing video for {k}')
             except AttributeError: #not a cv2 object, duck typing
                 pass
 
@@ -125,7 +125,7 @@ def svrelease(svh,savevideo):
                 except AttributeError:
                     pass
     except Exception as e:
-        print(str(e))
+        print(e)
 
 
 def setupof(U:dict, P):
