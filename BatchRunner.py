@@ -68,7 +68,7 @@ def preview_extract(d:Path, outdir:Path, codedir:Path):
 
 
 if __name__ == '__main__':
-    sys.tracebacklimit(0) 
+    sys.tracebacklimit = 0 
 
     from argparse import ArgumentParser
     p = ArgumentParser()
