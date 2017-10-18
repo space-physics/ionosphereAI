@@ -75,25 +75,30 @@ if __name__ == '__main__':
     p.add_argument('indir',help='directory containing directories to process (top level directory)')
     p.add_argument('outdir',help='directory to place index, extracted frames and AVI preview')
     p.add_argument('-codepath',help='top level directory where Git repos are stored',default='~/code')
+    p.add_argument('-l','--level',help='skip up to stage of processing L',type=int,default=0)
     p = p.parse_args()
 
     codedir = Path(p.codepath).expanduser()
     indir = Path(p.indir).expanduser()
     outdir = Path(p.outdir).expanduser()
-    print('using',sys.executable,'in',indir,'with',codedir,'extracting to',outdir)
+    print('using',sys.executable,'in',indir,'with',codedir, 'extracting to',outdir)
 # %% 0) find directories of data
     dlist = [x for x in indir.iterdir() if (x/'spool').is_dir()]
 
     for d in dlist:
 # %% 1) create spool/index.h5
-        ret = write_index(d, codedir)
-        #if ret != 0: continue
+        if p.level < 1:
+            ret = write_index(d, codedir)
+            #if ret != 0: continue
 # %% 2) detect aurora
-        ret = detect_aurora(d, outdir, codedir)
-        #if ret != 0: continue
+        if p.level < 2:
+            ret = detect_aurora(d, outdir, codedir)
+            #if ret != 0: continue
 # %% 3) extract auroral data
-        ret = extract_aurora(d, outdir, codedir)
-        #if ret != 0: continue
+        if p.level < 3:
+            ret = extract_aurora(d, outdir, codedir)
+            #if ret != 0: continue
 # %% 4) create AVI preview of extracted data
-        ret = preview_extract(d, outdir, codedir)
-        #if ret != 0: continue
+        if p.level < 4:
+            ret = preview_extract(d, outdir, codedir)
+            #if ret != 0: continue
