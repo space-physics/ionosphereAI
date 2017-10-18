@@ -86,13 +86,13 @@ if __name__ == '__main__':
     for d in dlist:
 # %% 1) create spool/index.h5
         ret = write_index(d, codedir)
-        if ret != 0: continue
+        #if ret != 0: continue
 # %% 2) detect aurora
         ret = detect_aurora(d, outdir, codedir)
-        if ret != 0: continue
+        #if ret != 0: continue
 # %% 3) extract auroral data
         ret = extract_aurora(d, outdir, codedir)
-        if ret != 0: continue
+        #if ret != 0: continue
 # %% 4) create AVI preview of extracted data
         ret = preview_extract(d, outdir, codedir)
-        if ret != 0: continue
+        #if ret != 0: continue
