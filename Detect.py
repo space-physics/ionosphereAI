@@ -40,13 +40,15 @@ HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
 2. sort the spool files with HDF5 index output by dmcutils/FileTick.py -o index.h5
 3. ./Detect.py index.h5 (loads the files you specified in step 2 in time order)
 """
-from sys import argv
+import sys
 import logging
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 from pathlib import Path
 #
 from cviono import loopaurorafiles
+#
+sys.tracebacklimit=1
 
 TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 #PSHOW=('thres','stat','morph','final')
@@ -66,7 +68,7 @@ PreviewDecim=50
 def rundetect(p):
     assert isinstance(PSHOW,list)
     P = {
-    'cmd': ' '.join(argv),
+    'cmd': ' '.join(sys.argv),
     'indir': p.indir,
     'framestep': p.step,
     'startstop': p.frames,
@@ -80,7 +82,7 @@ def rundetect(p):
      'complvl': TIFFCOMPLVL,
      'previewdecim':PreviewDecim,
     }
-    
+
     if P['detfn'].is_file():
         raise IOError(f'{P["detfn"]} already exists.')
 
@@ -109,6 +111,9 @@ def rundetect(p):
     return aurstat
 
 if __name__=='__main__':
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     from argparse import ArgumentParser
     p = ArgumentParser(description='detects aurora in raw video files')
     p.add_argument('indir',help='specify file, OR top directory over which to recursively find video files')
