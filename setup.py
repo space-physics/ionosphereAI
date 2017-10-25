@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 req = ['nose','pillow','scipy','pytables','pandas','numpy','matplotlib','h5py','astropy']
-pipreq=['tables','histutils','dmcutils','morecvutils','fitsio','pyoptflow',]
+pipreq=['tables','histutils','dmcutils','morecvutils','pyoptflow',]
 # %%
 import pip
 try:
@@ -25,7 +25,7 @@ setup(name='cviono',
       'Topic :: Scientific/Engineering :: Visualization',
       'Programming Language :: Python :: 3.6',
       ],
-	   extras_require={'tifffile':['tifffile']},
+	   extras_require={'tifffile':['tifffile'],'fitsio':['fitsio']},
       install_requires=req+pipreq,
 	  )
 

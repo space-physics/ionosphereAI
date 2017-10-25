@@ -4,13 +4,12 @@ import cv2
 import h5py
 import numpy as np
 from scipy.signal import wiener
+from astropy.io import fits
 #from scipy.misc import bytescale
 from matplotlib.pyplot import figure, hist
-try:
-    #from astropy.io import fits
-    import fitsio  # so much faster than Astropy.io.fits
-except ImportError:
-    pass
+#import fitsio  # so much faster than Astropy.io.fits
+
+    
 try:
     import tifffile  # tifffile is excruciatingly slow on each file access
     #import libtiff
@@ -139,8 +138,8 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
         rfi = ifrm
     elif finf['reader'] == 'fits':
         #memmap = False required thru Astropy 1.3.2 due to BZERO used...
-        #with fits.open(fn, mode='readonly', memmap=False) as f:
-        with fitsio.FITS(str(fn),'r') as f:
+        with fits.open(fn, mode='readonly', memmap=False) as f:
+        #with fitsio.FITS(str(fn),'r') as f:
             """
             i not ifrm for fits!
             """
