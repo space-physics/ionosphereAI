@@ -26,7 +26,7 @@ def write_index(d:Path, codedir:Path):
            str(d/'spool'), str(d/INDEXFN),
            '-s1296', '-z0']
 
-    print(cmd)
+    print('\n',' '.join(cmd))
 
     ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
     return ret.returncode
@@ -37,7 +37,7 @@ def detect_aurora(d:Path, outdir:Path, codedir:Path):
            str(d/INDEXFN), str(outdir/d.stem),
            CONF,'-k10']
 
-    print(cmd)
+    print('\n',' '.join(cmd))
 
     ret = subprocess.run(cmd, cwd=codedir/'cv_ionosphere')
     return ret.returncode
@@ -50,7 +50,7 @@ def extract_aurora(d:Path, outdir:Path, codedir:Path):
        '-o', str(outdir/d.stem/(d.stem+'extracted.h5')),
        '-z0']
 
-    print(cmd)
+    print('\n',' '.join(cmd))
 
     ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
     return ret.returncode
@@ -61,13 +61,16 @@ def preview_extract(d:Path, outdir:Path, codedir:Path):
            str(outdir/d.stem/(d.stem+'extracted.h5')),
            str(outdir/d.stem/(d.stem+'extracted.avi'))]
 
-    print(cmd)
+    print('\n',' '.join(cmd))
 
     ret = subprocess.run(cmd, cwd=codedir/'pyimagevideo')
     return ret.returncode
 
 
 if __name__ == '__main__':
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     sys.tracebacklimit = None
 
     from argparse import ArgumentParser
