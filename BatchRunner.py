@@ -14,6 +14,7 @@ NOTE: str() in cmd is a workaround for Windows deficiency--don't remove unless y
 import sys
 from pathlib import Path
 import subprocess
+from time import sleep
 #
 CONF = 'dmc2017.ini'
 INDEXFN = 'spool/index.h5'
@@ -33,6 +34,7 @@ def write_index(d:Path, codedir:Path):
 
 
 def detect_aurora(d:Path, outdir:Path, codedir:Path):
+    sleep(5) # FIXME: workaround for possible race on FileTick.py to_hdf?
     cmd = ['python','Detect.py',
            str(d/INDEXFN), str(outdir/d.stem),
            CONF,'-k10']
