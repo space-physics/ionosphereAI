@@ -63,7 +63,9 @@ def getvidinfo(fn, P, U, verbose=False):
     elif fn.suffix.lower() in ('.h5', '.hdf5'):
         finf = {}
         try:  # can't read inside context
-            finf['flist'] = read_hdf(fn,'filetick')
+            with h5py.File(fn,'r',libver='latest') as f:
+                finf['flist'] = f['fn'][:]
+            #finf['flist'] = read_hdf(fn,'filetick')
             if U['startstop'] is not None:
                 finf['flist'] = finf['flist'][U['startstop'][0]:U['startstop'][1]]
 
