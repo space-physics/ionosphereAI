@@ -14,7 +14,6 @@ NOTE: str() in cmd is a workaround for Windows deficiency--don't remove unless y
 import sys
 from pathlib import Path
 import subprocess
-from time import sleep
 #
 CONF = 'dmc2017.ini'
 INDEXFN = 'spool/index.h5'
@@ -34,7 +33,6 @@ def write_index(d:Path, codedir:Path):
 
 
 def detect_aurora(d:Path, outdir:Path, codedir:Path):
-    sleep(5) # FIXME: workaround for possible race on FileTick.py to_hdf?
     cmd = ['python','Detect.py',
            str(d/INDEXFN), str(outdir/d.stem),
            CONF,'-k10']
@@ -81,6 +79,7 @@ if __name__ == '__main__':
     p.add_argument('outdir',help='directory to place index, extracted frames and AVI preview')
     p.add_argument('-codepath',help='top level directory where Git repos are stored',default='~/code')
     p.add_argument('-l','--level',help='skip up to stage of processing L',type=int,default=0)
+    p.add_argument('-lmax',help='stop at this level an go to next directory',type=int,default=999)
     p = p.parse_args()
 
     codedir = Path(p.codepath).expanduser()
@@ -92,18 +91,18 @@ if __name__ == '__main__':
 
     for d in dlist:
 # %% 1) create spool/index.h5
-        if p.level < 1:
+        if p.level < 1 <= p.lmax:
             ret = write_index(d, codedir)
             #if ret != 0: continue
 # %% 2) detect aurora
-        if p.level < 2:
+        if p.level < 2 <= p.lmax:
             ret = detect_aurora(d, outdir, codedir)
             #if ret != 0: continue
 # %% 3) extract auroral data
-        if p.level < 3:
+        if p.level < 3 <= p.lmax:
             ret = extract_aurora(d, outdir, codedir)
             #if ret != 0: continue
 # %% 4) create AVI preview of extracted data
-        if p.level < 4:
+        if p.level < 4 <= p.lmax:
             ret = preview_extract(d, outdir, codedir)
             #if ret != 0: continue
