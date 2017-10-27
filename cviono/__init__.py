@@ -87,8 +87,7 @@ def procfiles(f,P,U):
     try:
         U = setscale(f, U, finf)  # in case auto contrast per file
     except ValueError as e:
-        logging.error(f'{f}  {e}')
-        print()
+        logging.error(f'{f}  {e}\n')
         return
 
     stat = procaurora(f, P, U, finf)

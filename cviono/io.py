@@ -1,6 +1,6 @@
 from configparser import ConfigParser
 from numpy import arange
-from pandas import DataFrame,read_hdf
+from pandas import DataFrame
 import h5py
 from pathlib import Path
 #
@@ -18,6 +18,7 @@ def getvidinfo(fn, P, U, verbose=False):
                           P.getint('main','stride',fallback=0))
         finf = {**finf, **f0}
 
+        print('using spool file, config',fn.parent/SPOOLINI)
         finf['reader'] = 'spool'
         finf['nframe'] = U['nfile']  # first frame pair of each spool file
 
