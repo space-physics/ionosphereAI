@@ -46,7 +46,7 @@ logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(
                     datefmt='%Y-%m-%d %H:%M:%S')
 from pathlib import Path
 #
-from cviono import loopaurorafiles
+import cviono
 #
 sys.tracebacklimit=1
 
@@ -104,7 +104,7 @@ def rundetect(p):
             pstats.Stats(profFN).sort_stats('time','cumulative').print_stats(50)
             aurstat = None
         else:
-            aurstat = loopaurorafiles(P)
+            aurstat = cviono.loopaurorafiles(P)
     except KeyboardInterrupt:
         print()
 
