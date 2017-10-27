@@ -57,6 +57,7 @@ def loopaurorafiles(U):
             aurstat = aurstat.append(stat)
 
     if aurstat is None:
+        logging.error('Auroral detection aborted')
         return
 # %% sort,plot,save results for all files
 
