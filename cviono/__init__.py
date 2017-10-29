@@ -81,7 +81,7 @@ def procfiles(f,P,U):
     finf, U = getvidinfo(f, P, U)
 
     if finf['nframe'] < 100 and finf['reader'] != 'spool':
-        print(f'SKIPPING {f} with only {finf["nframe"]} frames')
+        logging.warning(f'SKIPPING {f} with only {finf["nframe"]} frames')
         return
 
     try:
