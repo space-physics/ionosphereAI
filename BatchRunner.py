@@ -76,8 +76,6 @@ if __name__ == '__main__':
     import signal
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    sys.tracebacklimit = None
-
     from argparse import ArgumentParser
     p = ArgumentParser()
     p.add_argument('indir',help='directory containing directories to process (top level directory)')
