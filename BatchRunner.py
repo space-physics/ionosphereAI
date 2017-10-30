@@ -26,10 +26,11 @@ def write_index(d:Path, codedir:Path):
            str(d/'spool'), str(d/INDEXFN),
            '-s1296', '-z0']
 
-    print('\n',' '.join(cmd))
+    print('**************\n',' '.join(cmd))
 
-    ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
-    return ret.returncode
+    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+
+    return ret
 
 
 def detect_aurora(d:Path, outdir:Path, codedir:Path):
@@ -37,10 +38,11 @@ def detect_aurora(d:Path, outdir:Path, codedir:Path):
            str(d/INDEXFN), str(outdir/d.stem),
            CONF,'-k10']
 
-    print('\n',' '.join(cmd))
+    print('**************\n',' '.join(cmd))
 
-    ret = subprocess.run(cmd, cwd=codedir/'cv_ionosphere')
-    return ret.returncode
+    ret = subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
+
+    return ret
 
 
 def extract_aurora(d:Path, outdir:Path, codedir:Path):
@@ -50,10 +52,11 @@ def extract_aurora(d:Path, outdir:Path, codedir:Path):
        '-o', str(outdir/d.stem/(d.stem+'extracted.h5')),
        '-z0']
 
-    print('\n',' '.join(cmd))
+    print('**************\n',' '.join(cmd))
 
-    ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
-    return ret.returncode
+    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+
+    return ret
 
 
 def preview_extract(d:Path, outdir:Path, codedir:Path):
@@ -61,10 +64,11 @@ def preview_extract(d:Path, outdir:Path, codedir:Path):
            str(outdir/d.stem/(d.stem+'extracted.h5')),
            str(outdir/d.stem/(d.stem+'extracted.avi'))]
 
-    print('\n',' '.join(cmd))
+    print('**************\n',' '.join(cmd))
 
-    ret = subprocess.run(cmd, cwd=codedir/'pyimagevideo')
-    return ret.returncode
+    ret = subprocess.check_call(cmd, cwd=codedir/'pyimagevideo')
+
+    return ret
 
 
 if __name__ == '__main__':
@@ -85,9 +89,12 @@ if __name__ == '__main__':
     codedir = Path(p.codepath).expanduser()
     indir = Path(p.indir).expanduser()
     outdir = Path(p.outdir).expanduser()
-    print('using',sys.executable,'in',indir,'with',codedir, 'extracting to',outdir)
 # %% 0) find directories of data
     dlist = [x for x in indir.iterdir() if (x/'spool').is_dir()]
+    if not dlist:
+        raise FileNotFoundError(f'no spool directories found in {indir}')
+
+    print('using',sys.executable,'in',indir,'with',codedir, 'extracting to',outdir)
 
     for d in dlist:
 # %% 1) create spool/index.h5

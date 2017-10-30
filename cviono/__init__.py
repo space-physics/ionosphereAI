@@ -114,7 +114,8 @@ def procaurora(f, P,U,finf):
     U, stat = setupfigs(finf, f, U, P)
 # %% list of files or handle?
     try:
-        flist = finf['flist'].iloc[finf['frameind']].tolist()
+        # comes out as bytes from HDF5, and pathlib needs str
+        flist = finf['flist'][finf['frameind']].astype(str)
     except KeyError:
         flist=f
 

@@ -89,7 +89,7 @@ def getvidinfo(fn, P, U, verbose=False):
                 finf['superx'] = range_km.size
                 finf['supery'] = vel_mps.size
                 #print('HDF5 passive FM radar file detected {}'.format(fn))
-            elif 'filetick' in f: # Andor Solis spool file index from dmcutils/Filetick.py
+            elif 'ticks' in f: # Andor Solis spool file index from dmcutils/Filetick.py
                 finf = _spoolcase(fn,P,U, finf)
                 finf['path'] = fn.parent
             else:

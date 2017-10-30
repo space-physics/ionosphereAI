@@ -48,7 +48,7 @@ from pathlib import Path
 #
 import cviono
 #
-sys.tracebacklimit=1
+#sys.tracebacklimit=1
 
 TIFFCOMPLVL = 4 #tradeoff b/w speed and filesize for TIFF
 #PSHOW=('thres','stat','morph','final')
