@@ -50,7 +50,8 @@ def extract_aurora(d:Path, outdir:Path, codedir:Path):
            str(d/INDEXFN),
        '-det', str(outdir/d.stem/'auroraldet.h5'),
        '-o', str(outdir/d.stem/(d.stem+'extracted.h5')),
-       '-z0']
+       '-z0',
+       '-k0.0333342']
 
     print('**************\n',' '.join(cmd))
 
