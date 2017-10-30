@@ -1,11 +1,13 @@
 #!/usr/bin/env python
-req = ['nose','pillow','scipy','pytables','pandas','numpy','matplotlib','h5py','astropy']
+req = ['nose','pillow','scipy','pandas','numpy','matplotlib','h5py','astropy']
 pipreq=['tables','histutils','dmcutils','morecvutils','pyoptflow',]
+conreq=['pytables']
 # %%
 import pip
 try:
     import conda.cli
     conda.cli.main('install',*req)
+    conda.cli.main('install',*conreq)
 except Exception as e:
     pip.main(['install'] + req)
 pip.main(['install'] + pipreq)
