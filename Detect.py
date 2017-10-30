@@ -84,7 +84,8 @@ def rundetect(p):
     }
 
     if P['detfn'].is_file():
-        raise IOError(f'{P["detfn"]} already exists.')
+        logging.warning(f'{P["detfn"]} already exists, aborting')
+        return
 
     P['odir'].mkdir(parents=True, exist_ok=True)
 
