@@ -28,7 +28,9 @@ def write_index(d:Path, codedir:Path):
 
     print('**************\n',' '.join(cmd))
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+    # windows feeds out spurious error codes even when program worked
+    # like -1073740777 or 3221226519
+    ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
 
     return ret
 
