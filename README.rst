@@ -57,10 +57,5 @@ Install
 `Install OpenCV on Python <https://scivision.co/anaconda-python-opencv3/>`_
 ::
 
-  python setup.py develop
+  pip install -e .
 
-
-Tested with
-------------
-* Python 3.5 / 2.7
-* OpenCV 3.1 / 2.4
