@@ -1,5 +1,15 @@
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.168226.svg
    :target: https://doi.org/10.5281/zenodo.168226
+   
+.. image:: https://travis-ci.org/scivision/cv_ionosphere.svg?branch=master
+    :target: https://travis-ci.org/scivision/cv_ionosphere
+
+.. image:: https://coveralls.io/repos/github/scivision/cv_ionosphere/badge.svg?branch=master
+    :target: https://coveralls.io/github/scivision/cv_ionosphere?branch=master
+
+.. image:: https://api.codeclimate.com/v1/badges/89e919c155234d14640d/maintainability
+   :target: https://codeclimate.com/github/scivision/cv_ionosphere/maintainability
+   :alt: Maintainability
 
 =============
 cv-ionosphere

@@ -1,10 +1,8 @@
-from sys import stderr
 import logging
 import cv2
 import h5py
 import numpy as np
 from scipy.signal import wiener
-from astropy.io import fits
 #from scipy.misc import bytescale
 from matplotlib.pyplot import figure, hist
 #import fitsio  # so much faster than Astropy.io.fits
@@ -65,7 +63,7 @@ def samplepercentile(fn,pct,finf):
 
     tmp = getraw(fn,0,finf)[3]
     if tmp.dtype.itemsize < 2:
-        print('{fn}: usually we use autoscale with 16-bit video, not 8-bit.',file=stderr)
+        logging.warning(f'{fn}: usually we use autoscale with 16-bit video, not 8-bit.')
 
     for j,i in enumerate(isamp):
         dat[j,...] = getraw(fn, i, finf)[3]
@@ -78,7 +76,7 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
        only reading every Nth frame from the multi-TB file instead of every frame
     """
     if (not isinstance(up['rawlim'][0],(float,int)) or not isinstance(up['rawlim'][1],(float,int))):
-        print(f'{fn}: not specifying fixed contrast will lead to very bad automatic detection results',file=stderr)
+        logging.warning(f'{fn}: not specifying fixed contrast will lead to very bad automatic detection results')
 
     frameref = None  # for non-twoframe case
     dowiener = P.getint('filter','wienernhood', fallback=None)
@@ -137,6 +135,7 @@ def getraw(fn, i,ifrm, finf,svh,P,up):
             frame16 = f['/rawimg'][ifrm+1,...]
         rfi = ifrm
     elif finf['reader'] == 'fits':
+        from astropy.io import fits
         #memmap = False required thru Astropy 1.3.2 due to BZERO used...
         with fits.open(fn, mode='readonly', memmap=False) as f:
         #with fitsio.FITS(str(fn),'r') as f:
