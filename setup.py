@@ -2,10 +2,10 @@
 req = ['nose','pillow','scipy','pandas','numpy','matplotlib','h5py',
        'histutils','dmcutils','morecvutils','pyoptflow']
 # %%
-from setuptools import setup
+from setuptools import setup,find_packages
 
 setup(name='cviono',
-      packages=['cviono'],
+      packages=find_packages(),
       author='Michael Hirsch, Ph.D.',
       description='detect ionospheric phenomena using machine learning algorithms',
       version='0.9.1',
