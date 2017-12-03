@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-req = ['nose','pillow','scipy','pandas','numpy','matplotlib','h5py',
+install_requires = ['pillow','scipy','pandas','numpy','matplotlib','h5py',
        'histutils','dmcutils','morecvutils','pyoptflow']
+tests_require=['nose','coveralls']
 # %%
 from setuptools import setup,find_packages
 
@@ -17,9 +18,11 @@ setup(name='cviono',
       'Programming Language :: Python :: 3.6',
       ],
 	   extras_require={'plot':['tifffile'],
-	                    'fits':['fitsio','astropy',]},
+	                    'fits':['fitsio','astropy',],
+                      'tests':tests_require,},
 	   python_requires='>=3.6',
-      install_requires=req,
+      install_requires=install_requires,
+      tests_require=tests_require,
 	  )
 
 try:
