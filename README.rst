@@ -67,5 +67,5 @@ Install
 `Install OpenCV on Python <https://scivision.co/anaconda-python-opencv3/>`_
 ::
 
-  pip install -e .
+  python -m pip install -e .
 

@@ -5,7 +5,6 @@ try:
 except ImportError as e:
     from cv2 import VideoWriter_fourcc as fourcc
 #
-from sys import stderr
 from pandas import DataFrame
 from datetime import datetime
 from pytz import UTC
