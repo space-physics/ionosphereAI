@@ -20,7 +20,11 @@ INDEXFN = 'spool/index.h5'
 
 def write_index(d:Path, codedir:Path):
     """
-    create spool/index.h5
+    create spool/index.h5.
+    This step is quickly skipped if index.h5 exists already.
+
+    FIXME: windows feeds out spurious error codes even when program worked
+           like -1073740777 or 3221226519
     """
     cmd = ['python','FileTick.py',
            str(d/'spool'), str(d/INDEXFN),
@@ -28,14 +32,14 @@ def write_index(d:Path, codedir:Path):
 
     print('**************\n',' '.join(cmd))
 
-    # windows feeds out spurious error codes even when program worked
-    # like -1073740777 or 3221226519
-    ret = subprocess.run(cmd, cwd=codedir/'dmcutils')
+    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
 
     return ret
 
 
 def detect_aurora(d:Path, outdir:Path, codedir:Path):
+    """use OpenCV and collective behavior detection to find Alfvenic aurora candidates"""
+
     cmd = ['python','Detect.py',
            str(d/INDEXFN), str(outdir/d.stem),
            CONF,'-k10']
@@ -48,6 +52,8 @@ def detect_aurora(d:Path, outdir:Path, codedir:Path):
 
 
 def extract_aurora(d:Path, outdir:Path, codedir:Path):
+    """Write HDF5 file with detected auroral video"""
+
     cmd = ['python','ConvertSpool2h5.py',
            str(d/INDEXFN),
        '-det', str(outdir/d.stem/'auroraldet.h5'),
@@ -63,6 +69,8 @@ def extract_aurora(d:Path, outdir:Path, codedir:Path):
 
 
 def preview_extract(d:Path, outdir:Path, codedir:Path):
+    """Create lossy AVI preview of extracted data"""
+
     cmd = ['python','Convert_HDF5_to_AVI.py',
            str(outdir/d.stem/(d.stem+'extracted.h5')),
            str(outdir/d.stem/(d.stem+'extracted.avi'))]
@@ -84,7 +92,7 @@ if __name__ == '__main__':
     p.add_argument('outdir',help='directory to place index, extracted frames and AVI preview')
     p.add_argument('-codepath',help='top level directory where Git repos are stored',default='~/code')
     p.add_argument('-l','--level',help='skip up to stage of processing L',type=int,default=0)
-    p.add_argument('-lmax',help='stop at this level an go to next directory',type=int,default=999)
+    p.add_argument('-lmax',help='stop at this level an go to next directory',type=int,default=99)
     p = p.parse_args()
 
     codedir = Path(p.codepath).expanduser()
