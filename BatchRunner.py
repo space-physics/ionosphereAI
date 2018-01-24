@@ -101,11 +101,11 @@ if __name__ == '__main__':
 # %% 0) find directories of data
     dlist = []
     for d in indir.iterdir():
-        if (x/'spool').is_dir()
-            dlist.append(x)
-        elif Path(x.parent/'spool').is_dir()
-            dlist.append(x.parent)
-    
+        if (d/'spool').is_dir():
+            dlist.append(d)
+        elif Path(d.parent/'spool').is_dir():
+            dlist.append(d.parent)
+
     if not dlist:
         raise FileNotFoundError(f'no spool directories found in {indir}')
 
