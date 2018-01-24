@@ -99,7 +99,13 @@ if __name__ == '__main__':
     indir = Path(p.indir).expanduser()
     outdir = Path(p.outdir).expanduser()
 # %% 0) find directories of data
-    dlist = [x for x in indir.iterdir() if (x/'spool').is_dir() or Path(x.parent/'spool').is_dir()]
+    dlist = []
+    for d in indir.iterdir():
+        if (x/'spool').is_dir()
+            dlist.append(x)
+        elif Path(x.parent/'spool').is_dir()
+            dlist.append(x.parent)
+    
     if not dlist:
         raise FileNotFoundError(f'no spool directories found in {indir}')
 
