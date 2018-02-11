@@ -26,8 +26,3 @@ setup(name='cviono',
       tests_require=tests_require,
 	  )
 
-try:
-    import cv2
-    print(f'\nOpenCV {cv2.__version__} detected')
-except ImportError:
-    raise ImportError('Need to install OpenCV for Python. \n https://www.scivision.co/install-opencv-python-windows/')
