@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 install_requires = ['pillow','scipy','pandas','numpy','matplotlib','h5py',
+       'opencv-python',
        'histutils','dmcutils','morecvutils','pyoptflow']
 tests_require=['nose','coveralls']
 # %%
