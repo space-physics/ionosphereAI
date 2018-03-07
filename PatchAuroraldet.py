@@ -74,7 +74,7 @@ def plotdet(infn,outfn=None, vlim=None, quiet=False):
     outimg = outfn.with_suffix('.png')
     print('saving',outimg)
 
-    fg.savefig(str(outimg), bbox_inches='tight',dpi=100)
+    fg.savefig(outimg, bbox_inches='tight',dpi=100)
 
 
 

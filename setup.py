@@ -2,7 +2,7 @@
 install_requires = ['pillow','scipy','pandas','numpy','matplotlib','h5py',
        'opencv-python',
        'histutils','dmcutils','morecvutils','pyoptflow']
-tests_require=['nose','coveralls']
+tests_require=['pytest','nose','coveralls']
 # %%
 from setuptools import setup,find_packages
 

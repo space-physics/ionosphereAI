@@ -72,8 +72,8 @@ def loopaurorafiles(U):
     U['pshow'] += ['stat']
     fgst = statplot(dt, aurstat, U, P, U['odir'])[3]
     draw(); pause(0.01)
-    fgst.savefig(str(U['detfn'].with_suffix('.png')), bbox_inches='tight', dpi=100)
-    fgst.savefig(str(U['detfn'].with_suffix('.svg')), bbox_inches='tight', dpi=100)
+    fgst.savefig(U['detfn'].with_suffix('.png'), bbox_inches='tight', dpi=100)
+    fgst.savefig(U['detfn'].with_suffix('.svg'), bbox_inches='tight', dpi=100)
 
     return aurstat
 
@@ -219,7 +219,7 @@ def procaurora(f, P,U,finf):
                 savestat(stat,detfn, U['indir'],U)
                 if 'stat' in U['pshow']:
                     print(f'saving detection plot to {detpltfn}')
-                    U['fdet'].savefig(str(detpltfn), dpi=100, bbox_inches='tight')
+                    U['fdet'].savefig(detpltfn, dpi=100, bbox_inches='tight')
         except Exception as e:
             logging.critical(f'trouble saving detection result  {e} ')
         finally:
