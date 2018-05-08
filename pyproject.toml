@@ -1,6 +1,0 @@
-[build-system]
-requires = ["setuptools", "wheel",
-'nose','pillow','scipy','pandas','numpy','matplotlib','h5py',
-       'histutils','dmcutils','morecvutils','pyoptflow',
-       'fitsio','astropy','tifffile',
- "nose"] 
