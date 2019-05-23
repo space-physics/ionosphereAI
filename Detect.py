@@ -134,7 +134,4 @@ if __name__ == '__main__':
     p.add_argument('--profile', help='profile debug', action='store_true')
     P = p.parse_args()
 
-    if not P.verbose:
-        PSHOW = []
-
-    aurstat = rundetect(p)
+    aurstat = rundetect(P)
