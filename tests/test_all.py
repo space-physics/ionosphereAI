@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from cviono.detectaurora import loopaurorafiles
+from ionosphereAI import loopaurorafiles
 
 
 def test_blank():

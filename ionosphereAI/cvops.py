@@ -131,7 +131,7 @@ def dothres(ofmaggmm, medianflow, P, i, svh, up, isgmm, verbose=False):
 
 def dodespeck(thres, medfiltsize, i, svh, up):
     """
-    thres is really a binary, but OpenCV needs binary \in {0,255}
+    thres is really a binary, but OpenCV needs binary in {0,255}
     """
     despeck = cv2.medianBlur(thres, ksize=medfiltsize)
 # %%

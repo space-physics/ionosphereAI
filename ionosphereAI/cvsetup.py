@@ -2,7 +2,7 @@ import logging
 import cv2
 try:
     from cv2.cv import FOURCC as fourcc  # Windows needs from cv2.cv
-except ImportError as e:
+except ImportError:
     from cv2 import VideoWriter_fourcc as fourcc
 #
 from pandas import DataFrame
@@ -53,7 +53,7 @@ def svsetup(P, up):
         # complvl = 6 #0 is uncompressed
         try:
             from tifffile import TiffWriter  # pip install tifffile
-        except ImportError as e:
+        except ImportError:
             logging.error(f'I cannot save iterated video results due to missing tifffile module \n'
                           'try   pip install tifffile \n {e}')
             return svh

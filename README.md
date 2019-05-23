@@ -1,11 +1,10 @@
 [![image](https://zenodo.org/badge/DOI/10.5281/zenodo.168226.svg)](https://doi.org/10.5281/zenodo.168226)
-[![image](https://travis-ci.org/scivision/cv_ionosphere.svg?branch=master)](https://travis-ci.org/scivision/cv_ionosphere)
-[![image](https://coveralls.io/repos/github/scivision/cv_ionosphere/badge.svg?branch=master)](https://coveralls.io/github/scivision/cv_ionosphere?branch=master)
-[![Maintainability](https://api.codeclimate.com/v1/badges/89e919c155234d14640d/maintainability)](https://codeclimate.com/github/scivision/cv_ionosphere/maintainability)
+[![image](https://travis-ci.org/scivision/ionosphereAI.svg?branch=master)](https://travis-ci.org/scivision/ionosphereAI)
+[![image](https://coveralls.io/repos/github/scivision/ionosphereAI/badge.svg?branch=master)](https://coveralls.io/github/scivision/ionosphereAI?branch=master)
 
 # Ionosphere AI
 
-CV/ML/AI for working with auroral video, passive FM radar and more
+CV / ML / AI for working with auroral video, passive FM radar and more
 
 ## Examples
 

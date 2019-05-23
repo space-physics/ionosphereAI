@@ -31,9 +31,9 @@ SPOOL FILES TIME-INDEXED
 ./Detect.py ~/H/neo2012-12-25/spool_5/index.h5 ~/Dropbox/DMC/2012-12-25 dmc2012.ini
 
 2017 files
-Detect.py f:\archive.27Mar2017\2017-03-27\spool\index.h5 f:\archive.27Mar2017\ dmc2017.ini -v
+Detect.py ~/data/archive.27Mar2017/2017-03-27/spool/index.h5 ~/data/archive.27Mar2017/dmc2017.ini -v
 
-python Detect.py z:\2017-04-27\spool\index.h5 z:\2017-04-27\ dmc2017.ini -k10
+python Detect.py ~/data/2017-04-27/spool/index.h5 ~/data/2017-04-27 dmc2017.ini -k10
 
 HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
 1. Use https://github.com/scivision/dmcutils/PlotSpool.py to plot
@@ -42,7 +42,7 @@ HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
 3. ./Detect.py index.h5 (loads the files you specified in step 2 in time order)
 """
 import sys
-import cviono
+import ionosphereAI as iai
 import logging
 from pathlib import Path
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
@@ -106,7 +106,7 @@ def rundetect(p):
             pstats.Stats(profFN).sort_stats('time', 'cumulative').print_stats(50)
             aurstat = None
         else:
-            aurstat = cviono.loopaurorafiles(P)
+            aurstat = iai.loopaurorafiles(P)
     except KeyboardInterrupt:
         print()
 
