@@ -12,9 +12,9 @@ Read Haystack Passive FM radar frame, one frame per file
 def getfmradarframe(fn):
     with h5py.File(fn, 'r', libver='latest') as f:
         # transpose makes it Fortran order, which cv2.cv.fromarray doesn't like
-        ambiguity = ascontiguousarray(f['/ambiguity/ambiguity'].value.T)
-        range_km = f['/ambiguity/range_axis'].value/1e3
-        velocity_mps = f['/ambiguity/velocity_axis'].value
+        ambiguity = ascontiguousarray(f['/ambiguity/ambiguity'][()].T)
+        range_km = f['/ambiguity/range_axis'][()]/1e3
+        velocity_mps = f['/ambiguity/velocity_axis'][()]
         dtime = DT.utcfromtimestamp(f['/ambiguity'].attrs.get('utc_second')).replace(tzinfo=UTC)  # replace is required for tzaware
         integration_time = f['/ambiguity'].attrs.get('integration_time')
 

@@ -50,10 +50,9 @@ def plotdet(infn, outfn=None, vlim=None, quiet=False):
             fg.colorbar(h, ax=ax)
             ht = ax.set_title('')
 
-            # because they're scalars, they need to be .value instead of [:]
-            Nfile = f['/nfile'].value
-            decim = f['/previewDecim'].value
-            step = f['/framestep'].value
+            Nfile = f['/nfile'][()]
+            decim = f['/previewDecim'][()]
+            step = f['/framestep'][()]
 
             for i, I in enumerate(f['/preview']):
                 h.set_data(I)
