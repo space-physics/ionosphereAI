@@ -19,9 +19,16 @@ from pathlib import Path
 from time import time
 import numpy as np
 from scipy.ndimage import zoom
-from matplotlib.pylab import draw, pause, close
+
+try:
+    from matplotlib.pylab import draw, pause, close
+except ImportError:
+    draw = pause = close = None
 #
-from histutils import setupimgh5
+try:
+    from histutils import setupimgh5
+except ImportError:
+    setupimgh5 = None
 from morecvutils.connectedComponents import setupblob
 
 
@@ -127,6 +134,8 @@ def procaurora(f, P, U, finf):
 # %% start main loop
     # print('start main loop')
     if finf['reader'] == 'spool':
+        if setupimgh5 is None:
+            raise ImportError('pip install histutils')
         zy, zx = zoom(getraw(finf['path']/flist[0], 0, 0, finf, svh, P, U)[3], 0.1, order=0).shape
         # zy,zx=(64,64)
         setupimgh5(U['detfn'], np.ceil(N.size/U['previewdecim'])+1, zy, zx,

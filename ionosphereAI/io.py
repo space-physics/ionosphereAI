@@ -6,14 +6,26 @@ from pathlib import Path
 #
 from .getpassivefm import getfmradarframe
 from morecvutils.getaviprop import getaviprop
-from histutils.rawDMCreader import getDMCparam, getNeoParam
-from dmcutils.neospool import spoolparam
+
+try:
+    from histutils.rawDMCreader import getDMCparam
+    from histutils.io import getNeoParam
+except ImportError:
+    getDMCparam = getNeoParam = None
+
+try:
+    from dmcutils.neospool import spoolparam
+except ImportError:
+    spoolparam = None
 
 SPOOLINI = 'acquisitionmetadata.ini'  # for Solis spool files
 
 
 def getvidinfo(fn, P, U, verbose=False):
     def _spoolcase(fn, P, U, f0):
+        if spoolparam is None:
+            raise ImportError('pip install dmcutils')
+
         finf = spoolparam(fn.parent/SPOOLINI,
                           P.getint('main', 'xpix', fallback=None), P.getint('main', 'ypix', fallback=None),
                           P.getint('main', 'stride', fallback=0))
@@ -46,6 +58,8 @@ def getvidinfo(fn, P, U, verbose=False):
         pass
 
     if fn.suffix.lower() in ('.dmcdata',):  # HIST
+        if getDMCparam is None:
+            raise ImportError('pip install histutils')
         xypix = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
         xybin = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
         if U['startstop'] is None:
@@ -99,9 +113,13 @@ def getvidinfo(fn, P, U, verbose=False):
         if 'frameind' not in finf:
             finf['frameind'] = arange(0, finf['nframe'], U['framestep'], dtype=int)
     elif fn.suffix.lower() in ('.fit', '.fits'):
+        if getNeoParam is None:
+            raise ImportError('pip install histutils')
         finf = getNeoParam(fn, U['framestep'])
         finf['reader'] = 'fits'
     elif fn.suffix.lower() in ('.tif', '.tiff'):
+        if getNeoParam is None:
+            raise ImportError('pip install histutils')
         finf = getNeoParam(fn, U['framestep'])
         finf['reader'] = 'tiff'
     else:  # assume video file
