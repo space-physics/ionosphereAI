@@ -5,7 +5,6 @@ This program detects aurora in multi-terabyte raw video data files
 Also used for the Haystack passive FM radar ionospheric activity detection
 """
 import logging
-import cv2
 from .io import getparam, getvidinfo, keyhandler, savestat
 from .reader import getraw, setscale
 from .cvops import dooptflow, dothres, dodespeck, domorph, doblob
@@ -19,6 +18,11 @@ from pathlib import Path
 from time import time
 import numpy as np
 from scipy.ndimage import zoom
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 
 try:
     from matplotlib.pylab import draw, pause, close
@@ -207,7 +211,7 @@ def procaurora(f, P, U, finf):
             if (framegray == 0).sum() > 4:
                 logging.warning('video saturated at 0')
 
-        if U['pshow']:
+        if U['pshow'] and cv2 is not None:
             if U['framebyframe']:  # wait indefinitely for spacebar press
                 keypressed = cv2.waitKey(0)
                 U['framebyframe'], dobreak = keyhandler(keypressed, U['framebyframe'])

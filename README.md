@@ -1,6 +1,6 @@
 [![image](https://zenodo.org/badge/DOI/10.5281/zenodo.168226.svg)](https://doi.org/10.5281/zenodo.168226)
 
-[![Build Status](https://travis-ci.com/space-physics/ionosphereAI.svg?branch=h5py)](https://travis-ci.com/space-physics/ionosphereAI)
+[![Build Status](https://travis-ci.org/space-physics/ionosphereAI.svg?branch=h5py)](https://travis-ci.org/space-physics/ionosphereAI)
 [![Coverage Status](https://coveralls.io/repos/github/space-physics/ionosphereAI/badge.svg?branch=h5py)](https://coveralls.io/github/space-physics/ionosphereAI?branch=h5py)
 
 # Ionosphere AI

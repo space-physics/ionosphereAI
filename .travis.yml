@@ -12,7 +12,7 @@ os:
 - linux
 
 install:
-- pip install -e .[tests]
+- pip install -e .[tests,cov]
 
 script:
 - flake8
