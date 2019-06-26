@@ -1,19 +1,26 @@
 import logging
-import cv2
-try:
-    from cv2.cv import FOURCC as fourcc  # Windows needs from cv2.cv
-except ImportError:
-    from cv2 import VideoWriter_fourcc as fourcc
-#
+from typing import Dict, Any, Tuple
 from pandas import DataFrame
 from datetime import datetime
-from pytz import UTC
 import numpy as np
-from matplotlib.pylab import figure
-from matplotlib.colors import LogNorm
+
+try:
+    import cv2
+    from cv2 import VideoWriter_fourcc as fourcc
+except ImportError:
+    cv2 = fourcc = None
+
+try:
+    from matplotlib.pylab import figure
+    from matplotlib.colors import LogNorm
+except ImportError:
+    figure = LogNorm = None
 
 
 def setupkern(P, up):
+    if cv2 is None:
+        raise ImportError('OpenCV is needed')
+
     openrad = P.getint('morph', 'openradius')
     if not openrad % 2:
         raise ValueError('openRadius must be ODD')
@@ -26,14 +33,14 @@ def setupkern(P, up):
                                              P.getint('morph', 'closeheight')))
 
     # cv2.imshow('open kernel',openkernel)
-    print('open kernel',  up['open'])
-    print('close kernel', up['close'])
-    print('erode kernel', up['erode'])
+    logging.debug('open kernel',  up['open'])
+    logging.debug('close kernel', up['close'])
+    logging.debug('erode kernel', up['erode'])
 
     return up
 
 
-def svsetup(P, up):
+def svsetup(P, up: Dict[str, Any]) -> Dict[str, Any]:
     savevideo = up['savevideo']
     x = up['xpix']
     y = up['ypix']
@@ -46,9 +53,8 @@ def svsetup(P, up):
         dowiener = int(dowiener)
 
     if savevideo:
-        print(f'dumping video output to {up["odir"]}')
-    svh = {'video': None, 'wiener': None, 'thres': None, 'despeck': None,
-           'erode': None, 'close': None, 'detect': None, 'save': savevideo, 'complvl': up['complvl']}
+        logging.info(f'dumping video output to {up["odir"]}')
+    svh = {'save': savevideo, 'complvl': up['complvl']}
     if savevideo == 'tif':
         # complvl = 6 #0 is uncompressed
         try:
@@ -72,6 +78,9 @@ def svsetup(P, up):
         svh['detect'] = None  # TiffWriter(join(tdir,'detect.tif')) if showfinal else None
 
     elif savevideo == 'vid':
+        if cv2 is None:
+            raise ImportError('OpenCV is needed')
+
         wfps = up['fps']
         if wfps < 3:
             logging.warning('VLC media player had trouble with video slower than about 3 fps')
@@ -126,7 +135,7 @@ def svrelease(svh, savevideo):
         print(e)
 
 
-def setupof(U: dict, P):
+def setupof(U: Dict[str, Any], P) -> Tuple[np.ndarray, Any]:
     xpix = U['xpix']
     ypix = U['ypix']
 
@@ -138,6 +147,8 @@ def setupof(U: dict, P):
         lastflow = np.zeros((ypix, xpix, 2))
 # %% GMM
     elif U['ofmethod'] == 'mog':
+        if cv2 is None:
+            raise ImportError('OpenCV is needed')
         # http://docs.opencv.org/3.2.0/d7/d7b/classcv_1_1BackgroundSubtractorMOG2.html
         gmm = cv2.createBackgroundSubtractorMOG2(history=P.getint('gmm', 'nhistory'),
                                                  varThreshold=P.getfloat('gmm', 'varThreshold'),
@@ -145,13 +156,18 @@ def setupof(U: dict, P):
         gmm.setNMixtures(P.getint('gmm', 'nmixtures'))
         gmm.setComplexityReductionThreshold(P.getfloat('gmm', 'CompResThres'))
     elif U['ofmethod'] == 'knn':
+        if cv2 is None:
+            raise ImportError('OpenCV is needed')
         gmm = cv2.createBackgroundSubtractorKNN(history=P.getint('gmm', 'nhistory'),
                                                 detectShadows=True)
     elif U['ofmethod'] == 'gmg':
+        if cv2 is None:
+            raise ImportError('OpenCV is needed')
+
         try:
             gmm = cv2.createBackgroundSubtractorGMG(initializationFrames=P.getint('gmm', 'nhistory'))
         except AttributeError as e:
-            raise ImportError(f'GMG is for OpenCV3,  part of opencv_contrib. {e}')
+            raise ImportError(f'GMG is part of opencv_contrib. {e}')
 
     else:
         raise TypeError(f'unknown method {U["ofmethod"]}')
@@ -162,7 +178,10 @@ def setupof(U: dict, P):
 def setupfigs(finf, fn, U, P):
     # %% optical flow magnitude plot
 
-    if 'threscolor' in U['pshow'] and P.get('main', 'ofmethod') in ('hs,farneback'):
+    if (figure is not None and
+        'threscolor' in U['pshow'] and
+            P.get('main', 'ofmethod') in ('hs,farneback')):
+
         fg = figure()
         axom = fg.gca()
         hiom = axom.imshow(np.zeros((finf['supery'], finf['superx'])),
@@ -175,7 +194,7 @@ def setupfigs(finf, fn, U, P):
         hiom = None
 # %% stat plot
     try:
-        dt = [datetime.fromtimestamp(t, tz=UTC) for t in finf['ut1'][:-1]]
+        dt = [datetime.utcfromtimestamp(t) for t in finf['ut1'][:-1]]
         ut = finf['ut1'][:-1]
     except (TypeError, KeyError):
         dt = ut = finf['frameind'][:-1]
@@ -198,6 +217,8 @@ def setupfigs(finf, fn, U, P):
 
 
 def statplot(dt, stat, U, P, fn=''):
+    if figure is None:
+        raise ImportError('pip install matplotlib')
     hpmn = None
     hpmd = None
     hpdt = None
@@ -219,6 +240,7 @@ def statplot(dt, stat, U, P, fn=''):
         return hpl
 
     if 'stat' in U['pshow']:
+
         if P['main']['ofmethod'] in ('hs', 'farneback'):
             Np = 2
             fg = figure(figsize=(12, 5))

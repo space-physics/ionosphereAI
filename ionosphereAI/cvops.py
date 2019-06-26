@@ -1,22 +1,48 @@
 #!/usr/bin/env python
-import cv2
 import numpy as np
-#
-from pyoptflow import HornSchunck
-from morecvutils.cv2draw import draw_flow, flow2magang, draw_hsv
+import pandas
+import logging
+from typing import Dict, Any, Tuple
 
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    from pyoptflow import HornSchunck
+except ImportError:
+    HornSchunck = None
+
+try:
+    from morecvutils.cv2draw import draw_flow, flow2magang, draw_hsv
+except ImportError:
+    draw_flow = flow2magang = draw_hsv = None
 # from matplotlib.pyplot import draw,pause #for debug plot
 
 
-def dooptflow(Inew, Iref, lastflow, ifrm, jfrm, up, P, stat):
-    assert isinstance(up, dict)
+def dooptflow(Inew: np.ndarray,
+              Iref: np.ndarray,
+              lastflow: np.ndarray,
+              jfrm: int,
+              up: Dict[str, Any],
+              P,
+              stat: pandas.DataFrame) -> Tuple[np.ndarray, np.ndarray, pandas.DataFrame]:
+
+    assert Inew.ndim == Iref.ndim == 2, 'these are 2-D data'
+    assert lastflow.shape[:2] == Inew.shape == Iref.shape, 'these are image-like data'
+    assert lastflow.ndim == 3 and lastflow.shape[2] == 2, 'u, v motion data'
 
     if up['ofmethod'] == 'hs':
+        if HornSchunck is None:
+            raise ImportError('pip install pyotflow')
         u, v = HornSchunck(Iref, Inew, P.getfloat('main', 'hssmooth'), P.getint('main', 'hsiter'))
         flow = np.dstack((u, v))  # this is how OpenCV expects it.
     elif up['ofmethod'] == 'farneback':
         """
         http://docs.opencv.org/trunk/modules/video/doc/motion_analysis_and_object_tracking.html
+
+        flow.shape == (x,y,2) (last dimension is u, v flow estimate)
         """
         flow = cv2.calcOpticalFlowFarneback(Iref, Inew,
                                             flow=lastflow,  # need flow= for opencv2/3 compatibility
@@ -28,7 +54,7 @@ def dooptflow(Inew, Iref, lastflow, ifrm, jfrm, up, P, stat):
                                             poly_sigma=1.5,
                                             flags=1)
     else:  # using non-of method
-        return (None,)*4
+        return ([], [], {})
 # %% Normalize [0, 1]
     """
     in reader.py:getraw() we scale to uint8 for OpenCV.
@@ -62,8 +88,12 @@ def dooptflow(Inew, Iref, lastflow, ifrm, jfrm, up, P, stat):
         up['iofm'].set_data(ofmag)
 
     if 'flowvec' in up['pshow']:
+        if draw_flow is None or cv2 is None:
+            raise ImportError('pip install morecvutils')
         cv2.imshow('flow vectors', draw_flow(Inew, flow))
     if 'flowhsv' in up['pshow']:
+        if flow2magang is None or draw_hsv is None or cv2 is None:
+            raise ImportError('pip install morecvutils')
         mag, ang = flow2magang(flow, np.uint8)
         cv2.imshow('flowHSV', draw_hsv(mag, ang, np.uint8))
 
@@ -71,17 +101,27 @@ def dooptflow(Inew, Iref, lastflow, ifrm, jfrm, up, P, stat):
     return flow, ofmag, stat
 
 
-def dothres(ofmaggmm, medianflow, P, i, svh, up, isgmm, verbose=False):
+def dothres(ofmaggmm: np.ndarray,
+            medianflow: float,
+            P,
+            i: int,
+            svh: Dict[str, Any],
+            up: Dict[str, Any],
+            isgmm: bool) -> np.ndarray:
     """
     flow threshold, considering median
+
+    Results
+    -------
+    thres: np.ndarray of uint8
+        thresholded image shape x,y
     """
     if not isgmm:  # OptFlow based
         if up['thresmode'] == 'median':
             #            if medianflow>1e-6:  #median is scalar
             lowthres = P.getfloat('blob', 'ofthresmin') * medianflow  # median is scalar!
             hithres = P.getfloat('blob', 'ofthresmax') * medianflow  # median is scalar!
-            if verbose:
-                print(lowthres, hithres)
+            logging.debug(f'Low, high threshold for optical flow {lowthres}, {hithres}')
 #            else: #median ~ 0
 #                lowthres = 0
 #                hithres = np.inf
@@ -109,7 +149,7 @@ def dothres(ofmaggmm, medianflow, P, i, svh, up, isgmm, verbose=False):
      has to be 0,255 because that's what opencv functions (imshow and computation) want
     """
 
-    if svh['thres'] is not None:
+    if svh.get('thres'):
         if svh['save'] == 'tif':
             svh['thres'].save(thres, compress=svh['complvl'])
         elif svh['save'] == 'vid':
@@ -129,16 +169,32 @@ def dothres(ofmaggmm, medianflow, P, i, svh, up, isgmm, verbose=False):
     return thres
 
 
-def dodespeck(thres, medfiltsize, i, svh, up):
+def dodespeck(mot: np.ndarray,
+              medfiltsize: int,
+              i: int,
+              svh: Dict[str, Any],
+              up: Dict[str, Any]) -> np.ndarray:
     """
-    thres is really a binary, but OpenCV needs binary in {0,255}
+    Despeckling algorithm
+
+    Parameters
+    ----------
+    mot: np.ndarray of uint8
+        motion boolean data
+        mot is shape of image: x,y
+        mot is supposed to be boolean, but OpenCV boolean is {0,255} instead of {0,1}
+
+    Results
+    -------
+    despeck: np.ndarray of uint8
+        despeckled data
     """
-    despeck = cv2.medianBlur(thres, ksize=medfiltsize)
+    despeck = cv2.medianBlur(mot, ksize=medfiltsize)
 # %%
-    if svh['despeck'] is not None:
-        if svh['save'] == 'tif':
+    if svh.get('despeck'):
+        if svh.get('save') == 'tif':
             svh['despeck'].save(despeck, compress=svh['complvl'])
-        elif svh['save'] == 'vid':
+        elif svh.get('save') == 'vid':
             svh['despeck'].write(despeck)
 
     if 'thres' in up['pshow']:
@@ -148,21 +204,37 @@ def dodespeck(thres, medfiltsize, i, svh, up):
     return despeck
 
 
-def domorph(despeck, svh, up):
+def domorph(mot: np.ndarray,
+            svh: Dict[str, Any],
+            up: Dict[str, Any]) -> np.ndarray:
     """
+    Morphological operations
+
+    Parameters
+    ----------
+    mot: np.ndarray of uint8
+        motion boolean data
+        mot is shape of image: x,y
+        mot is supposed to be boolean, but OpenCV boolean is {0,255} instead of {0,1}
+
+    Results
+    -------
+    closed: np.ndarray of uint8
+        data after morphological processing
+
     http://docs.opencv.org/master/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
     """
     # opened = cv2.morphologyEx(despeck, cv2.MORPH_OPEN, openkernel)
-    eroded = cv2.erode(despeck, up['erode'])
+    eroded = cv2.erode(mot, up['erode'])
     closed = cv2.morphologyEx(eroded, cv2.MORPH_CLOSE, up['close'])
 
-    if svh['erode'] is not None:
+    if svh.get('erode'):
         if svh['save'] == 'tif':
             svh['erode'].save(eroded, compress=svh['complvl'])
         elif svh['save'] == 'vid':
             svh['erode'].write(eroded)
 
-    if svh['close'] is not None:
+    if svh.get('close'):
         if svh['save'] == 'tif':
             svh['close'].save(closed, compress=svh['complvl'])
         elif svh['save'] == 'vid':
@@ -175,13 +247,19 @@ def domorph(despeck, svh, up):
     return closed
 
 
-def doblob(morphed, blobdetect, framegray, i, svh, stat, U):
+def doblob(mot: np.ndarray,
+           blobdetect,
+           framegray: np.ndarray,
+           i: int,
+           svh: Dict[str, Any],
+           stat: pandas.DataFrame,
+           U: Dict[str, Any]) -> pandas.DataFrame:
     """
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     """
 # %% how many blobs
-    keypoints = blobdetect.detect(morphed)
+    keypoints = blobdetect.detect(mot)
     nkey = len(keypoints)
     stat['detect'].iat[i] = nkey  # we don't know if it will be index or ut1 in index
 # %% plot blobs
@@ -198,7 +276,7 @@ def doblob(morphed, blobdetect, framegray, i, svh, stat, U):
         cvtxt(str(i), final)
         cv2.imshow('final', final)
 
-    if svh['detect'] is not None:
+    if svh.get('detect'):
         if svh['save'] == 'tif':
             svh['detect'].save(final, compress=svh['complvl'])
         elif svh['save'] == 'vid':
@@ -214,7 +292,11 @@ def doblob(morphed, blobdetect, framegray, i, svh, stat, U):
     return stat
 
 
-def cvtxt(txt, img):
+def cvtxt(txt: str,
+          img: np.ndarray):
+    """
+    Superimpose text on cv2 imshow
+    """
     cv2.putText(img, text=txt, org=(5, 20),
                 fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=2,
                 color=(0, 255, 0), thickness=1)

@@ -3,45 +3,66 @@
 front end (used from Terminal) to auroral detection program
 Michael Hirsch
 
-# New CCD
+## Usage
+
+python Detect.py <input file or directory of files> <output directory> <config.ini>
+
+## Examples
+
+### New CCD
 ./Detect.py ~/data/2013-04-14-HST0/2013-04-14T07-00-CamSer7196.DMCdata /tmp/2013-04-14 hst0.ini -f 362000 365000 -k10
 farneback works very well.
 HS very well too, alpha=10, iter=1 or 2 (iter not critical)
 
-# Old CCD
+### Old CCD
 ./Detect.py ~/data/2011-03-01/optical/2011-03-01T100608.000.h5  ~/data/2011-03-01/optical/cv 2011.ini
-------------------------------------------------
-SPOOL FILES DIRECTLY (poor choice, should use index.h5 since the spool file names are NOT time monotonic!)
-./Detect.py ~/data/testdmc  /tmp dmc2017.ini
-
-FITS FILES
-./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-fits.ini -k 30
-
-TIFF FILES
-./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-tiff.ini -k 30
 
 
-SPOOL FILES TIME-INDEXED
+### SPOOL FILES DIRECTLY
+(poor choice, should use index.h5 since the spool file names are NOT time monotonic!)
+
+    ./Detect.py ~/data/testdmc  /tmp dmc2017.ini
+
+### FITS FILES
+
+    ./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-fits.ini -k 30
+
+### TIFF FILES
+
+    ./Detect.py ~/data/DMC2015-10/2015-10-31/ /tmp/2015-10-31 dmc-tiff.ini -k 30
+
+
+### SPOOL FILES TIME-INDEXED
+
 1. find time order of spool files, stores in index.h5 by filename
-./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/
+
+    ./dmcutils/FileTick.py ~/data/DMC2015-10/2015-10-21_1/
 2. detect aurora  (-k 10 is max, 30 is too much)
 
-./Detect.py ~/data/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini
+    ./Detect.py ~/data/DMC2015-10/2015-10-21_1/index.h5 /tmp/2015-10-21 dmc.ini
 
-./Detect.py ~/H/neo2012-12-25/spool_5/index.h5 ~/Dropbox/DMC/2012-12-25 dmc2012.ini
+    ./Detect.py ~/H/neo2012-12-25/spool_5/index.h5 ~/Dropbox/DMC/2012-12-25 dmc2012.ini
 
-2017 files
-Detect.py ~/data/archive.27Mar2017/2017-03-27/spool/index.h5 ~/data/archive.27Mar2017/dmc2017.ini -v
+### 2017 files
 
-python Detect.py ~/data/2017-04-27/spool/index.h5 ~/data/2017-04-27 dmc2017.ini -k10
+    Detect.py ~/data/archive.27Mar2017/2017-03-27/spool/index.h5 ~/data/archive.27Mar2017/dmc2017.ini -v
 
-HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
+    python Detect.py ~/data/2017-04-27/spool/index.h5 ~/data/2017-04-27 dmc2017.ini -k10
+
+
+## Notes
+
+### HANDLING of ANDOR SOLIS SPOOL FILES IN TIME ORDER:
+
 1. Use https://github.com/scivision/dmcutils/PlotSpool.py to plot
    Andor Solis .dat spool files. (verify you're reading them correctly)
 2. sort the spool files with HDF5 index output by dmcutils/FileTick.py -o index.h5
 3. ./Detect.py index.h5 (loads the files you specified in step 2 in time order)
+
 """
+
 import sys
+from typing import List
 import ionosphereAI as iai
 import logging
 from pathlib import Path
@@ -51,7 +72,7 @@ logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(
 
 TIFFCOMPLVL = 4  # tradeoff b/w speed and filesize for TIFF
 # PSHOW=('thres','stat','morph','final')
-PSHOW = ['']
+PSHOW: List[str] = []
 PreviewDecim = 50
 # PSHOW=['final']
 # PSHOW=('stat','final')
@@ -106,6 +127,7 @@ def rundetect(p):
             pstats.Stats(profFN).sort_stats('time', 'cumulative').print_stats(50)
             aurstat = None
         else:
+            # enter main program
             aurstat = iai.loopaurorafiles(P)
     except KeyboardInterrupt:
         print()

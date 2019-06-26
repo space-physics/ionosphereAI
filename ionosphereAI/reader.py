@@ -2,9 +2,17 @@ import logging
 import cv2
 import h5py
 import numpy as np
+from typing import Dict, Any, Tuple
+from pathlib import Path
 from scipy.signal import wiener
-from matplotlib.pyplot import figure, hist
+from .getpassivefm import getfmradarframe
+from .utils import sixteen2eight
 # import fitsio  # so much faster than Astropy.io.fits
+
+try:
+    from matplotlib.pyplot import figure, hist
+except (ImportError, RuntimeError):
+    figure = hist = None
 
 
 try:
@@ -12,13 +20,20 @@ try:
 except ImportError:
     pass
 
-from .getpassivefm import getfmradarframe
-from histutils.rawDMCreader import getDMCframe
-from dmcutils.neospool import readNeoSpool
-from histutils import sixteen2eight
+try:
+    from dmcutils.neospool import readNeoSpool
+except ImportError:
+    readNeoSpool = None
+
+try:
+    from histutils.rawDMCreader import getDMCframe
+except ImportError:
+    getDMCframe = None
 
 
-def setscale(fn, up, finf):
+def setscale(fn: Path,
+             up: Dict[str, Any],
+             finf: Dict[str, Any]) -> Dict[str, Any]:
     """
     if user has not set fixed upper/lower bounds for 16-8 bit conversion, do it automatically,
     since not specifying fixed contrast destroys the working of auto CV detection
@@ -28,12 +43,12 @@ def setscale(fn, up, finf):
 
     if not isinstance(up['rawlim'][0], (float, int)):
         mod = True
-        prc = samplepercentile(fn, pt[0], finf)
+        prc = samplepercentile(fn, pt[0], up, finf)
         up['rawlim'][0] = prc
 
     if not isinstance(up['rawlim'][1], (float, int)):
         mod = True
-        prc = samplepercentile(fn, pt[1], finf)
+        prc = samplepercentile(fn, pt[1], up, finf)
         up['rawlim'][1] = prc
 
 # %%
@@ -50,7 +65,10 @@ def setscale(fn, up, finf):
     return up
 
 
-def samplepercentile(fn, pct, finf):
+def samplepercentile(fn: Path,
+                     pct: int,
+                     up: Dict[str, Any],
+                     finf: Dict[str, Any]) -> np.ndarray:
     """
     for 16-bit files mainly
     """
@@ -60,18 +78,25 @@ def samplepercentile(fn, pct, finf):
 
     dat = np.empty((isamp.size, finf['supery'], finf['superx']), float)
 
-    tmp = getraw(fn, 0, finf)[3]
+    tmp = getraw(fn, 0, finf, up)[3]
     if tmp.dtype.itemsize < 2:
         logging.warning(f'{fn}: usually we use autoscale with 16-bit video, not 8-bit.')
 
     for j, i in enumerate(isamp):
-        dat[j, ...] = getraw(fn, i, finf)[3]
+        dat[j, ...] = getraw(fn, i, finf, up)[3]
 
     return np.percentile(dat, pct).astype(int)
 
 
-def getraw(fn, i, ifrm, finf, svh, P, up):
-    """ this function reads the reference frame too--which makes sense if youre
+def getraw(fn: Any,
+           ifrm: int,
+           finf: Dict[str, Any],
+           up: Dict[str, Any],
+           svh: Dict[str, Any],
+           P, *,
+           ifits: int = None) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any], np.ndarray]:
+    """
+    this function reads the reference frame too--which makes sense if you're
        only reading every Nth frame from the multi-TB file instead of every frame
     """
     if (not isinstance(up['rawlim'][0], (float, int)) or not isinstance(up['rawlim'][1], (float, int))):
@@ -81,6 +106,8 @@ def getraw(fn, i, ifrm, finf, svh, P, up):
     dowiener = P.getint('filter', 'wienernhood', fallback=None)
 # %% reference frame
     if finf['reader'] == 'raw':
+        if getDMCframe is None:
+            raise ImportError('pip install histutils')
         with fn.open('rb') as f:
             if up['twoframe']:
                 frameref = getDMCframe(f, ifrm, finf)[0]
@@ -130,7 +157,7 @@ def getraw(fn, i, ifrm, finf, svh, P, up):
         frame16 = getfmradarframe(fn[ifrm+1])[2]
         # rfi = ifrm
     elif finf['reader'] == 'h5vid':
-        with h5py.File(fn, 'r', libver='latest') as f:
+        with h5py.File(fn, 'r') as f:
             if up['twoframe']:
                 frameref = f['/rawimg'][ifrm, ...]
             frame16 = f['/rawimg'][ifrm+1, ...]
@@ -141,11 +168,11 @@ def getraw(fn, i, ifrm, finf, svh, P, up):
         with fits.open(fn, mode='readonly', memmap=False) as f:
             # with fitsio.FITS(str(fn),'r') as f:
             """
-            i not ifrm for fits!
+            ifits not ifrm for fits!
             """
             if up['twoframe']:  # int(int64) ~ 175 ns
-                frameref = f[0][int(i), :, :].squeeze()  # no ellipses for fitsio
-            frame16 = f[0][int(i+1), :, :].squeeze()
+                frameref = f[0][int(ifits), :, :].squeeze()  # no ellipses for fitsio
+            frame16 = f[0][int(ifits+1), :, :].squeeze()
         # rfi = ifrm  # TODO: incorrect raw index with sequence of fits files
     elif finf['reader'] == 'tiff':
         if 'htiff' not in up:  # first read
@@ -179,15 +206,15 @@ def getraw(fn, i, ifrm, finf, svh, P, up):
         # frameref  = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
         # framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
 
-    if up and 'raw' in up['pshow']:
+    if 'raw' in up.get('pshow', []):
         # cv2.imshow just divides by 256, NOT autoscaled!
         # http://docs.opencv.org/modules/highgui/doc/user_interface.html
         cv2.imshow('video', framegray)
 # %% plotting
-    if up and 'rawscaled' in up['pshow']:
+    if 'rawscaled' in up.get('pshow', []):
         cv2.imshow('raw video, scaled to 8-bit', framegray)
     # image histograms (to help verify proper scaling to uint8)
-    if up and 'hist' in up['pshow']:
+    if 'hist' in up.get('pshow', []):
         ax = figure().gca()
         hist(frame16.flatten(), bins=128, fc='w', ec='k', log=True)
         ax.set_title('raw uint16 values')
@@ -197,7 +224,7 @@ def getraw(fn, i, ifrm, finf, svh, P, up):
         ax.set_xlim((0, 255))
         ax.set_title('normalized video into opt flow')
 
-    if svh and svh['video'] is not None:
+    if svh.get('video'):
         if up['savevideo'] == 'tif':
             svh['video'].save(framegray, compress=up['complvl'])
         elif up['savevideo'] == 'vid':

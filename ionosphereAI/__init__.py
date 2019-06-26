@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 """
-Michael Hirsch Dec 2014
+Michael Hirsch
+
+video and MARSIS radar inplemented: April 2012
+Passive radar added: Dec 2014
+
 This program detects aurora in multi-terabyte raw video data files
 Also used for the Haystack passive FM radar ionospheric activity detection
 """
+from typing import Dict, Any
 import logging
+from configparser import ConfigParser
 from .io import getparam, getvidinfo, keyhandler, savestat
 from .reader import getraw, setscale
 from .cvops import dooptflow, dothres, dodespeck, domorph, doblob
@@ -13,7 +19,7 @@ from .cvsetup import setupkern, svsetup, svrelease, setupof, setupfigs, statplot
 import h5py
 from datetime import datetime
 from pytz import UTC
-from pandas import DataFrame
+import pandas
 from pathlib import Path
 from time import time
 import numpy as np
@@ -36,34 +42,34 @@ except ImportError:
 from morecvutils.connectedComponents import setupblob
 
 
-def loopaurorafiles(U):
+def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
 
     P = getparam(U['paramfn'])  # ConfigParser object
 
     # note, if a specific file is given, vidext is ignored
     idir = Path(U['indir']).expanduser()
     if idir.is_file():
-        flist = [idir]
+        files = [idir]
     elif idir.is_dir():
-        flist = sorted(idir.glob('*'+P.get('main', 'vidext')))
+        files = sorted(idir.glob('*'+P.get('main', 'vidext')))
     else:
-        raise FileNotFoundError(f'{idir} is not a path or file')
+        raise FileNotFoundError(idir)
 
-    if not flist:
-        raise FileNotFoundError(f'no files found: {U["indir"]}')
+    if not files:
+        raise FileNotFoundError(U["indir"])
 
-    U['nfile'] = len(flist)
+    U['nfile'] = len(files)
 
-    print(f'found {U["nfile"]} files: {U["indir"]}')
+    logging.info(f'found {U["nfile"]} files: {U["indir"]}')
 
 # %% process files
     if P.get('main', 'vidext') == '.dat':
-        aurstat = procfiles(flist, P, U)
+        aurstat = procfiles(files, P, U)
     else:
         # FIXME this is where detect is being cast to float, despite being int in individual dataFrames
-        aurstat = DataFrame(columns=['mean', 'median', 'variance', 'detect'])
-        for f in flist:  # iterate over files in list
-            stat = procfiles(f, P, U)
+        aurstat = pandas.DataFrame(columns=['mean', 'median', 'variance', 'detect'])
+        for file in files:  # iterate over files in list
+            stat = procfiles(file, P, U)
             aurstat = aurstat.append(stat)
 
     if aurstat is None:
@@ -79,35 +85,40 @@ def loopaurorafiles(U):
     else:
         dt = None
 # %% master detection plot
-    U['pshow'] += ['stat']
-    fgst = statplot(dt, aurstat, U, P, U['odir'])[3]
-    draw()
-    pause(0.01)
-    fgst.savefig(U['detfn'].with_suffix('.png'), bbox_inches='tight', dpi=100)
-    fgst.savefig(U['detfn'].with_suffix('.svg'), bbox_inches='tight', dpi=100)
+    if draw is not None:
+        U['pshow'] += ['stat']
+        fgst = statplot(dt, aurstat, U, P, U['odir'])[3]
+        draw()
+        pause(0.01)
+        fgst.savefig(U['detfn'].with_suffix('.png'), bbox_inches='tight', dpi=100)
+        fgst.savefig(U['detfn'].with_suffix('.svg'), bbox_inches='tight', dpi=100)
 
     return aurstat
 
 
-def procfiles(f, P, U):
-    finf, U = getvidinfo(f, P, U)
+def procfiles(file: Path, P: ConfigParser, U: Dict[str, Any]) -> pandas.DataFrame:
+    finf, U = getvidinfo(file, P, U)
 
     if finf['nframe'] < 100 and finf['reader'] != 'spool':
-        logging.warning(f'SKIPPING {f} with only {finf["nframe"]} frames')
+        logging.warning(f'SKIPPING {file} with only {finf["nframe"]} frames')
         return
 
     try:
-        U = setscale(f, U, finf)  # in case auto contrast per file
+        U = setscale(file, U, finf)  # in case auto contrast per file
     except ValueError as e:
-        logging.error(f'{f}  {e}\n')
+        logging.error(f'{file}  {e}\n')
         return
 
-    stat = procaurora(f, P, U, finf)
+    stat = procaurora(file, P, U, finf)
 
     return stat
 
 
-def procaurora(f, P, U, finf):
+def procaurora(file: Path,
+               P: ConfigParser,
+               U: Dict[str, Any],
+               finf: Dict[str, str]) -> pandas.DataFrame:
+
     tic = time()
 
     if finf is None:
@@ -123,20 +134,18 @@ def procaurora(f, P, U, finf):
 # %% kernel setup
     U = setupkern(P, U)
 # %% mag plots setup
-    U, stat = setupfigs(finf, f, U, P)
+    U, stat = setupfigs(finf, file, U, P)
 # %% list of files or handle?
-    try:
+    if finf['reader'] == 'spool':
         # comes out as bytes from HDF5, and pathlib needs str
         flist = finf['flist'][finf['frameind']].astype(str)
-    except KeyError:
-        flist = f
 
     N = finf['frameind'][:-1]
     if len(N) == 0:
-        logging.error(f'no files found to detect in {f}')
+        logging.error(f'no images found to detect in {file}')
         return
 # %% start main loop
-    # print('start main loop')
+
     if finf['reader'] == 'spool':
         if setupimgh5 is None:
             raise ImportError('pip install histutils')
@@ -148,15 +157,15 @@ def procaurora(f, P, U, finf):
     j = 0
     for i, iraw in enumerate(N):
         if finf['reader'] == 'spool':
-            f = finf['path'] / flist[i]
+            file = finf['path'] / flist[i]
             iraw = 0
         # print(f,i,iraw)
 # %% load and filter
-        framegray, frameref, U, frame16 = getraw(f, iraw-N[0], iraw, finf, svh, P, U)
+        framegray, frameref, U, frame16 = getraw(file, iraw, finf, U, svh, P, ifits=iraw-N[0])
 # %% compute optical flow or Background/Foreground
         if gmm is None:
             flow, mag, stat = dooptflow(framegray, frameref, lastflow,
-                                        iraw, i, U, P, stat)
+                                        i, U, P, stat)
             lastflow = flow.copy()  # FIXME is the .copy() strictly necessary?
         else:  # background/foreground
             mag = gmm.apply(framegray)
@@ -167,7 +176,7 @@ def procaurora(f, P, U, finf):
 # %% morphological ops
         morphed = domorph(despeck, svh, U)
 # %% blob detection
-        stat = doblob(morphed, blobdetect, framegray, i, svh, stat, U)  # lint:ok
+        stat = doblob(morphed, blobdetect, framegray, i, svh, stat, U)
 # %% plotting in loop
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
@@ -187,7 +196,7 @@ def procaurora(f, P, U, finf):
 #                    assert (frame16[ipy,ipx] == preview).all(),'preview failure to convert'
 
                     updatestr = f'mean frame {i}: {preview.mean():.1f}  j= {j}'
-                    print(updatestr)
+                    logging.info(updatestr)
                     f5['/preview'][j, ...] = preview
 
 
@@ -204,7 +213,7 @@ def procaurora(f, P, U, finf):
 #                    fgv.colorbar(hi,ax=ax)
 #                    draw(); pause(0.001)
 
-            print(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-U["previewdecim"]:i].values}')
+            logging.info(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-U["previewdecim"]:i].values}')
             if (framegray == 255).sum() > 40:
                 # arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 logging.warning('video saturated at 255')
@@ -222,11 +231,11 @@ def procaurora(f, P, U, finf):
             if dobreak:
                 break
 # %% done looping this file  save results for this file
-    print(f'{time()-tic:.1f} seconds to process {f}')
+    logging.info(f'{time()-tic:.1f} seconds to process {file}')
 
     if U['odir']:
-        detfn = Path(U['odir']).expanduser()/(f.stem + '_detections.h5')
-        detpltfn = Path(U['odir']).expanduser()/(f.stem + '_detections.png')
+        detfn = Path(U['odir']).expanduser()/(file.stem + '_detections.h5')
+        detpltfn = Path(U['odir']).expanduser()/(file.stem + '_detections.png')
         if detfn.is_file():
             logging.warning(f'overwriting existing {detfn}')
 
@@ -234,13 +243,14 @@ def procaurora(f, P, U, finf):
             if finf['reader'] != 'spool':
                 savestat(stat, detfn, U['indir'], U)
                 if 'stat' in U['pshow']:
-                    print(f'saving detection plot to {detpltfn}')
+                    logging.info(f'saving detection plot to {detpltfn}')
                     U['fdet'].savefig(detpltfn, dpi=100, bbox_inches='tight')
         except Exception as e:
             logging.critical(f'trouble saving detection result  {e} ')
         finally:
             svrelease(svh, U['savevideo'])
 
-    close('all')
+    if draw is not None:
+        close('all')
 
     return stat

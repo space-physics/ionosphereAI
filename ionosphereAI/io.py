@@ -3,6 +3,8 @@ from numpy import arange
 from pandas import DataFrame
 import h5py
 from pathlib import Path
+from typing import Dict, Any, Tuple
+import logging
 #
 from .getpassivefm import getfmradarframe
 from morecvutils.getaviprop import getaviprop
@@ -21,7 +23,8 @@ except ImportError:
 SPOOLINI = 'acquisitionmetadata.ini'  # for Solis spool files
 
 
-def getvidinfo(fn, P, U, verbose=False):
+def getvidinfo(fn: Path, P, U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+
     def _spoolcase(fn, P, U, f0):
         if spoolparam is None:
             raise ImportError('pip install dmcutils')
@@ -47,50 +50,48 @@ def getvidinfo(fn, P, U, verbose=False):
         return finf
 
     # print('using {} for {}'.format(P['main']['ofmethod'],fn))
-    if verbose:
-        print(f'minBlob={P["blob"]["minblobarea"]}'
-              f'maxBlob={P["blob"]["maxblobarea"]}'
-              f'maxNblob={P["blob"]["maxblobcount"]}')
+    logging.debug(f'minBlob={P["blob"]["minblobarea"]}'
+                  f'maxBlob={P["blob"]["maxblobarea"]}'
+                  f'maxNblob={P["blob"]["maxblobcount"]}')
 
     try:  # for spool case
         fn = fn[0]
     except TypeError:
         pass
 
-    if fn.suffix.lower() in ('.dmcdata',):  # HIST
+    if fn.suffix.lower() == '.dmcdata':  # HIST
         if getDMCparam is None:
             raise ImportError('pip install histutils')
         xypix = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
         xybin = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
         if U['startstop'] is None:
-            finf = getDMCparam(fn, xypix, xybin, U['framestep'], verbose=verbose)
+            finf = getDMCparam(fn, xypix, xybin, U['framestep'])
         elif len(U['startstop']) == 2:
             finf = getDMCparam(fn, xypix, xybin,
-                               (U['startstop'][0], U['startstop'][1], U['framestep']),
-                               verbose=verbose)
+                               (U['startstop'][0], U['startstop'][1], U['framestep']))
         else:
             raise ValueError('start stop must both or neither be specified')
 
         finf['reader'] = 'raw'
         finf['nframe'] = finf['nframeextract']
         finf['frameind'] = finf['frameindrel']
-    elif fn.suffix.lower() in ('.dat',):  # Andor Solis spool file
+    elif fn.suffix.lower() == '.dat':  # Andor Solis spool file
         finf = _spoolcase(fn, P, U, {})
     elif fn.suffix.lower() in ('.h5', '.hdf5'):
         finf = {}
         try:  # can't read inside context
-            with h5py.File(fn, 'r', libver='latest') as f:
+            with h5py.File(fn, 'r') as f:
                 finf['flist'] = f['fn'][:]
             # finf['flist'] = read_hdf(fn,'filetick')
             if U['startstop'] is not None:
                 finf['flist'] = finf['flist'][U['startstop'][0]:U['startstop'][1]]
 
-            U['nfile'] = finf['flist'].shape[0]
-            print(f'taking {U["nfile"]} files from index {fn}')
+            U['nfile'] = len(finf['flist'])
+            logging.info(f'taking {U["nfile"]} files from index {fn}')
         except KeyError:
             pass
 # %% determine if optical or passive radar
-        with h5py.File(fn, 'r', libver='latest') as f:
+        with h5py.File(fn, 'r') as f:
             if 'rawimg' in f:  # hst image/video file
                 finf = {'reader': 'h5vid'}
                 finf['nframe'] = f['rawimg'].shape[0]
@@ -124,7 +125,7 @@ def getvidinfo(fn, P, U, verbose=False):
         finf['reader'] = 'tiff'
     else:  # assume video file
         # TODO start,stop,step is not yet implemented, simply uses every other frame
-        print(f'attempting to read {fn} with OpenCV.')
+        logging.info(f'attempting to read {fn} with OpenCV.')
         finf = {'reader': 'cv2'}
 
         vidparam = getaviprop(fn)
@@ -143,8 +144,7 @@ def getvidinfo(fn, P, U, verbose=False):
          'xpix': finf['superx'], 'ypix': finf['supery'],
          'thresmode': P.get('filter', 'thresholdmode').lower()}
 
-# %% concatenate dicts
-    U = {**U, **A}
+    U.update(A)
 
     return finf, U
 
