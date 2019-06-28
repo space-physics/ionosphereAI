@@ -79,6 +79,9 @@ def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
     U['gmm_varthreshold'] = P.getfloat('gmm', 'varThreshold', fallback=None)
     U['gmm_nmixtures'] = P.getint('gmm', 'nmixtures', fallback=None)
     U['gmm_compresthres'] = P.getfloat('gmm', 'CompResThres', fallback=None)
+    U['open_radius'] = P.getint('morph', 'openradius')
+    U['close_width'] = P.getint('morph', 'closewidth')
+    U['close_height'] = P.getint('morph', 'closeheight')
 
     logging.info(f'found {U["nfile"]} files: {U["indir"]}')
 
@@ -147,13 +150,13 @@ def procaurora(file: Path,
     if finf is None:
         return
 # %% setup optional video/tiff writing (mainly for debugging or publication)
-    svh = svsetup(P, U, finf)
+    svh = svsetup(U, finf)
 # %% setup blob
     blobdetect = setupblob(U['minblobarea'], U['maxblobarea'], U['minblobdist'])
 # %% cv opt. flow matrix setup
     lastflow, gmm = setupof(U, finf)
 # %% kernel setup
-    U = setupkern(P, U)
+    U = setupkern(U)
 # %% mag plots setup
     U, stat = setupfigs(finf, file, U)
 # %% list of files or handle?

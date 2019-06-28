@@ -18,40 +18,27 @@ except (ImportError, RuntimeError):
     figure = LogNorm = None
 
 
-def setupkern(P, up):
+def setupkern(up: Dict[str, Any]) -> Dict[str, Any]:
     if cv2 is None:
         raise ImportError('OpenCV is needed')
 
-    openrad = P.getint('morph', 'openradius')
+    openrad = up['open_radius']
     if not openrad % 2:
         raise ValueError('openRadius must be ODD')
 
     up['open'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad, openrad))
 
     up['erode'] = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (openrad, openrad))
-    up['close'] = cv2.getStructuringElement(cv2.MORPH_RECT,
-                                            (P.getint('morph', 'closewidth'),
-                                             P.getint('morph', 'closeheight')))
-
-    # cv2.imshow('open kernel',openkernel)
-    logging.debug('open kernel',  up['open'])
-    logging.debug('close kernel', up['close'])
-    logging.debug('erode kernel', up['erode'])
+    up['close'] = cv2.getStructuringElement(cv2.MORPH_RECT, (up['close_width'], up['close_height']))
 
     return up
 
 
-def svsetup(P, up: Dict[str, Any], finf: Dict[str, Any]) -> Dict[str, Any]:
+def svsetup(up: Dict[str, Any], finf: Dict[str, Any]) -> Dict[str, Any]:
     savevideo = up['savevideo']
     x = finf['super_x']
     y = finf['super_y']
     pshow = up['pshow']
-
-    dowiener = P.get('filter', 'wienernhood')
-    if not dowiener.strip():
-        dowiener = False
-    else:
-        dowiener = int(dowiener)
 
     if savevideo:
         logging.info(f'dumping video output to {up["odir"]}')
@@ -65,7 +52,7 @@ def svsetup(P, up: Dict[str, Any], finf: Dict[str, Any]) -> Dict[str, Any]:
                           'try   pip install tifffile \n {e}')
             return svh
 
-        if dowiener:
+        if up.get('wienernhood'):
             svh['wiener'] = TiffWriter(str(up['odir'] / 'wiener.tif'))
         else:
             svh['wiener'] = None
@@ -98,7 +85,7 @@ def svsetup(P, up: Dict[str, Any], finf: Dict[str, Any]) -> Dict[str, Any]:
 
         https://github.com/scivision/pyimagevideo
         """
-        if dowiener:
+        if up.get('wienernhood'):
             svh['wiener'] = cv2.VideoWriter(str(up['odir'] / 'wiener.avi'), cc4, wfps, (y, x), False)
         else:
             svh['wiener'] = None
