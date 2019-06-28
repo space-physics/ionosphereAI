@@ -18,3 +18,7 @@ script:
 - flake8
 - mypy .
 - pytest -rsv
+
+after_success:
+- pytest --cov
+- coveralls
