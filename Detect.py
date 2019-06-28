@@ -69,11 +69,11 @@ from pathlib import Path
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
+PreviewDecim = 50  # show update info on terminal every N processing steps (arbitrary)
+TIFFCOMPLVL = 4  # tradeoff b/w speed and filesize for TIFF debugging images
 
-TIFFCOMPLVL = 4  # tradeoff b/w speed and filesize for TIFF
-# PSHOW=('thres','stat','morph','final')
 PSHOW: List[str] = []
-PreviewDecim = 50
+PSHOW = ['thres', 'stat', 'morph', 'final']
 # PSHOW=['final']
 # PSHOW=('stat','final')
 # 'raw' #often not useful due to no autoscale
@@ -87,7 +87,7 @@ PreviewDecim = 50
 
 
 def rundetect(p):
-    assert isinstance(PSHOW, list)
+    assert isinstance(PSHOW, (tuple, list))
     P = {
         'cmd': ' '.join(sys.argv),
         'indir': p.indir,

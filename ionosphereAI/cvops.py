@@ -83,7 +83,7 @@ def dooptflow(frame: np.ndarray,
     except TypeError:  # if None
         pass
 
-    if 'thres' in up['pshow']:
+    if 'thres' in up['pshow'] and up.get('iofm'):
         # cv2.imshow('flowMag', ofmag) #was only grayscale, I wanted color
         up['iofm'].set_data(ofmag)
 

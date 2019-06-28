@@ -93,7 +93,7 @@ def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
 # %% master detection plot
     if draw is not None:
         U['pshow'] += ['stat']
-        fgst = statplot(dt, aurstat, U, P, U['odir'])[3]
+        fgst = statplot(dt, aurstat, U, U['odir'])[3]
         draw()
         pause(0.01)
         fgst.savefig(U['detfn'].with_suffix('.png'), bbox_inches='tight', dpi=100)
@@ -141,7 +141,7 @@ def procaurora(file: Path,
 # %% kernel setup
     U = setupkern(P, U)
 # %% mag plots setup
-    U, stat = setupfigs(finf, file, U, P)
+    U, stat = setupfigs(finf, file, U)
 # %% list of files or handle?
     if finf['reader'] == 'spool':
         # comes out as bytes from HDF5, and pathlib needs str

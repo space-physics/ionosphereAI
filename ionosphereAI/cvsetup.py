@@ -2,7 +2,6 @@ import logging
 from pathlib import Path
 import pandas
 from typing import Dict, Any, Tuple
-from pandas import DataFrame
 from datetime import datetime
 import numpy as np
 
@@ -178,12 +177,12 @@ def setupof(U: Dict[str, Any],
 
 def setupfigs(finf: Dict[str, Any],
               fn: Path,
-              U: Dict[str, Any], P) -> Tuple[Dict[str, Any], pandas.DataFrame]:
+              U: Dict[str, Any]) -> Tuple[Dict[str, Any], pandas.DataFrame]:
     # %% optical flow magnitude plot
 
     if (figure is not None and
         'threscolor' in U['pshow'] and
-            P.get('main', 'ofmethod') in ('hs,farneback')):
+            U.get('ofmethod') in ('hs', 'farneback')):
 
         fg = figure()
         axom = fg.gca()
@@ -193,8 +192,7 @@ def setupfigs(finf: Dict[str, Any],
                            norm=LogNorm())  # cmap=lcmap)
         axom.set_title('optical flow magnitude')
         fg.colorbar(hiom, ax=axom)
-    else:
-        hiom = None
+        U['iofm'] = hiom
 # %% stat plot
     try:
         dt = [datetime.utcfromtimestamp(t) for t in finf['ut1'][:-1]]
@@ -202,20 +200,20 @@ def setupfigs(finf: Dict[str, Any],
     except (TypeError, KeyError):
         dt = ut = finf['frameind'][:-1]
 
-    stat = DataFrame(index=ut, columns=['mean', 'median', 'variance', 'detect'])
+    stat = pandas.DataFrame(index=ut, columns=['mean', 'median', 'variance', 'detect'])
     stat['detect'] = np.zeros(finf['frameind'].size-1, dtype=int)
     stat[['mean', 'median', 'variance']] = np.zeros((finf['frameind'].size-1, 3), dtype=float)
 
-    hpmn, hpmd, hpdt, fgdt = statplot(dt, stat, U, P, fn)
+    hpmn, hpmd, hpdt, fgdt = statplot(dt, stat, U, fn)
 
 #    draw(); pause(0.001) #catch any plot bugs
 
-    U.update({'iofm': hiom, 'pmean': hpmn, 'pmed': hpmd, 'pdet': hpdt, 'fdet': fgdt})
+    U.update({'pmean': hpmn, 'pmed': hpmd, 'pdet': hpdt, 'fdet': fgdt})
 
     return U, stat
 
 
-def statplot(dt, stat, U, P, fn=''):
+def statplot(dt, stat: pandas.DataFrame, U: Dict[str, Any], fn: Path):
     if figure is None:
         raise ImportError('pip install matplotlib')
     hpmn = None
@@ -240,7 +238,7 @@ def statplot(dt, stat, U, P, fn=''):
 
     if 'stat' in U['pshow']:
 
-        if P['main']['ofmethod'] in ('hs', 'farneback'):
+        if U.get('ofmethod') in ('hs', 'farneback'):
             Np = 2
             fg = figure(figsize=(12, 5))
             ax = fg.add_subplot(Np, 1, 1)
@@ -257,10 +255,6 @@ def statplot(dt, stat, U, P, fn=''):
             Np = 1
 
         ax = fg.add_subplot(Np, 1, Np)
-        try:
-            fn = fn[0]
-        except TypeError:
-            pass
         ax.set_title(f'Detections of Aurora {fn.name}')
         ax.set_ylabel('number of detections')
         ax.set_ylim((0, 10))
