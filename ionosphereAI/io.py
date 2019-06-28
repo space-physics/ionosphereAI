@@ -7,8 +7,11 @@ from typing import Dict, Any, Tuple, Sequence
 import logging
 #
 from .getpassivefm import getfmradarframe
-from morecvutils.getaviprop import getaviprop
 
+try:
+    from morecvutils.getaviprop import getaviprop
+except ImportError:
+    getaviprop = None
 try:
     from histutils.rawDMCreader import getDMCparam
     from histutils.io import getNeoParam
@@ -130,6 +133,8 @@ def getvidinfo(files: Sequence[Path],
         finf = getNeoParam(fn, U['framestep'])
         finf['reader'] = 'tiff'
     else:  # assume video file
+        if getaviprop is None:
+            raise ImportError('pip install morecvutils')
         # TODO start,stop,step is not yet implemented, simply uses every other frame
         logging.info(f'attempting to read {fn} with OpenCV.')
         finf = {'reader': 'cv2'}
