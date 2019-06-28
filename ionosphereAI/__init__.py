@@ -11,11 +11,6 @@ Also used for the Haystack passive FM radar ionospheric activity detection
 from typing import Dict, Any
 import logging
 from configparser import ConfigParser
-from .io import getparam, getvidinfo, keyhandler, savestat
-from .reader import getraw, setscale
-from .cvops import dooptflow, dothres, dodespeck, domorph, doblob
-from .cvsetup import setupkern, svsetup, svrelease, setupof, setupfigs, statplot
-
 import h5py
 from datetime import datetime
 from pytz import UTC
@@ -24,6 +19,13 @@ from pathlib import Path
 from time import time
 import numpy as np
 from scipy.ndimage import zoom
+
+from .utils import saturation_check
+from .io import getparam, getvidinfo, keyhandler, savestat
+from .reader import getraw, setscale
+from .cvops import dooptflow, dothres, dodespeck, domorph, doblob
+from .cvsetup import setupkern, svsetup, svrelease, setupof, setupfigs, statplot
+from .connectedComponents import setupblob
 
 try:
     import cv2
@@ -39,7 +41,6 @@ try:
     from histutils import setupimgh5
 except ImportError:
     setupimgh5 = None
-from morecvutils.connectedComponents import setupblob
 
 
 def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
@@ -132,9 +133,9 @@ def procaurora(file: Path,
 # %% setup optional video/tiff writing (mainly for debugging or publication)
     svh = svsetup(P, U)
 # %% setup blob
-    blobdetect = setupblob(P.getfloat('blob', 'minblobarea'),
-                           P.getfloat('blob', 'maxblobarea'),
-                           P.getfloat('blob', 'minblobdist'))
+    blobdetect = setupblob(P.getint('blob', 'minblobarea'),
+                           P.getint('blob', 'maxblobarea'),
+                           P.getint('blob', 'minblobdist'))
 # %% cv opt. flow matrix setup
     lastflow, gmm = setupof(U, P)
 # %% kernel setup
@@ -219,11 +220,7 @@ def procaurora(file: Path,
 #                    draw(); pause(0.001)
 
             logging.info(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-U["previewdecim"]:i].values}')
-            if (frame[0, :, :] == 255).sum() > 40:
-                # arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
-                logging.warning('video saturated at 255')
-            if (frame[0, :, :] == 0).sum() > 4:
-                logging.warning('video saturated at 0')
+            saturation_check(frame[0, :, :], (4, 40))
 
         if U['pshow'] and cv2 is not None:
             if U['framebyframe']:  # wait indefinitely for spacebar press
