@@ -27,7 +27,7 @@ def dooptflow(frame: np.ndarray,
               up: Dict[str, Any],
               stat: pandas.DataFrame) -> Tuple[np.ndarray, np.ndarray, pandas.DataFrame]:
 
-    assert frame.shape[0] == 2 and frame.ndim == 3, 'stack of 2 images: twoframe=Truue'
+    assert frame.shape[0] == 2 and frame.ndim == 3, 'stack of 2 images: twoframe=True'
     assert lastflow.shape[:2] == frame.shape[1:], 'these are image-like data'
     assert lastflow.ndim == 3 and lastflow.shape[2] == 2, 'u, v motion data'
 
@@ -258,6 +258,8 @@ def doblob(mot: np.ndarray,
     http://docs.opencv.org/master/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     http://docs.opencv.org/trunk/modules/features2d/doc/drawing_function_of_keypoints_and_matches.html
     """
+    if not framegray.ndim == 2:
+        raise ValueError('single image at a time for framegray')
 # %% how many blobs
     keypoints = blobdetect.detect(mot)
     nkey = len(keypoints)

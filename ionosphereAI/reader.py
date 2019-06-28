@@ -182,7 +182,7 @@ def read_dmc(fn: Path, ifrm: int, twoframe: bool, finf: Dict[str, Any]) -> np.nd
     frame, iraw = getDMCframe(fn, ifrm+1, finf)
 
     if twoframe:
-        frame = np.dstack((frame0, frame))
+        frame = np.stack((frame0, frame), axis=0)
 
     return frame
 
@@ -212,7 +212,7 @@ def read_h5fm(files: Sequence[Path], ifrm: int, twoframe: bool) -> np.ndarray:
     frame = getfmradarframe(files[ifrm+1])[2]
 
     if twoframe:
-        frame = np.dstack((frame0, frame))
+        frame = np.stack((frame0, frame), axis=0)
 
     return frame
 
@@ -269,7 +269,7 @@ def read_cv2(h, twoframe: bool) -> np.ndarray:
         frame = frame16  # copy NOT needed
 
     if twoframe:
-        frame = np.dstack((frame0, frame))
+        frame = np.stack((frame0, frame), axis=0)
 
     return frame
 
@@ -285,6 +285,6 @@ def read_tiff(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
     frame = imageio.imread(fn, ifrm+1)
 
     if twoframe:
-        frame = np.dstack((frame0, frame))
+        frame = np.stack((frame0, frame), axis=0)
 
     return frame

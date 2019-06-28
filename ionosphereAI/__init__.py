@@ -182,7 +182,7 @@ def procaurora(file: Path,
 # %% morphological ops
         morphed = domorph(despeck, svh, U)
 # %% blob detection
-        stat = doblob(morphed, blobdetect, frame, i, svh, stat, U)
+        stat = doblob(morphed, blobdetect, frame[0, :, :], i, svh, stat, U)
 # %% plotting in loop
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html

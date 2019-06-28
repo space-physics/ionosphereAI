@@ -73,29 +73,10 @@ def getvidinfo(files: Sequence[Path],
     fn = files[0]
 
     if fn.suffix.lower() == '.dmcdata':  # HIST
-        if getDMCparam is None:
-            raise ImportError('pip install histutils')
         U['xy_pixel'] = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
         U['xy_bin'] = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
         U['header_bytes'] = P.getint('main', 'header_bytes')
-
-        if U['startstop'] is None:
-            U['frame_request'] = U['framestep']
-        elif len(U['startstop']) == 2:
-            U['frame_request'] = (U['startstop'][0], U['startstop'][1], U['framestep'])
-        else:
-            raise ValueError('unknown start, stop, step frame request')
-
-        if U['startstop'] is None:
-            finf = getDMCparam(fn, U)
-        elif len(U['startstop']) == 2:
-            finf = getDMCparam(fn, U)
-        else:
-            raise ValueError('start stop must both or neither be specified')
-
-        finf['reader'] = 'raw'
-        finf['nframe'] = finf['nframeextract']
-        finf['frameind'] = finf['frameindrel']
+        finf, U = read_dmc(fn, U)
     elif fn.suffix.lower() == '.dat':  # Andor Solis spool file
         finf = _spoolcase(fn, P, U, {})
     elif fn.suffix.lower() in ('.h5', '.hdf5'):
@@ -169,6 +150,26 @@ def getvidinfo(files: Sequence[Path],
               'super_x': finf['super_x'],
               'super_y': finf['super_y'],
               'thresmode': P.get('filter', 'thresholdmode').lower()})
+
+    return finf, U
+
+
+def read_dmc(fn: Path, U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    if getDMCparam is None:
+        raise ImportError('pip install histutils')
+
+    if not U.get('startstop'):
+        U['frame_request'] = U['framestep']
+    elif len(U['startstop']) == 2:
+        U['frame_request'] = (U['startstop'][0], U['startstop'][1], U['framestep'])
+    else:
+        raise ValueError('unknown start, stop, step frame request')
+
+    finf = getDMCparam(fn, U)
+
+    finf['reader'] = 'raw'
+    finf['nframe'] = finf['nframeextract']
+    finf['frameind'] = finf['frameindrel']
 
     return finf, U
 
