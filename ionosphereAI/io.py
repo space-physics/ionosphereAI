@@ -75,13 +75,12 @@ def getvidinfo(files: Sequence[Path],
     if fn.suffix.lower() == '.dmcdata':  # HIST
         if getDMCparam is None:
             raise ImportError('pip install histutils')
-        xypix = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
-        xybin = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
+        U['xy_pixel'] = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
+        U['xy_bin'] = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
         if U['startstop'] is None:
-            finf = getDMCparam(fn, xypix, xybin, U['framestep'])
+            finf = getDMCparam(fn, U)
         elif len(U['startstop']) == 2:
-            finf = getDMCparam(fn, xypix, xybin,
-                               (U['startstop'][0], U['startstop'][1], U['framestep']))
+            finf = getDMCparam(fn, U)
         else:
             raise ValueError('start stop must both or neither be specified')
 

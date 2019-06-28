@@ -1,5 +1,4 @@
 import logging
-import cv2
 import h5py
 import numpy as np
 from typing import Dict, Any, Tuple, Sequence
@@ -10,29 +9,40 @@ from .utils import sixteen2eight
 # import fitsio  # so much faster than Astropy.io.fits
 
 try:
+    import cv2
+except ImportError as e:
+    logging.debug(e)
+    cv2 = None
+
+try:
     from matplotlib.pyplot import figure, hist
-except (ImportError, RuntimeError):
+except (ImportError, RuntimeError) as e:
+    logging.debug(e)
     figure = hist = None
 
 
 try:
     import imageio  # tifffile is excruciatingly slow on each file access
-except ImportError:
+except ImportError as e:
+    logging.debug(e)
     pass
 
 try:
     from dmcutils.neospool import readNeoSpool
-except ImportError:
+except ImportError as e:
+    logging.debug(e)
     readNeoSpool = None
 
 try:
     from histutils.rawDMCreader import getDMCframe
-except ImportError:
+except ImportError as e:
+    logging.debug(e)
     getDMCframe = None
 
 try:
     from astropy.io import fits
-except ImportError:
+except ImportError as e:
+    logging.debug(e)
     fits = None
 
 
@@ -243,6 +253,8 @@ def read_cv2(h, twoframe: bool) -> np.ndarray:
 
     h is handle from imageio.get_reader()
     """
+    if cv2 is None:
+        raise ImportError('FIXME: can we use non-opencv rgb2gray?')
     if twoframe:
         frame0 = h.read()
 
