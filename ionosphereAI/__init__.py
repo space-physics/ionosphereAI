@@ -59,12 +59,17 @@ def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
         raise FileNotFoundError(U["indir"])
 
     U['nfile'] = len(files)
+    U['zerocols'] = P.getint('main', 'zerocols', fallback=0)
+    U['wienernhood'] = P.getint('filter', 'wienernhood', fallback=None)
+    U['hs_smooth'] = P.getfloat('main', 'hssmooth', fallback=None)
+    U['hs_iter'] = P.getint('main', 'hsiter', fallback=None)
+    U['flow_trimedge'] = P.getint('filter', 'trimedgeof')
 
     logging.info(f'found {U["nfile"]} files: {U["indir"]}')
 
 # %% process files
     if P.get('main', 'vidext') == '.dat':
-        aurstat = procfiles(files, P, U)
+        aurstat = procfiles(files, P, U)   # type: ignore
     else:
         # FIXME this is where detect is being cast to float, despite being int in individual dataFrames
         aurstat = pandas.DataFrame(columns=['mean', 'median', 'variance', 'detect'])
@@ -96,20 +101,21 @@ def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
     return aurstat
 
 
-def procfiles(file: Path, P: ConfigParser, U: Dict[str, Any]) -> pandas.DataFrame:
-    finf, U = getvidinfo(file, P, U)
+def procfiles(file: Path, P: ConfigParser, up: Dict[str, Any]) -> pandas.DataFrame:
+
+    finf, up = getvidinfo(file, P, up)   # type: ignore
 
     if finf['nframe'] < 100 and finf['reader'] != 'spool':
         logging.warning(f'SKIPPING {file} with only {finf["nframe"]} frames')
         return
 
     try:
-        U = setscale(file, U, finf)  # in case auto contrast per file
+        up = setscale(file, up, finf)  # in case auto contrast per file
     except ValueError as e:
         logging.error(f'{file}  {e}\n')
         return
 
-    stat = procaurora(file, P, U, finf)
+    stat = procaurora(file, P, up, finf)
 
     return stat
 
@@ -138,9 +144,9 @@ def procaurora(file: Path,
 # %% list of files or handle?
     if finf['reader'] == 'spool':
         # comes out as bytes from HDF5, and pathlib needs str
-        flist = finf['flist'][finf['frameind']].astype(str)
+        flist: np.ndarray = finf['flist'][finf['frameind']].astype(str)  # type: ignore
 
-    N = finf['frameind'][:-1]
+    N: np.ndarray = finf['frameind'][:-1]
     if len(N) == 0:
         logging.error(f'no images found to detect in {file}')
         return
@@ -149,7 +155,7 @@ def procaurora(file: Path,
     if finf['reader'] == 'spool':
         if setupimgh5 is None:
             raise ImportError('pip install histutils')
-        zy, zx = zoom(getraw(finf['path']/flist[0], 0, 0, finf, svh, P, U)[3], 0.1, order=0).shape
+        zy, zx = zoom(getraw(finf['path']/flist[0], ifrm=0, finf=finf, up=U, svh=svh)[0][0, :, :], 0.1, order=0).shape
         # zy,zx=(64,64)
         setupimgh5(U['detfn'], np.ceil(N.size/U['previewdecim'])+1, zy, zx,
                    np.uint16, writemode='w', key='/preview', cmdlog=U['cmd'])
@@ -161,14 +167,13 @@ def procaurora(file: Path,
             iraw = 0
         # print(f,i,iraw)
 # %% load and filter
-        framegray, frameref, U, frame16 = getraw(file, iraw, finf, U, svh, P, ifits=iraw-N[0])
+        frame, U = getraw(file, ifrm=iraw, finf=finf, up=U, svh=svh, ifits=iraw-N[0])
 # %% compute optical flow or Background/Foreground
         if gmm is None:
-            flow, mag, stat = dooptflow(framegray, frameref, lastflow,
-                                        i, U, P, stat)
+            flow, mag, stat = dooptflow(frame, lastflow, jfrm=i, up=U, stat=stat)
             lastflow = flow.copy()  # FIXME is the .copy() strictly necessary?
         else:  # background/foreground
-            mag = gmm.apply(framegray)
+            mag = gmm.apply(frame)
 # %% threshold
         thres = dothres(mag, stat['median'].iat[i], P, i, svh,  U, gmm is not None)
 # %% despeckle
@@ -176,7 +181,7 @@ def procaurora(file: Path,
 # %% morphological ops
         morphed = domorph(despeck, svh, U)
 # %% blob detection
-        stat = doblob(morphed, blobdetect, framegray, i, svh, stat, U)
+        stat = doblob(morphed, blobdetect, frame, i, svh, stat, U)
 # %% plotting in loop
         """
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
@@ -192,7 +197,7 @@ def procaurora(file: Path,
                     # ipy = slice(finf['supery']//2-zy//2,finf['supery']//2+zy//2)
                     # ipx = slice(finf['superx']//2-zx//2,finf['superx']//2+zx//2)
                     # preview = frame16[ipy,ipx].astype(np.uint16)
-                    preview = zoom(frame16, 0.1, order=0, mode='nearest')
+                    preview = zoom(frame[0, :, :], 0.1, order=0, mode='nearest')
 #                    assert (frame16[ipy,ipx] == preview).all(),'preview failure to convert'
 
                     updatestr = f'mean frame {i}: {preview.mean():.1f}  j= {j}'
@@ -214,10 +219,10 @@ def procaurora(file: Path,
 #                    draw(); pause(0.001)
 
             logging.info(f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-U["previewdecim"]:i].values}')
-            if (framegray == 255).sum() > 40:
+            if (frame[0, :, :] == 255).sum() > 40:
                 # arbitrarily allowing up to 40 pixels to be saturated at 255, to allow for bright stars and faint aurora
                 logging.warning('video saturated at 255')
-            if (framegray == 0).sum() > 4:
+            if (frame[0, :, :] == 0).sum() > 4:
                 logging.warning('video saturated at 0')
 
         if U['pshow'] and cv2 is not None:

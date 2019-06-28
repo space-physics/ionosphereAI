@@ -1,4 +1,6 @@
 import logging
+from pathlib import Path
+import pandas
 from typing import Dict, Any, Tuple
 from pandas import DataFrame
 from datetime import datetime
@@ -13,7 +15,7 @@ except ImportError:
 try:
     from matplotlib.pylab import figure
     from matplotlib.colors import LogNorm
-except ImportError:
+except (ImportError, RuntimeError):
     figure = LogNorm = None
 
 
@@ -175,7 +177,9 @@ def setupof(U: Dict[str, Any], P) -> Tuple[np.ndarray, Any]:
     return lastflow, gmm
 
 
-def setupfigs(finf, fn, U, P):
+def setupfigs(finf: Dict[str, Any],
+              fn: Path,
+              U: Dict[str, Any], P) -> Tuple[Dict[str, Any], pandas.DataFrame]:
     # %% optical flow magnitude plot
 
     if (figure is not None and
@@ -207,11 +211,7 @@ def setupfigs(finf, fn, U, P):
 
 #    draw(); pause(0.001) #catch any plot bugs
 
-    U['iofm'] = hiom
-    U['pmean'] = hpmn
-    U['pmed'] = hpmd
-    U['pdet'] = hpdt
-    U['fdet'] = fgdt
+    U.update({'iofm': hiom, 'pmean': hpmn, 'pmed': hpmd, 'pdet': hpdt, 'fdet': fgdt})
 
     return U, stat
 

@@ -3,7 +3,7 @@ from numpy import arange
 from pandas import DataFrame
 import h5py
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Sequence
 import logging
 #
 from .getpassivefm import getfmradarframe
@@ -20,10 +20,17 @@ try:
 except ImportError:
     spoolparam = None
 
+try:
+    import imageio
+except ImportError:
+    imageio = None
+
 SPOOLINI = 'acquisitionmetadata.ini'  # for Solis spool files
 
 
-def getvidinfo(fn: Path, P, U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def getvidinfo(files: Sequence[Path],
+               P,
+               U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
     def _spoolcase(fn, P, U, f0):
         if spoolparam is None:
@@ -54,10 +61,9 @@ def getvidinfo(fn: Path, P, U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str
                   f'maxBlob={P["blob"]["maxblobarea"]}'
                   f'maxNblob={P["blob"]["maxblobcount"]}')
 
-    try:  # for spool case
-        fn = fn[0]
-    except TypeError:
-        pass
+    if isinstance(files, Path):
+        files = [files]
+    fn = files[0]
 
     if fn.suffix.lower() == '.dmcdata':  # HIST
         if getDMCparam is None:
@@ -135,16 +141,16 @@ def getvidinfo(fn: Path, P, U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str
 
         finf['frameind'] = arange(finf['nframe'], dtype=int)
 
-# %% extract analysis parameters
-    A = {'twoframe': P.getboolean('main', 'twoframe'),
-         'ofmethod': P.get('main', 'ofmethod').lower(),
-         #          'rawframeind': empty(finf['nframe'], int),
-         'rawlim': [P.getfloat('main', 'cmin'),  # list not tuple for auto
-                    P.getfloat('main', 'cmax')],
-         'xpix': finf['superx'], 'ypix': finf['supery'],
-         'thresmode': P.get('filter', 'thresholdmode').lower()}
+        U['h_read'] = imageio.get_reader(f'imageio:{fn}')
 
-    U.update(A)
+# %% extract analysis parameters
+    U.update({'twoframe': P.getboolean('main', 'twoframe'),
+              'ofmethod': P.get('main', 'ofmethod').lower(),
+              #          'rawframeind': empty(finf['nframe'], int),
+              'rawlim': [P.getfloat('main', 'cmin'),  # list not tuple for auto
+                         P.getfloat('main', 'cmax')],
+              'xpix': finf['superx'], 'ypix': finf['supery'],
+              'thresmode': P.get('filter', 'thresholdmode').lower()})
 
     return finf, U
 

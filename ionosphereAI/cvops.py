@@ -21,22 +21,22 @@ except ImportError:
 # from matplotlib.pyplot import draw,pause #for debug plot
 
 
-def dooptflow(Inew: np.ndarray,
-              Iref: np.ndarray,
+def dooptflow(frame: np.ndarray,
               lastflow: np.ndarray,
               jfrm: int,
               up: Dict[str, Any],
-              P,
               stat: pandas.DataFrame) -> Tuple[np.ndarray, np.ndarray, pandas.DataFrame]:
 
-    assert Inew.ndim == Iref.ndim == 2, 'these are 2-D data'
-    assert lastflow.shape[:2] == Inew.shape == Iref.shape, 'these are image-like data'
+    assert frame.shape[0] == 2 and frame.ndim == 3, 'stack of 2 images: twoframe=Truue'
+    assert lastflow.shape[:2] == frame.shape[1:], 'these are image-like data'
     assert lastflow.ndim == 3 and lastflow.shape[2] == 2, 'u, v motion data'
 
     if up['ofmethod'] == 'hs':
         if HornSchunck is None:
             raise ImportError('pip install pyotflow')
-        u, v = HornSchunck(Iref, Inew, P.getfloat('main', 'hssmooth'), P.getint('main', 'hsiter'))
+        u, v = HornSchunck(frame[1, :, :], frame[0, :, :],
+                           up['hs_smooth'],
+                           up['hs_iter'])
         flow = np.dstack((u, v))  # this is how OpenCV expects it.
     elif up['ofmethod'] == 'farneback':
         """
@@ -44,7 +44,7 @@ def dooptflow(Inew: np.ndarray,
 
         flow.shape == (x,y,2) (last dimension is u, v flow estimate)
         """
-        flow = cv2.calcOpticalFlowFarneback(Iref, Inew,
+        flow = cv2.calcOpticalFlowFarneback(frame[1, :, :], frame[0, :, :],
                                             flow=lastflow,  # need flow= for opencv2/3 compatibility
                                             pyr_scale=0.5,
                                             levels=1,
@@ -66,13 +66,13 @@ def dooptflow(Inew: np.ndarray,
     maybe this can be done more elegantly, maybe via pad or take?
     http://stackoverflow.com/questions/13525266/multiple-slice-in-list-indexing-for-numpy-array
     '''
-    te = P.getint('filter', 'trimedgeof')
+    te = up['flow_trimedge']
     flow[:te, ...] = 0.
     flow[-te:, ...] = 0.
     flow[:, :te, :] = 0.
     flow[:, -te:, :] = 0.
 # %% compute median and magnitude
-    ofmag = np.hypot(flow[..., 0], flow[..., 1])
+    ofmag = np.hypot(flow[:, :, 0], flow[:, :, 1])
     stat['median'].iat[jfrm] = np.median(ofmag)  # we don't know if it will be index or ut1 in index
     stat['mean'].iat[jfrm] = ofmag.mean()
     stat['variance'].iat[jfrm] = np.var(ofmag)
@@ -90,7 +90,7 @@ def dooptflow(Inew: np.ndarray,
     if 'flowvec' in up['pshow']:
         if draw_flow is None or cv2 is None:
             raise ImportError('pip install morecvutils')
-        cv2.imshow('flow vectors', draw_flow(Inew, flow))
+        cv2.imshow('flow vectors', draw_flow(frame[0, :, :], flow))
     if 'flowhsv' in up['pshow']:
         if flow2magang is None or draw_hsv is None or cv2 is None:
             raise ImportError('pip install morecvutils')

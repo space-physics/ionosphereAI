@@ -2,7 +2,7 @@ import logging
 import cv2
 import h5py
 import numpy as np
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Sequence
 from pathlib import Path
 from scipy.signal import wiener
 from .getpassivefm import getfmradarframe
@@ -16,7 +16,7 @@ except (ImportError, RuntimeError):
 
 
 try:
-    import tifffile  # tifffile is excruciatingly slow on each file access
+    import imageio  # tifffile is excruciatingly slow on each file access
 except ImportError:
     pass
 
@@ -29,6 +29,11 @@ try:
     from histutils.rawDMCreader import getDMCframe
 except ImportError:
     getDMCframe = None
+
+try:
+    from astropy.io import fits
+except ImportError:
+    fits = None
 
 
 def setscale(fn: Path,
@@ -66,7 +71,7 @@ def setscale(fn: Path,
 
 
 def samplepercentile(fn: Path,
-                     pct: int,
+                     pct: float,
                      up: Dict[str, Any],
                      finf: Dict[str, Any]) -> np.ndarray:
     """
@@ -78,12 +83,12 @@ def samplepercentile(fn: Path,
 
     dat = np.empty((isamp.size, finf['supery'], finf['superx']), float)
 
-    tmp = getraw(fn, 0, finf, up)[3]
+    tmp = getraw(fn, ifrm=0, finf=finf, up=up)[0]
     if tmp.dtype.itemsize < 2:
         logging.warning(f'{fn}: usually we use autoscale with 16-bit video, not 8-bit.')
 
     for j, i in enumerate(isamp):
-        dat[j, ...] = getraw(fn, i, finf, up)[3]
+        dat[j, ...] = getraw(fn, ifrm=i, finf=finf, up=up)[0]
 
     return np.percentile(dat, pct).astype(int)
 
@@ -92,142 +97,182 @@ def getraw(fn: Any,
            ifrm: int,
            finf: Dict[str, Any],
            up: Dict[str, Any],
-           svh: Dict[str, Any],
-           P, *,
-           ifits: int = None) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any], np.ndarray]:
+           svh: Dict[str, Any] = {}, *,
+           ifits: int = None) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     this function reads the reference frame too--which makes sense if you're
        only reading every Nth frame from the multi-TB file instead of every frame
     """
-    if (not isinstance(up['rawlim'][0], (float, int)) or not isinstance(up['rawlim'][1], (float, int))):
+    if (not isinstance(up['rawlim'][0], (float, int)) or
+            not isinstance(up['rawlim'][1], (float, int))):
         logging.warning(f'{fn}: not specifying fixed contrast will lead to very bad automatic detection results')
-
-    frameref = None  # for non-twoframe case
-    dowiener = P.getint('filter', 'wienernhood', fallback=None)
 # %% reference frame
     if finf['reader'] == 'raw':
-        if getDMCframe is None:
-            raise ImportError('pip install histutils')
-        with fn.open('rb') as f:
-            if up['twoframe']:
-                frameref = getDMCframe(f, ifrm, finf)[0]
-            frame16, rfi = getDMCframe(f, ifrm+1, finf)
-
+        frame = read_dmc(fn, ifrm, up['twoframe'], finf)
     elif finf['reader'] == 'spool':
-        """
-        Here we choose to read only the first frame pair from each spool file,
-        as each spool file is generally less than about 10 frames.
-        To skip further in time, skip more files.
-        """
-        # rfi = ifrm
-        iread = (ifrm, ifrm+1) if up['twoframe'] else ifrm+1
-
-        frames, ticks, tsec = readNeoSpool(fn, finf, iread, zerocols=P.getint('main', 'zerocols', fallback=0))
-        if up['twoframe']:
-            frameref = frames[0, ...]
-            frame16 = frames[1, ...]
-        else:
-            frame16 = frames[0, ...]
+        frame = read_spool(fn, ifrm, up['twoframe'], finf, up.get('zerocols', 0))
     elif finf['reader'] == 'cv2':
-        if up['twoframe']:
-            retval, frameref = fn.read()
-            # TODO best to open cv2.VideoReader in calling function as CV_CAP_PROP_POS_FRAMES
-            # is said not to always work vis keyframes
-            if not retval:
-                if ifrm == 0:
-                    logging.error('could not read video file, sorry')
-                print('done reading video.')
-                return None, None, up
-            if frameref.ndim > 2:
-                frameref = cv2.cvtColor(frameref, cv2.COLOR_RGB2GRAY)
-
-        retval, frame16 = fn.read()  # TODO this is skipping every other frame!
-        # TODO can we use dfid.set(cv.CV_CAP_PROP_POS_FRAMES,ifrm) to set 0-based index of next frame?
-        # rfi = ifrm
-        if not retval:
-            raise IOError(f'could not read video from {fn}')
-
-        if frame16.ndim > 2:
-            framegray = cv2.cvtColor(frame16, cv2.COLOR_RGB2GRAY)
-        else:
-            framegray = frame16  # copy NOT needed
-    elif finf['reader'] == 'h5fm':  # one frame per file
-        if up['twoframe']:
-            frameref = getfmradarframe(fn[ifrm])[2]
-        frame16 = getfmradarframe(fn[ifrm+1])[2]
-        # rfi = ifrm
+        frame = read_cv2(up['h_read'], up['twoframe'])
+    elif finf['reader'] == 'h5fm':
+        frame = read_h5fm(fn, ifrm, up['twoframe'])
     elif finf['reader'] == 'h5vid':
-        with h5py.File(fn, 'r') as f:
-            if up['twoframe']:
-                frameref = f['/rawimg'][ifrm, ...]
-            frame16 = f['/rawimg'][ifrm+1, ...]
-        # rfi = ifrm
+        frame = read_hdf(fn, ifrm, up['twoframe'])
     elif finf['reader'] == 'fits':
-        from astropy.io import fits
-        # memmap = False required thru Astropy 1.3.2 due to BZERO used...
-        with fits.open(fn, mode='readonly', memmap=False) as f:
-            # with fitsio.FITS(str(fn),'r') as f:
-            """
-            ifits not ifrm for fits!
-            """
-            if up['twoframe']:  # int(int64) ~ 175 ns
-                frameref = f[0][int(ifits), :, :].squeeze()  # no ellipses for fitsio
-            frame16 = f[0][int(ifits+1), :, :].squeeze()
-        # rfi = ifrm  # TODO: incorrect raw index with sequence of fits files
+        frame = read_fits(fn, ifits, up['twoframe'])  # ifits not ifrm
     elif finf['reader'] == 'tiff':
-        if 'htiff' not in up:  # first read
-            print('first open', fn)
-            up['htiff'] = tifffile.TiffFile(str(fn))
-        elif up['htiff'].filename != fn.name:
-            print('opening', fn)
-            up['htiff'].close()
-            up['htiff'] = tifffile.TiffFile(str(fn))
-        # f= libtiff.TIFF3D.open(str(fn)) # ctypes.ArgumentError: argument 1: <class 'TypeError'>: wrong type
-        if up['twoframe']:
-            frameref = up['htiff'][ifrm].asarray()
-        frame16 = up['htiff'][ifrm+1].asarray()
-
-        # rfi = ifrm
+        frame = read_tiff(fn, ifrm, up['twoframe'])
     else:
         raise TypeError(f'unknown reader type {finf["reader"]}')
 # %% current frame
 #    if 'rawframeind' in up:
 #        up['rawframeind'][ifrm] = rfi
 
-    if dowiener:
-        if up['twoframe']:
-            frameref = wiener(frameref, dowiener)
-        framegray = wiener(frame16, dowiener)
+    if up.get('wienernhood') and up['twoframe']:
+        frame = wiener(frame, up['wienernhood'])
 
+    # image histograms (to help verify proper scaling to uint8)
+    if 'hist' in up.get('pshow', []):
+        ax = figure().gca()
+        hist(frame.flatten(), bins=128, fc='w', ec='k', log=True)
+        ax.set_title('raw uint16 values')
+
+# %% scale to 8bit
     if finf['reader'] != 'cv2':
-        if up['twoframe']:
-            frameref = sixteen2eight(frameref, up['rawlim'])
-        framegray = sixteen2eight(frame16, up['rawlim'])
-        # frameref  = bytescale(frameref, up['rawlim'][0], up['rawlim'][1])
-        # framegray = bytescale(frame16, up['rawlim'][0], up['rawlim'][1])
+        frame = sixteen2eight(frame, up['rawlim'])
+
+    if 'hist' in up.get('pshow', []):
+        ax = figure().gca()
+        hist(frame[0, :, :].flatten(), bins=128, fc='w', ec='k', log=True)
+        ax.set_xlim((0, 255))
+        ax.set_title('normalized video into opt flow')
 
     if 'raw' in up.get('pshow', []):
         # cv2.imshow just divides by 256, NOT autoscaled!
         # http://docs.opencv.org/modules/highgui/doc/user_interface.html
-        cv2.imshow('video', framegray)
+        cv2.imshow('video', frame[0, :, :])
 # %% plotting
     if 'rawscaled' in up.get('pshow', []):
-        cv2.imshow('raw video, scaled to 8-bit', framegray)
-    # image histograms (to help verify proper scaling to uint8)
-    if 'hist' in up.get('pshow', []):
-        ax = figure().gca()
-        hist(frame16.flatten(), bins=128, fc='w', ec='k', log=True)
-        ax.set_title('raw uint16 values')
-
-        ax = figure().gca()
-        hist(framegray.flatten(), bins=128, fc='w', ec='k', log=True)
-        ax.set_xlim((0, 255))
-        ax.set_title('normalized video into opt flow')
+        cv2.imshow('raw video, scaled to 8-bit', frame[0, :, :])
 
     if svh.get('video'):
         if up['savevideo'] == 'tif':
-            svh['video'].save(framegray, compress=up['complvl'])
+            svh['video'].save(frame[0, :, :], compress=up['complvl'])
         elif up['savevideo'] == 'vid':
-            svh['video'].write(framegray)
+            svh['video'].write(frame[0, :, :])
 
-    return framegray, frameref, up, frame16
+    return frame, up
+
+
+def read_dmc(fn: Path, ifrm: int, twoframe: bool, finf: Dict[str, Any]) -> np.ndarray:
+    if getDMCframe is None:
+        raise ImportError('pip install histutils')
+
+    if twoframe:
+        frame0 = getDMCframe(fn, ifrm, finf)[0]
+    frame, iraw = getDMCframe(fn, ifrm+1, finf)
+
+    if twoframe:
+        frame = np.dstack((frame0, frame))
+
+    return frame
+
+
+def read_fits(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
+    """
+    ifits not ifrm for fits!
+    """
+    if fits is None:
+        raise ImportError('Need Astropy for FITS')
+    # memmap = False required thru at least Astropy 1.3.2 due to BZERO used...
+    with fits.open(fn, mode='readonly', memmap=False) as f:
+        if twoframe:
+            frame = f[0][ifrm:ifrm+2, :, :]
+        else:
+            frame = f[0][ifrm+1, :, :]
+
+    return frame
+
+
+def read_h5fm(files: Sequence[Path], ifrm: int, twoframe: bool) -> np.ndarray:
+    """
+      one frame per file
+    """
+    if twoframe:
+        frame0 = getfmradarframe(files[ifrm])[2]
+    frame = getfmradarframe(files[ifrm+1])[2]
+
+    if twoframe:
+        frame = np.dstack((frame0, frame))
+
+    return frame
+
+
+def read_hdf(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
+
+    with h5py.File(fn, 'r') as f:
+        if twoframe:
+            frame = f['/rawimg'][ifrm:ifrm+2, ...]
+        else:
+            frame = f['/rawimg'][ifrm+1, ...]
+
+    return frame
+
+
+def read_spool(fn: Path, ifrm: int, twoframe: bool,
+               finf: Dict[str, Any], zerocols: int) -> np.ndarray:
+    """
+    Read only the first frame pair from each spool file,
+    as each spool file is generally less than about 10 frames.
+    To skip further in time, skip more files.
+    """
+    iread = (ifrm, ifrm+1) if twoframe else ifrm+1
+
+    frames, ticks, tsec = readNeoSpool(fn, finf, iread, zerocols=zerocols)
+
+    if twoframe:
+        frame = frames[:2, :, :]
+    else:
+        frame = frames[0, :, :]
+
+    return frame
+
+
+def read_cv2(h, twoframe: bool) -> np.ndarray:
+    """
+    uses ImageIO to read video and cv2 to scale--could use non-cv2 method to scale.
+
+    h is handle from imageio.get_reader()
+    """
+    if twoframe:
+        frame0 = h.read()
+
+        if frame0.ndim > 2:
+            frame0 = cv2.cvtColor(frame0, cv2.COLOR_RGB2GRAY)
+
+    frame16 = h.read()  # NOTE: this is skipping every other frame
+
+    if frame16.ndim > 2:
+        frame = cv2.cvtColor(frame16, cv2.COLOR_RGB2GRAY)
+    else:
+        frame = frame16  # copy NOT needed
+
+    if twoframe:
+        frame = np.dstack((frame0, frame))
+
+    return frame
+
+
+def read_tiff(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
+    """
+    TODO: do we pass in ifrm or do we open a handle like read_cv2
+    """
+
+    if twoframe:
+        frame0 = imageio.imread(fn, ifrm)
+
+    frame = imageio.imread(fn, ifrm+1)
+
+    if twoframe:
+        frame = np.dstack((frame0, frame))
+
+    return frame
