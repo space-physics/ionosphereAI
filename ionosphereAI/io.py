@@ -10,22 +10,26 @@ from .getpassivefm import getfmradarframe
 
 try:
     from morecvutils.getaviprop import getaviprop
-except ImportError:
+except ImportError as e:
+    logging.debug(e)
     getaviprop = None
 try:
     from histutils.rawDMCreader import getDMCparam
-    from histutils.io import getNeoParam
-except ImportError:
+    from histutils.solis import getNeoParam
+except ImportError as e:
+    logging.debug(e)
     getDMCparam = getNeoParam = None
 
 try:
     from dmcutils.neospool import spoolparam
-except ImportError:
+except ImportError as e:
+    logging.debug(e)
     spoolparam = None
 
 try:
     import imageio
-except ImportError:
+except ImportError as e:
+    logging.debug(e)
     imageio = None
 
 SPOOLINI = 'acquisitionmetadata.ini'  # for Solis spool files
