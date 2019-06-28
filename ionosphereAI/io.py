@@ -77,6 +77,15 @@ def getvidinfo(files: Sequence[Path],
             raise ImportError('pip install histutils')
         U['xy_pixel'] = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
         U['xy_bin'] = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
+        U['header_bytes'] = P.getint('main', 'header_bytes')
+
+        if U['startstop'] is None:
+            U['frame_request'] = U['framestep']
+        elif len(U['startstop']) == 2:
+            U['frame_request'] = (U['startstop'][0], U['startstop'][1], U['framestep'])
+        else:
+            raise ValueError('unknown start, stop, step frame request')
+
         if U['startstop'] is None:
             finf = getDMCparam(fn, U)
         elif len(U['startstop']) == 2:
@@ -144,8 +153,8 @@ def getvidinfo(files: Sequence[Path],
 
         vidparam = getaviprop(fn)
         finf['nframe'] = vidparam['nframe']
-        finf['superx'] = vidparam['xpix']
-        finf['supery'] = vidparam['ypix']
+        finf['super_x'] = vidparam['xpix']
+        finf['super_y'] = vidparam['ypix']
 
         finf['frameind'] = arange(finf['nframe'], dtype=int)
 
@@ -157,7 +166,8 @@ def getvidinfo(files: Sequence[Path],
               #          'rawframeind': empty(finf['nframe'], int),
               'rawlim': [P.getfloat('main', 'cmin'),  # list not tuple for auto
                          P.getfloat('main', 'cmax')],
-              'xpix': finf['superx'], 'ypix': finf['supery'],
+              'super_x': finf['super_x'],
+              'super_y': finf['super_y'],
               'thresmode': P.get('filter', 'thresholdmode').lower()})
 
     return finf, U

@@ -44,8 +44,8 @@ def setupkern(P, up):
 
 def svsetup(P, up: Dict[str, Any]) -> Dict[str, Any]:
     savevideo = up['savevideo']
-    x = up['xpix']
-    y = up['ypix']
+    x = up['super_x']
+    y = up['super_y']
     pshow = up['pshow']
 
     dowiener = P.get('filter', 'wienernhood')
@@ -121,7 +121,7 @@ def svsetup(P, up: Dict[str, Any]) -> Dict[str, Any]:
     return svh
 
 
-def svrelease(svh, savevideo):
+def svrelease(svh, savevideo: str):
     try:
         if savevideo == 'tif':
             for k, v in svh.items():
@@ -134,19 +134,18 @@ def svrelease(svh, savevideo):
                 except AttributeError:
                     pass
     except Exception as e:
-        print(e)
+        logging.error(e)
 
 
-def setupof(U: Dict[str, Any], P) -> Tuple[np.ndarray, Any]:
-    xpix = U['xpix']
-    ypix = U['ypix']
+def setupof(U: Dict[str, Any],
+            P) -> Tuple[np.ndarray, Any]:
 
     gmm = None
     lastflow = None  # if it stays None, signals to use GMM
     if U['ofmethod'] == 'hs':
         pass
     elif U['ofmethod'] == 'farneback':
-        lastflow = np.zeros((ypix, xpix, 2))
+        lastflow = np.zeros((U['super_y'], U['super_x'], 2))
 # %% GMM
     elif U['ofmethod'] == 'mog':
         if cv2 is None:
