@@ -21,8 +21,8 @@ import numpy as np
 from scipy.ndimage import zoom
 
 from .utils import saturation_check
-from .io import getparam, getvidinfo, keyhandler, savestat
-from .reader import getraw, setscale
+from .io import get_sensor_config, get_file_info, keyhandler, savestat
+from .reader import get_frames, setscale
 from .cvops import dooptflow, dothres, dodespeck, domorph, doblob
 from .cvsetup import setupkern, svsetup, svrelease, setupof, setupfigs, statplot
 from .connectedComponents import setupblob
@@ -45,7 +45,7 @@ except ImportError:
 
 def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
 
-    P = getparam(U['paramfn'])  # ConfigParser object
+    P = get_sensor_config(U['paramfn'])  # ConfigParser object
 
     # note, if a specific file is given, vidext is ignored
     idir = Path(U['indir']).expanduser()
@@ -65,6 +65,20 @@ def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
     U['hs_smooth'] = P.getfloat('main', 'hssmooth', fallback=None)
     U['hs_iter'] = P.getint('main', 'hsiter', fallback=None)
     U['flow_trimedge'] = P.getint('filter', 'trimedgeof')
+    U['minblobarea'] = P.getint('blob', 'minblobarea')
+    U['maxblobarea'] = P.getint('blob', 'maxblobarea')
+    U['minblobdist'] = P.getint('blob', 'minblobdist')
+    U['xy_pixel'] = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
+    U['xy_bin'] = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
+    U['header_bytes'] = P.getint('main', 'header_bytes')
+    U['twoframe'] = P.getboolean('main', 'twoframe')
+    U['ofmethod'] = P.get('main', 'ofmethod').lower()
+    U['rawlim'] = [P.getfloat('main', 'cmin'), P.getfloat('main', 'cmax')]
+    U['thresmode'] = P.get('filter', 'thresholdmode').lower()
+    U['gmm_nhistory'] = P.getint('gmm', 'nhistory', fallback=None)
+    U['gmm_varthreshold'] = P.getfloat('gmm', 'varThreshold', fallback=None)
+    U['gmm_nmixtures'] = P.getint('gmm', 'nmixtures', fallback=None)
+    U['gmm_compresthres'] = P.getfloat('gmm', 'CompResThres', fallback=None)
 
     logging.info(f'found {U["nfile"]} files: {U["indir"]}')
 
@@ -102,9 +116,11 @@ def loopaurorafiles(U: Dict[str, Any]) -> pandas.DataFrame:
     return aurstat
 
 
-def procfiles(file: Path, P: ConfigParser, up: Dict[str, Any]) -> pandas.DataFrame:
+def procfiles(file: Path,
+              P: ConfigParser,
+              up: Dict[str, Any]) -> pandas.DataFrame:
 
-    finf, up = getvidinfo(file, P, up)   # type: ignore
+    finf = get_file_info(file, up)   # type: ignore
 
     if finf['nframe'] < 100 and finf['reader'] != 'spool':
         logging.warning(f'SKIPPING {file} with only {finf["nframe"]} frames')
@@ -131,13 +147,11 @@ def procaurora(file: Path,
     if finf is None:
         return
 # %% setup optional video/tiff writing (mainly for debugging or publication)
-    svh = svsetup(P, U)
+    svh = svsetup(P, U, finf)
 # %% setup blob
-    blobdetect = setupblob(P.getint('blob', 'minblobarea'),
-                           P.getint('blob', 'maxblobarea'),
-                           P.getint('blob', 'minblobdist'))
+    blobdetect = setupblob(U['minblobarea'], U['maxblobarea'], U['minblobdist'])
 # %% cv opt. flow matrix setup
-    lastflow, gmm = setupof(U, P)
+    lastflow, gmm = setupof(U, finf)
 # %% kernel setup
     U = setupkern(P, U)
 # %% mag plots setup
@@ -156,7 +170,7 @@ def procaurora(file: Path,
     if finf['reader'] == 'spool':
         if setupimgh5 is None:
             raise ImportError('pip install histutils')
-        zy, zx = zoom(getraw(finf['path']/flist[0], ifrm=0, finf=finf, up=U, svh=svh)[0][0, :, :], 0.1, order=0).shape
+        zy, zx = zoom(get_frames(finf['path']/flist[0], ifrm=0, finf=finf, up=U, svh=svh)[0, :, :], 0.1, order=0).shape
         # zy,zx=(64,64)
         setupimgh5(U['detfn'], np.ceil(N.size/U['previewdecim'])+1, zy, zx,
                    np.uint16, writemode='w', key='/preview', cmdlog=U['cmd'])
@@ -168,7 +182,7 @@ def procaurora(file: Path,
             iraw = 0
         # print(f,i,iraw)
 # %% load and filter
-        frame, U = getraw(file, ifrm=iraw, finf=finf, up=U, svh=svh, ifits=iraw-N[0])
+        frame = get_frames(file, ifrm=iraw, finf=finf, up=U, svh=svh, ifits=iraw-N[0])
 # %% compute optical flow or Background/Foreground
         if gmm is None:
             flow, mag, stat = dooptflow(frame, lastflow, jfrm=i, up=U, stat=stat)
@@ -194,7 +208,7 @@ def procaurora(file: Path,
         if not i % U['previewdecim']:
             j += 1
             if finf['reader'] == 'spool':
-                with h5py.File(U['detfn'], 'r+', libver='latest') as f5:
+                with h5py.File(U['detfn'], 'r+') as f5:
                     # ipy = slice(finf['supery']//2-zy//2,finf['supery']//2+zy//2)
                     # ipx = slice(finf['superx']//2-zx//2,finf['superx']//2+zx//2)
                     # preview = frame16[ipy,ipx].astype(np.uint16)
@@ -206,7 +220,7 @@ def procaurora(file: Path,
                     f5['/preview'][j, ...] = preview
 
 
-#                with h5py.File(U['detfn'], 'r', libver='latest') as f5:
+#                with h5py.File(U['detfn'], 'r') as f5:
 #                    assert (f5['/preview'][j,...] == preview).all(),'preview failure to store'
 #                    assert not (f5['/preview'][j,...] == 0).all(),'preview all 0 frame'
 

@@ -1,7 +1,7 @@
 import logging
 import h5py
 import numpy as np
-from typing import Dict, Any, Tuple, Sequence
+from typing import Dict, Any, Sequence
 from pathlib import Path
 from scipy.signal import wiener
 from .getpassivefm import getfmradarframe
@@ -93,46 +93,45 @@ def samplepercentile(fn: Path,
 
     dat = np.empty((isamp.size, finf['supery'], finf['superx']), float)
 
-    tmp = getraw(fn, ifrm=0, finf=finf, up=up)[0]
+    tmp = get_frames(fn, ifrm=0, finf=finf, up=up)
     if tmp.dtype.itemsize < 2:
         logging.warning(f'{fn}: usually we use autoscale with 16-bit video, not 8-bit.')
 
     for j, i in enumerate(isamp):
-        dat[j, ...] = getraw(fn, ifrm=i, finf=finf, up=up)[0]
+        dat[j, ...] = get_frames(fn, ifrm=i, finf=finf, up=up)
 
     return np.percentile(dat, pct).astype(int)
 
 
-def getraw(fn: Any,
-           ifrm: int,
-           finf: Dict[str, Any],
-           up: Dict[str, Any],
-           svh: Dict[str, Any] = {}, *,
-           ifits: int = None) -> Tuple[np.ndarray, Dict[str, Any]]:
+def get_frames(fn: Any,
+               ifrm: int,
+               finf: Dict[str, Any],
+               up: Dict[str, Any],
+               svh: Dict[str, Any] = {}, *,
+               ifits: int = None) -> np.ndarray:
     """
     this function reads the reference frame too--which makes sense if you're
        only reading every Nth frame from the multi-TB file instead of every frame
     """
-    if (not isinstance(up['rawlim'][0], (float, int)) or
-            not isinstance(up['rawlim'][1], (float, int))):
-        logging.warning(f'{fn}: not specifying fixed contrast will lead to very bad automatic detection results')
 # %% reference frame
-    if finf['reader'] == 'raw':
+    reader = finf.get('reader')
+
+    if reader == 'raw':
         frame = read_dmc(fn, ifrm, up['twoframe'], finf)
-    elif finf['reader'] == 'spool':
+    elif reader == 'spool':
         frame = read_spool(fn, ifrm, up['twoframe'], finf, up.get('zerocols', 0))
-    elif finf['reader'] == 'cv2':
-        frame = read_cv2(up['h_read'], up['twoframe'])
-    elif finf['reader'] == 'h5fm':
-        frame = read_h5fm(fn, ifrm, up['twoframe'])
-    elif finf['reader'] == 'h5vid':
+    elif reader == 'h5vid':
         frame = read_hdf(fn, ifrm, up['twoframe'])
-    elif finf['reader'] == 'fits':
+    elif reader == 'h5fm':
+        frame = read_h5fm(fn, ifrm, up['twoframe'])
+    elif reader == 'fits':
         frame = read_fits(fn, ifits, up['twoframe'])  # ifits not ifrm
-    elif finf['reader'] == 'tiff':
+    elif reader == 'tiff':
         frame = read_tiff(fn, ifrm, up['twoframe'])
+    elif reader == 'cv2':
+        frame = read_cv2(finf['h_read'], up['twoframe'])
     else:
-        raise TypeError(f'unknown reader type {finf["reader"]}')
+        frame = read_cv2(finf['h_read'], up['twoframe'])
 # %% current frame
 #    if 'rawframeind' in up:
 #        up['rawframeind'][ifrm] = rfi
@@ -147,7 +146,7 @@ def getraw(fn: Any,
         ax.set_title('raw uint16 values')
 
 # %% scale to 8bit
-    if finf['reader'] != 'cv2':
+    if reader != 'cv2' and up.get('rawlim'):
         frame = sixteen2eight(frame, up['rawlim'])
 
     if 'hist' in up.get('pshow', []):
@@ -170,7 +169,7 @@ def getraw(fn: Any,
         elif up['savevideo'] == 'vid':
             svh['video'].write(frame[0, :, :])
 
-    return frame, up
+    return frame
 
 
 def read_dmc(fn: Path, ifrm: int, twoframe: bool, finf: Dict[str, Any]) -> np.ndarray:

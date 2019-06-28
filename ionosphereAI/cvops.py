@@ -57,7 +57,7 @@ def dooptflow(frame: np.ndarray,
         return ([], [], {})
 # %% Normalize [0, 1]
     """
-    in reader.py:getraw() we scale to uint8 for OpenCV.
+    in reader.py:get_frames() we scale to uint8 for OpenCV.
     FIXME is this necessary for anything besides cv2.imshow() ?
     """
     flow /= 255.

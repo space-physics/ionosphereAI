@@ -10,7 +10,7 @@ Read Haystack Passive FM radar frame, one frame per file
 
 
 def getfmradarframe(fn):
-    with h5py.File(fn, 'r', libver='latest') as f:
+    with h5py.File(fn, 'r') as f:
         # transpose makes it Fortran order, which cv2.cv.fromarray doesn't like
         ambiguity = ascontiguousarray(f['/ambiguity/ambiguity'][:].T)
         range_km = f['/ambiguity/range_axis'][:]/1e3

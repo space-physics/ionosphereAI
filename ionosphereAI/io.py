@@ -3,7 +3,7 @@ from numpy import arange
 from pandas import DataFrame
 import h5py
 from pathlib import Path
-from typing import Dict, Any, Tuple, Sequence
+from typing import Dict, Any, Sequence
 import logging
 #
 from .getpassivefm import getfmradarframe
@@ -35,50 +35,18 @@ except ImportError as e:
 SPOOLINI = 'acquisitionmetadata.ini'  # for Solis spool files
 
 
-def getvidinfo(files: Sequence[Path],
-               P,
-               U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def get_file_info(files: Sequence[Path],
+                  U: Dict[str, Any]) -> Dict[str, Any]:
 
-    def _spoolcase(fn, P, U, f0):
-        if spoolparam is None:
-            raise ImportError('pip install dmcutils')
-
-        finf = spoolparam(fn.parent/SPOOLINI,
-                          P.getint('main', 'xpix', fallback=None), P.getint('main', 'ypix', fallback=None),
-                          P.getint('main', 'stride', fallback=0))
-        finf = {**finf, **f0}
-
-        print('using spool file, config', fn.parent/SPOOLINI)
-        finf['reader'] = 'spool'
-        finf['nframe'] = U['nfile']  # first frame pair of each spool file
-
-        # FIXME should we make this general to all file types?
-        if U['nfile'] > 1 and finf['nframe'] > 10 * U['framestep']:
-            finf['frameind'] = arange(0, finf['nframe'], U['framestep'], dtype=int)
-        else:  # revert to all frames because there aren't many, rather than annoying with zero result
-            finf['frameind'] = arange(finf['nframe'], dtype=int)
-        finf['kinetic'] = None  # FIXME blank for now
-
-        finf['path'] = fn.parent
-
-        return finf
-
-    # print('using {} for {}'.format(P['main']['ofmethod'],fn))
-    logging.debug(f'minBlob={P["blob"]["minblobarea"]}'
-                  f'maxBlob={P["blob"]["maxblobarea"]}'
-                  f'maxNblob={P["blob"]["maxblobcount"]}')
-
+    # keeping type hints consistent
     if isinstance(files, Path):
         files = [files]
     fn = files[0]
 
     if fn.suffix.lower() == '.dmcdata':  # HIST
-        U['xy_pixel'] = (P.getint('main', 'xpix'), P.getint('main', 'ypix'))
-        U['xy_bin'] = (P.getint('main', 'xbin'), P.getint('main', 'ybin'))
-        U['header_bytes'] = P.getint('main', 'header_bytes')
-        finf, U = read_dmc(fn, U)
+        finf = read_dmc(fn, U)
     elif fn.suffix.lower() == '.dat':  # Andor Solis spool file
-        finf = _spoolcase(fn, P, U, {})
+        finf = read_spool(fn, U, {})
     elif fn.suffix.lower() in ('.h5', '.hdf5'):
         finf = {}
         try:  # can't read inside context
@@ -88,8 +56,7 @@ def getvidinfo(files: Sequence[Path],
             if U['startstop'] is not None:
                 finf['flist'] = finf['flist'][U['startstop'][0]:U['startstop'][1]]
 
-            U['nfile'] = len(finf['flist'])
-            logging.info(f'taking {U["nfile"]} files from index {fn}')
+            logging.info(f'taking {len( finf["flist"])} files from index {fn}')
         except KeyError:
             pass
 # %% determine if optical or passive radar
@@ -108,7 +75,7 @@ def getvidinfo(files: Sequence[Path],
                 finf['supery'] = vel_mps.size
                 # print('HDF5 passive FM radar file detected {}'.format(fn))
             elif 'ticks' in f:  # Andor Solis spool file index from dmcutils/Filetick.py
-                finf = _spoolcase(fn, P, U, finf)
+                finf = read_spool(fn, U, finf)
                 finf['path'] = fn.parent
             else:
                 raise ValueError(f'{fn}: unknown input HDF5 file type')
@@ -126,62 +93,85 @@ def getvidinfo(files: Sequence[Path],
         finf = getNeoParam(fn, U['framestep'])
         finf['reader'] = 'tiff'
     else:  # assume video file
-        if getaviprop is None:
-            raise ImportError('pip install morecvutils')
-        # TODO start,stop,step is not yet implemented, simply uses every other frame
-        logging.info(f'attempting to read {fn} with OpenCV.')
-        finf = {'reader': 'cv2'}
+        finf = read_cv2(fn)
 
-        vidparam = getaviprop(fn)
-        finf['nframe'] = vidparam['nframe']
-        finf['super_x'] = vidparam['xpix']
-        finf['super_y'] = vidparam['ypix']
-
-        finf['frameind'] = arange(finf['nframe'], dtype=int)
-
-        U['h_read'] = imageio.get_reader(f'imageio:{fn}')
-
-# %% extract analysis parameters
-    U.update({'twoframe': P.getboolean('main', 'twoframe'),
-              'ofmethod': P.get('main', 'ofmethod').lower(),
-              #          'rawframeind': empty(finf['nframe'], int),
-              'rawlim': [P.getfloat('main', 'cmin'),  # list not tuple for auto
-                         P.getfloat('main', 'cmax')],
-              'super_x': finf['super_x'],
-              'super_y': finf['super_y'],
-              'thresmode': P.get('filter', 'thresholdmode').lower()})
-
-    return finf, U
+    return finf
 
 
-def read_dmc(fn: Path, U: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def read_cv2(fn: Path) -> Dict[str, Any]:
+    if getaviprop is None:
+        raise ImportError('pip install morecvutils')
+    # TODO start,stop,step is not yet implemented, simply uses every other frame
+    logging.info(f'attempting to read {fn} with OpenCV.')
+    finf = {'reader': 'cv2'}
+
+    vidparam = getaviprop(fn)
+    finf['nframe'] = vidparam['nframe']
+    finf['super_x'], finf['super_y'] = vidparam['xy_pixel']
+
+    finf['frameind'] = arange(finf['nframe'], dtype=int)
+
+    finf['h_read'] = imageio.get_reader(f'imageio:{fn}')
+
+    return finf
+
+
+def read_dmc(fn: Path, U: Dict[str, Any]) -> Dict[str, Any]:
     if getDMCparam is None:
         raise ImportError('pip install histutils')
 
+    finf = {}
+
     if not U.get('startstop'):
-        U['frame_request'] = U['framestep']
+        finf['frame_request'] = U.get('framestep', 1)
     elif len(U['startstop']) == 2:
-        U['frame_request'] = (U['startstop'][0], U['startstop'][1], U['framestep'])
+        finf['frame_request'] = (U['startstop'][0], U['startstop'][1], U['framestep'])
     else:
         raise ValueError('unknown start, stop, step frame request')
 
-    finf = getDMCparam(fn, U)
+    finf.update(getDMCparam(fn, U))
 
     finf['reader'] = 'raw'
     finf['nframe'] = finf['nframeextract']
     finf['frameind'] = finf['frameindrel']
 
-    return finf, U
+    return finf
 
 
-def getparam(pfn):
-    pfn = Path(pfn).expanduser()
+def read_spool(fn: Path,
+               U: Dict[str, Any],
+               f0: Dict[str, Any]) -> Dict[str, Any]:
+    if spoolparam is None:
+        raise ImportError('pip install dmcutils')
 
-    if not pfn.is_file():
-        raise FileNotFoundError(f'{pfn} not found!')
+    finf = spoolparam(fn.parent/SPOOLINI,
+                      U['super_x'], U['super_y'],
+                      U.get('cmos_stride', 0))
+    finf = {**finf, **f0}
+
+    print('using spool file, config', fn.parent/SPOOLINI)
+    finf['reader'] = 'spool'
+    finf['nframe'] = U['nfile']  # first frame pair of each spool file
+
+    # FIXME should we make this general to all file types?
+    if U['nfile'] > 1 and finf['nframe'] > 10 * U['framestep']:
+        finf['frameind'] = arange(0, finf['nframe'], U['framestep'], dtype=int)
+    else:  # revert to all frames because there aren't many, rather than annoying with zero result
+        finf['frameind'] = arange(finf['nframe'], dtype=int)
+    finf['kinetic'] = None  # FIXME blank for now
+
+    finf['path'] = fn.parent
+
+    return finf
+
+
+def get_sensor_config(fn: Path) -> ConfigParser:
+    fn = Path(fn).expanduser()
+    if not fn.is_file():
+        raise FileNotFoundError(fn)
 
     P = ConfigParser(allow_no_value=True, inline_comment_prefixes=[';'])
-    P.read(pfn)
+    P.read(fn)
 
     return P
 
@@ -204,7 +194,7 @@ def savestat(stat: DataFrame, fn: Path, idir: Path, U: dict):
 
     writemode = 'r+' if fn.is_file() else 'w'
 
-    with h5py.File(fn, writemode, libver='latest') as f:
+    with h5py.File(fn, writemode) as f:
         f['/input'] = str(idir)
         f['/detect'] = stat['detect'].values.astype(int)  # FIXME: why is type 'O'?
 

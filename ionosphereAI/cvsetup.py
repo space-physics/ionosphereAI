@@ -41,10 +41,10 @@ def setupkern(P, up):
     return up
 
 
-def svsetup(P, up: Dict[str, Any]) -> Dict[str, Any]:
+def svsetup(P, up: Dict[str, Any], finf: Dict[str, Any]) -> Dict[str, Any]:
     savevideo = up['savevideo']
-    x = up['super_x']
-    y = up['super_y']
+    x = finf['super_x']
+    y = finf['super_y']
     pshow = up['pshow']
 
     dowiener = P.get('filter', 'wienernhood')
@@ -137,38 +137,39 @@ def svrelease(svh, savevideo: str):
 
 
 def setupof(U: Dict[str, Any],
-            P) -> Tuple[np.ndarray, Any]:
+            finf: Dict[str, Any]) -> Tuple[np.ndarray, Any]:
 
     gmm = None
     lastflow = None  # if it stays None, signals to use GMM
+    if not isinstance(U['ofmethod'], str):
+        raise TypeError('expected type str for ofmethod')
     if U['ofmethod'] == 'hs':
         pass
     elif U['ofmethod'] == 'farneback':
-        lastflow = np.zeros((U['super_y'], U['super_x'], 2))
+        lastflow = np.zeros((finf['super_y'], finf['super_x'], 2))
 # %% GMM
     elif U['ofmethod'] == 'mog':
         if cv2 is None:
             raise ImportError('OpenCV is needed')
         # http://docs.opencv.org/3.2.0/d7/d7b/classcv_1_1BackgroundSubtractorMOG2.html
-        gmm = cv2.createBackgroundSubtractorMOG2(history=P.getint('gmm', 'nhistory'),
-                                                 varThreshold=P.getfloat('gmm', 'varThreshold'),
+        gmm = cv2.createBackgroundSubtractorMOG2(history=U['gmm_nhistory'],
+                                                 varThreshold=U['gmm_varthreshold'],
                                                  detectShadows=False)
-        gmm.setNMixtures(P.getint('gmm', 'nmixtures'))
-        gmm.setComplexityReductionThreshold(P.getfloat('gmm', 'CompResThres'))
+        gmm.setNMixtures(U['gmm_nmixtures'])
+        gmm.setComplexityReductionThreshold(U['gmm_compresthres'])
     elif U['ofmethod'] == 'knn':
         if cv2 is None:
             raise ImportError('OpenCV is needed')
-        gmm = cv2.createBackgroundSubtractorKNN(history=P.getint('gmm', 'nhistory'),
+        gmm = cv2.createBackgroundSubtractorKNN(history=U['gmm_nhistory'],
                                                 detectShadows=True)
     elif U['ofmethod'] == 'gmg':
         if cv2 is None:
             raise ImportError('OpenCV is needed')
 
         try:
-            gmm = cv2.createBackgroundSubtractorGMG(initializationFrames=P.getint('gmm', 'nhistory'))
+            gmm = cv2.createBackgroundSubtractorGMG(initializationFrames=U['gmm_nhistory'])
         except AttributeError as e:
             raise ImportError(f'GMG is part of opencv_contrib. {e}')
-
     else:
         raise TypeError(f'unknown method {U["ofmethod"]}')
 
@@ -186,7 +187,7 @@ def setupfigs(finf: Dict[str, Any],
 
         fg = figure()
         axom = fg.gca()
-        hiom = axom.imshow(np.zeros((finf['supery'], finf['superx'])),
+        hiom = axom.imshow(np.zeros((finf['super_y'], finf['super_x'])),
                            vmin=1e-5, vmax=1,  # arbitrary limits
                            origin='top',  # origin=top like OpenCV
                            norm=LogNorm())  # cmap=lcmap)
