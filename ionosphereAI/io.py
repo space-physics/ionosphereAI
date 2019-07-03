@@ -64,15 +64,15 @@ def get_file_info(files: Sequence[Path],
             if 'rawimg' in f:  # hst image/video file
                 finf = {'reader': 'h5vid'}
                 finf['nframe'] = f['rawimg'].shape[0]
-                finf['superx'] = f['rawimg'].shape[2]
-                finf['supery'] = f['rawimg'].shape[1]
+                finf['super_x'] = f['rawimg'].shape[2]
+                finf['super_y'] = f['rawimg'].shape[1]
                 # print('HDF5 video file detected {}'.format(fn))
             elif 'ambiguity' in f:  # Haystack passive FM radar file
                 finf = {'reader': 'h5fm'}
                 finf['nframe'] = 1  # currently the passive radar uses one file per frame
                 range_km, vel_mps = getfmradarframe(fn)[:2]  # assuming all frames are the same size
-                finf['superx'] = range_km.size
-                finf['supery'] = vel_mps.size
+                finf['super_x'] = range_km.size
+                finf['super_y'] = vel_mps.size
                 # print('HDF5 passive FM radar file detected {}'.format(fn))
             elif 'ticks' in f:  # Andor Solis spool file index from dmcutils/Filetick.py
                 finf = read_spool(fn, U, finf)
@@ -120,16 +120,14 @@ def read_dmc(fn: Path, U: Dict[str, Any]) -> Dict[str, Any]:
     if getDMCparam is None:
         raise ImportError('pip install histutils')
 
-    finf = {}
-
     if not U.get('startstop'):
-        finf['frame_request'] = U.get('framestep', 1)
+        U['frame_request'] = U.get('framestep', 1)
     elif len(U['startstop']) == 2:
-        finf['frame_request'] = (U['startstop'][0], U['startstop'][1], U['framestep'])
+        U['frame_request'] = (U['startstop'][0], U['startstop'][1], U['framestep'])
     else:
         raise ValueError('unknown start, stop, step frame request')
 
-    finf.update(getDMCparam(fn, U))
+    finf = getDMCparam(fn, U)
 
     finf['reader'] = 'raw'
     finf['nframe'] = finf['nframeextract']
@@ -202,9 +200,9 @@ def savestat(stat: DataFrame, fn: Path, idir: Path, U: dict):
         f['framestep'] = U['framestep']
         f['previewDecim'] = U['previewdecim']
 
-        if stat['mean'].nonzero()[0].any():
+        if stat['mean'].to_numpy().nonzero()[0].any():
             f['/mean'] = stat['mean'].values
-        if stat['median'].nonzero()[0].any():
+        if stat['median'].to_numpy().nonzero()[0].any():
             f['/median'] = stat['median'].values
-        if stat['variance'].nonzero()[0].any():
+        if stat['variance'].to_numpy().nonzero()[0].any():
             f['/variance'] = stat['variance'].values
