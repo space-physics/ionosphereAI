@@ -51,11 +51,17 @@ It is usually straightforward to adapt the program to ingest NetCDF, HDF5 and ma
 ## Install
 
 ```sh
-python -m pip install -e .
+python -m pip install -e .[opencv,cv]
 ```
 
 If you don't have OpenCV:
 
 ```sh
-python -m pip install -e .[opencv]
+python -m pip install opencv-python
+```
+
+or
+
+```sh
+conda install opencv
 ```

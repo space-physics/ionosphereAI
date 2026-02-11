@@ -37,14 +37,6 @@ plot = ["matplotlib"]
 cv = ["pyoptflow", "morecvutils"]
 opencv = ["opencv-python"]
 
-[tool.setuptools]
-script-files = [
-    "BatchRunner.py",
-    "Detect.py",
-    "hdf5stats.py",
-    "PatchAuroraldet.py"
-]
-
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
 
