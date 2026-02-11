@@ -1,10 +1,11 @@
 from configparser import ConfigParser
-from numpy import arange
+from pathlib import Path
+from typing import Any
+import logging
+
 from pandas import DataFrame
 import h5py
-from pathlib import Path
-from typing import Dict, Any, Sequence
-import logging
+import numpy as np
 #
 from .getpassivefm import getfmradarframe
 
@@ -35,8 +36,8 @@ except ImportError as e:
 SPOOLINI = 'acquisitionmetadata.ini'  # for Solis spool files
 
 
-def get_file_info(files: Sequence[Path],
-                  U: Dict[str, Any]) -> Dict[str, Any]:
+def get_file_info(files: list[Path],
+                  U: dict[str, Any]) -> dict[str, Any]:
 
     # keeping type hints consistent
     if isinstance(files, Path):
@@ -47,7 +48,7 @@ def get_file_info(files: Sequence[Path],
         finf = read_dmc(fn, U)
     elif fn.suffix.lower() == '.dat':  # Andor Solis spool file
         finf = read_spool(fn, U, {})
-    elif fn.suffix.lower() in ('.h5', '.hdf5'):
+    elif fn.suffix.lower() in {'.h5', '.hdf5'}:
         finf = {}
         try:  # can't read inside context
             with h5py.File(fn, 'r') as f:
@@ -56,7 +57,7 @@ def get_file_info(files: Sequence[Path],
             if U['startstop'] is not None:
                 finf['flist'] = finf['flist'][U['startstop'][0]:U['startstop'][1]]
 
-            logging.info(f'taking {len( finf["flist"])} files from index {fn}')
+            logging.info(f'taking {len(finf["flist"])} files from index {fn}')
         except KeyError:
             pass
 # %% determine if optical or passive radar
@@ -81,7 +82,7 @@ def get_file_info(files: Sequence[Path],
                 raise ValueError(f'{fn}: unknown input HDF5 file type')
 
         if 'frameind' not in finf:
-            finf['frameind'] = arange(0, finf['nframe'], U['framestep'], dtype=int)
+            finf['frameind'] = np.arange(0, finf['nframe'], U['framestep'], dtype=int)
     elif fn.suffix.lower() in ('.fit', '.fits'):
         if getNeoParam is None:
             raise ImportError('pip install histutils')
@@ -98,25 +99,27 @@ def get_file_info(files: Sequence[Path],
     return finf
 
 
-def read_cv2(fn: Path) -> Dict[str, Any]:
+def read_cv2(fn: Path) -> dict[str, Any]:
     if getaviprop is None:
         raise ImportError('pip install morecvutils')
     # TODO start,stop,step is not yet implemented, simply uses every other frame
     logging.info(f'attempting to read {fn} with OpenCV.')
-    finf = {'reader': 'cv2'}
 
     vidparam = getaviprop(fn)
-    finf['nframe'] = vidparam['nframe']
+
+    finf = {'reader': 'cv2',
+            'nframe': vidparam['nframe']}
+
     finf['super_x'], finf['super_y'] = vidparam['xy_pixel']
 
-    finf['frameind'] = arange(finf['nframe'], dtype=int)
+    finf['frameind'] = np.arange(finf['nframe'], dtype=int)
 
     finf['h_read'] = imageio.get_reader(f'imageio:{fn}')
 
     return finf
 
 
-def read_dmc(fn: Path, U: Dict[str, Any]) -> Dict[str, Any]:
+def read_dmc(fn: Path, U: dict[str, Any]) -> dict[str, Any]:
     if getDMCparam is None:
         raise ImportError('pip install histutils')
 
@@ -137,8 +140,8 @@ def read_dmc(fn: Path, U: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def read_spool(fn: Path,
-               U: Dict[str, Any],
-               f0: Dict[str, Any]) -> Dict[str, Any]:
+               U: dict[str, Any],
+               f0: dict[str, Any]) -> dict[str, Any]:
     if spoolparam is None:
         raise ImportError('pip install dmcutils')
 
@@ -153,9 +156,9 @@ def read_spool(fn: Path,
 
     # FIXME should we make this general to all file types?
     if U['nfile'] > 1 and finf['nframe'] > 10 * U['framestep']:
-        finf['frameind'] = arange(0, finf['nframe'], U['framestep'], dtype=int)
+        finf['frameind'] = np.arange(0, finf['nframe'], U['framestep'], dtype=int)
     else:  # revert to all frames because there aren't many, rather than annoying with zero result
-        finf['frameind'] = arange(finf['nframe'], dtype=int)
+        finf['frameind'] = np.arange(finf['nframe'], dtype=int)
     finf['kinetic'] = None  # FIXME blank for now
 
     finf['path'] = fn.parent
@@ -186,7 +189,7 @@ def keyhandler(keypressed, framebyframe):
         return (framebyframe, False)
 
 
-def savestat(stat: DataFrame, fn: Path, idir: Path, U: dict):
+def savestat(stat: DataFrame, fn: Path, idir: Path, U: dict[str, Any]):
     assert isinstance(stat, DataFrame)
     print('saving detections & statistics to', fn)
 

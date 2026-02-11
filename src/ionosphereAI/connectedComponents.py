@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
-from typing import Tuple
 
 
-def doblob(img: np.ndarray, blobdet, anno: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+def doblob(
+    img, blobdet, anno: bool = True
+) -> tuple:
     """
     img: can be RGB (MxNx3) or gray (MxN)
 
@@ -14,13 +15,20 @@ def doblob(img: np.ndarray, blobdet, anno: bool = True) -> Tuple[np.ndarray, np.
     kpsize = np.asarray([k.size for k in keypoints])
     final = img.copy()  # is the .copy necessary?
 
-    final = cv2.drawKeypoints(img, keypoints, outImage=final,
-                              flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-# %% plot count of blobs
+    final = cv2.drawKeypoints(
+        img, keypoints, outImage=final, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
+    )
+    # %% plot count of blobs
     if anno:
-        cv2.putText(final, text=str(len(keypoints)), org=(int(img.shape[1]*.9), 25),
-                    fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=2,
-                    color=(0, 255, 0), thickness=2)
+        cv2.putText(
+            final,
+            text=str(len(keypoints)),
+            org=(int(img.shape[1] * 0.9), 25),
+            fontFace=cv2.FONT_HERSHEY_PLAIN,
+            fontScale=2,
+            color=(0, 255, 0),
+            thickness=2,
+        )
 
     return final, kpsize
 

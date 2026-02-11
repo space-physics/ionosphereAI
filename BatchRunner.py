@@ -15,9 +15,10 @@ from argparse import ArgumentParser
 import sys
 from pathlib import Path
 import subprocess
+
 #
-CONF = 'dmc2017.ini'
-INDEXFN = 'spool/index.h5'
+CONF = "dmc2017.ini"
+INDEXFN = "spool/index.h5"
 
 
 def write_index(d: Path, codedir: Path):
@@ -28,13 +29,11 @@ def write_index(d: Path, codedir: Path):
     FIXME: windows feeds out spurious error codes even when program worked
            like -1073740777 or 3221226519
     """
-    cmd = ['python', 'FileTick.py',
-           str(d/'spool'), str(d/INDEXFN),
-           '-s1296', '-z0']
+    cmd = ["python", "FileTick.py", str(d / "spool"), str(d / INDEXFN), "-s1296", "-z0"]
 
-    print('**************\n', ' '.join(cmd))
+    print("**************\n", " ".join(cmd))
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+    ret = subprocess.check_call(cmd, cwd=codedir / "dmcutils")
 
     return ret
 
@@ -42,13 +41,11 @@ def write_index(d: Path, codedir: Path):
 def detect_aurora(d: Path, outdir: Path, codedir: Path):
     """use OpenCV and collective behavior detection to find Alfvenic aurora candidates"""
 
-    cmd = ['python', 'Detect.py',
-           str(d/INDEXFN), str(outdir/d.stem),
-           CONF, '-k10']
+    cmd = ["python", "Detect.py", str(d / INDEXFN), str(outdir / d.stem), CONF, "-k10"]
 
-    print('**************\n', ' '.join(cmd))
+    print("**************\n", " ".join(cmd))
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'cv_ionosphere')
+    ret = subprocess.check_call(cmd, cwd=codedir / "cv_ionosphere")
 
     return ret
 
@@ -56,16 +53,21 @@ def detect_aurora(d: Path, outdir: Path, codedir: Path):
 def extract_aurora(d: Path, outdir: Path, codedir: Path):
     """Write HDF5 file with detected auroral video"""
 
-    cmd = ['python', 'ConvertSpool2h5.py',
-           str(d/INDEXFN),
-           '-det', str(outdir/d.stem/'auroraldet.h5'),
-           '-o', str(outdir/d.stem/(d.stem+'extracted.h5')),
-           '-z0',
-           '-k0.0333342']
+    cmd = [
+        "python",
+        "ConvertSpool2h5.py",
+        str(d / INDEXFN),
+        "-det",
+        str(outdir / d.stem / "auroraldet.h5"),
+        "-o",
+        str(outdir / d.stem / (d.stem + "extracted.h5")),
+        "-z0",
+        "-k0.0333342",
+    ]
 
-    print('**************\n', ' '.join(cmd))
+    print("**************\n", " ".join(cmd))
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'dmcutils')
+    ret = subprocess.check_call(cmd, cwd=codedir / "dmcutils")
 
     return ret
 
@@ -73,59 +75,77 @@ def extract_aurora(d: Path, outdir: Path, codedir: Path):
 def preview_extract(d: Path, outdir: Path, codedir: Path):
     """Create lossy AVI preview of extracted data"""
 
-    cmd = ['python', 'Convert_HDF5_to_AVI.py',
-           str(outdir/d.stem/(d.stem+'extracted.h5')),
-           str(outdir/d.stem/(d.stem+'extracted.avi'))]
+    cmd = [
+        "python",
+        "Convert_HDF5_to_AVI.py",
+        str(outdir / d.stem / (d.stem + "extracted.h5")),
+        str(outdir / d.stem / (d.stem + "extracted.avi")),
+    ]
 
-    print('**************\n', ' '.join(cmd))
+    print("**************\n", " ".join(cmd))
 
-    ret = subprocess.check_call(cmd, cwd=codedir/'pyimagevideo')
+    ret = subprocess.check_call(cmd, cwd=codedir / "pyimagevideo")
 
     return ret
 
 
 def main():
     p = ArgumentParser()
-    p.add_argument('indir', help='directory containing directories to process (top level directory)')
-    p.add_argument('outdir', help='directory to place index, extracted frames and AVI preview')
-    p.add_argument('-codepath', help='top level directory where Git repos are stored', default='~/code')
-    p.add_argument('-l', '--level', help='skip up to stage of processing L', type=int, default=0)
-    p.add_argument('-lmax', help='stop at this level an go to next directory', type=int, default=99)
+    p.add_argument(
+        "indir",
+        help="directory containing directories to process (top level directory)",
+    )
+    p.add_argument(
+        "outdir", help="directory to place index, extracted frames and AVI preview"
+    )
+    p.add_argument(
+        "-codepath",
+        help="top level directory where Git repos are stored",
+        default="~/code",
+    )
+    p.add_argument(
+        "-l", "--level", help="skip up to stage of processing L", type=int, default=0
+    )
+    p.add_argument(
+        "-lmax", help="stop at this level an go to next directory", type=int, default=99
+    )
     p = p.parse_args()
 
     codedir = Path(p.codepath).expanduser()
     indir = Path(p.indir).expanduser()
     outdir = Path(p.outdir).expanduser()
-# %% 0) find directories of data
+    # %% 0) find directories of data
     dlist = []
     for d in indir.iterdir():
-        if (d/'spool').is_dir():
+        if (d / "spool").is_dir():
             dlist.append(d)
-        elif Path(d.parent/'spool').is_dir():
+        elif Path(d.parent / "spool").is_dir():
             dlist.append(d.parent)
 
     if not dlist:
-        raise FileNotFoundError(f'no spool directories found in {indir}')
+        raise FileNotFoundError(f"no spool directories found in {indir}")
 
-    print('using', sys.executable, 'in', indir, 'with', codedir, 'extracting to', outdir)
+    print(
+        "using", sys.executable, "in", indir, "with", codedir, "extracting to", outdir
+    )
 
     for d in dlist:
         # %% 1) create spool/index.h5
         if p.level < 1 <= p.lmax:
             write_index(d, codedir)
             # if ret != 0: continue
-# %% 2) detect aurora
+        # %% 2) detect aurora
         if p.level < 2 <= p.lmax:
             detect_aurora(d, outdir, codedir)
             # if ret != 0: continue
-# %% 3) extract auroral data
+        # %% 3) extract auroral data
         if p.level < 3 <= p.lmax:
             extract_aurora(d, outdir, codedir)
             # if ret != 0: continue
-# %% 4) create AVI preview of extracted data
+        # %% 4) create AVI preview of extracted data
         if p.level < 4 <= p.lmax:
             preview_extract(d, outdir, codedir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

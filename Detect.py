@@ -62,18 +62,20 @@ HS very well too, alpha=10, iter=1 or 2 (iter not critical)
 """
 
 import sys
-from typing import List
 import ionosphereAI as iai
 import logging
 from pathlib import Path
-logging.basicConfig(format='%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
+
+logging.basicConfig(
+    format="%(asctime)s.%(msecs)03d %(filename)s/%(funcName)s:%(lineno)d %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 PreviewDecim = 50  # show update info on terminal every N processing steps (arbitrary)
 TIFFCOMPLVL = 4  # tradeoff b/w speed and filesize for TIFF debugging images
 
-PSHOW: List[str] = []
-PSHOW = ['thres', 'stat', 'morph', 'final']
+PSHOW: list[str] = []
+PSHOW = ["thres", "stat", "morph", "final"]
 # PSHOW=['final']
 # PSHOW=('stat','final')
 # 'raw' #often not useful due to no autoscale
@@ -89,42 +91,43 @@ PSHOW = ['thres', 'stat', 'morph', 'final']
 def rundetect(p):
     assert isinstance(PSHOW, (tuple, list))
     P = {
-        'cmd': ' '.join(sys.argv),
-        'indir': p.indir,
-        'framestep': p.step,
-        'startstop': p.frames,
-        'paramfn':   p.paramfn,
-        'odir':      Path(p.odir).expanduser(),
-        'detfn':     Path(p.odir).expanduser() / p.detfn,
-        'fps':       p.fps,
-        'framebyframe': p.framebyframe,
-        'verbose': p.verbose,
-        'pshow': PSHOW,
-        'complvl': TIFFCOMPLVL,
-        'previewdecim': PreviewDecim,
+        "cmd": " ".join(sys.argv),
+        "indir": p.indir,
+        "framestep": p.step,
+        "startstop": p.frames,
+        "paramfn": p.paramfn,
+        "odir": Path(p.odir).expanduser(),
+        "detfn": Path(p.odir).expanduser() / p.detfn,
+        "fps": p.fps,
+        "framebyframe": p.framebyframe,
+        "verbose": p.verbose,
+        "pshow": PSHOW,
+        "complvl": TIFFCOMPLVL,
+        "previewdecim": PreviewDecim,
     }
 
-    if P['detfn'].is_file():
+    if P["detfn"].is_file():
         logging.warning(f'{P["detfn"]} already exists, aborting')
         return
 
-    P['odir'].mkdir(parents=True, exist_ok=True)
+    P["odir"].mkdir(parents=True, exist_ok=True)
 
     if p.savetiff:
-        P['savevideo'] = 'tif'
+        P["savevideo"] = "tif"
     elif p.savevideo:
-        P['savevideo'] = 'vid'
+        P["savevideo"] = "vid"
     else:
-        P['savevideo'] = None
-# %% run program (allowing ctrl+c to exit)
+        P["savevideo"] = None
+    # %% run program (allowing ctrl+c to exit)
     aurstat = None  # in case of keybaord abort
     try:
         if p.profile:
             import cProfile
             import pstats
-            profFN = 'profstats.pstats'
-            cProfile.run('loopaurorafiles(P)', profFN)
-            pstats.Stats(profFN).sort_stats('time', 'cumulative').print_stats(50)
+
+            profFN = "profstats.pstats"
+            cProfile.run("loopaurorafiles(P)", profFN)
+            pstats.Stats(profFN).sort_stats("time", "cumulative").print_stats(50)
             aurstat = None
         else:
             # enter main program
@@ -135,25 +138,52 @@ def rundetect(p):
     return aurstat
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import signal
+
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     from argparse import ArgumentParser
-    p = ArgumentParser(description='detects aurora in raw video files')
-    p.add_argument('indir', help='specify file, OR top directory over which to recursively find video files')
-    p.add_argument('odir', help='directory to put output files in')
-    p.add_argument('paramfn', help='parameter file for cameras')
-    p.add_argument('--fps', help='output file FPS (note VLC needs fps>=3)', type=float, default=3)
-    p.add_argument('-b', '--framebyframe', help='space bar toggles play/pause', action='store_true')
-    p.add_argument('-s', '--savevideo', help='save video at each step (can make enormous files)', action='store_true')
-    p.add_argument('-t', '--savetiff', help='save tiff at each step (can make enormous files)', action='store_true')
-    p.add_argument('-k', '--step', help='frame step skip increment', type=int, default=1)
-    p.add_argument('-f', '--frames', help='start stop frames (default all)', type=int, nargs=2)
-    p.add_argument('-d', '--detfn', help='master file to save detections and statistics in HDF5, under odir',
-                   default='auroraldet.h5')
-    p.add_argument('-v', '--verbose', help='verbosity', action='store_true')
-    p.add_argument('--profile', help='profile debug', action='store_true')
+
+    p = ArgumentParser(description="detects aurora in raw video files")
+    p.add_argument(
+        "indir",
+        help="specify file, OR top directory over which to recursively find video files",
+    )
+    p.add_argument("odir", help="directory to put output files in")
+    p.add_argument("paramfn", help="parameter file for cameras")
+    p.add_argument(
+        "--fps", help="output file FPS (note VLC needs fps>=3)", type=float, default=3
+    )
+    p.add_argument(
+        "-b", "--framebyframe", help="space bar toggles play/pause", action="store_true"
+    )
+    p.add_argument(
+        "-s",
+        "--savevideo",
+        help="save video at each step (can make enormous files)",
+        action="store_true",
+    )
+    p.add_argument(
+        "-t",
+        "--savetiff",
+        help="save tiff at each step (can make enormous files)",
+        action="store_true",
+    )
+    p.add_argument(
+        "-k", "--step", help="frame step skip increment", type=int, default=1
+    )
+    p.add_argument(
+        "-f", "--frames", help="start stop frames (default all)", type=int, nargs=2
+    )
+    p.add_argument(
+        "-d",
+        "--detfn",
+        help="master file to save detections and statistics in HDF5, under odir",
+        default="auroraldet.h5",
+    )
+    p.add_argument("-v", "--verbose", help="verbosity", action="store_true")
+    p.add_argument("--profile", help="profile debug", action="store_true")
     P = p.parse_args()
 
     aurstat = rundetect(P)

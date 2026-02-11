@@ -17,74 +17,85 @@ def patchdet(infn, slic=None, vlim=None, quiet=False):
         plotdet(infn, vlim=vlim)
         return
 
-    assert isinstance(slic, slice), 'Must be a slice to patch file, or None to display contents'
+    assert isinstance(
+        slic, slice
+    ), "Must be a slice to patch file, or None to display contents"
 
     # if outfn is None or (outfn.is_file() and outfn.samefile(infn)):
-    outfn = infn.parent/(infn.stem + '_patched.h5')
+    outfn = infn.parent / (infn.stem + "_patched.h5")
 
     print(f'copying {infn} to {outfn}, setting "detect" slice {slic} to 0')
 
     copy2(infn, outfn)
 
-    with h5py.File(outfn, 'r+') as f:
-        f['/detect'][slic] = 0
+    with h5py.File(outfn, "r+") as f:
+        f["/detect"][slic] = 0
 
     plotdet(infn, outfn, vlim, quiet)
 
 
 def plotdet(infn, outfn=None, vlim=None, quiet=False):
 
-    with h5py.File(infn, 'r') as f:
-        indet = f['/detect'][:]
+    with h5py.File(infn, "r") as f:
+        indet = f["/detect"][:]
 
-        if 'preview' in f and not quiet:
-            print('plotting movie of', infn)
+        if "preview" in f and not quiet:
+            print("plotting movie of", infn)
             fg = figure()
             ax = fg.gca()
 
             if vlim is None:
-                h = ax.imshow(f['/preview'][1])
+                h = ax.imshow(f["/preview"][1])
             else:
-                h = ax.imshow(f['/preview'][1], vmin=vlim[0], vmax=vlim[1])
+                h = ax.imshow(f["/preview"][1], vmin=vlim[0], vmax=vlim[1])
 
             fg.colorbar(h, ax=ax)
-            ht = ax.set_title('')
+            ht = ax.set_title("")
 
-            Nfile = f['/nfile'][()]
-            decim = f['/previewDecim'][()]
-            step = f['/framestep'][()]
+            Nfile = f["/nfile"][()]
+            decim = f["/previewDecim"][()]
+            step = f["/framestep"][()]
 
-            for i, I in enumerate(f['/preview']):
+            for i, I in enumerate(f["/preview"]):
                 h.set_data(I)
-                ht.set_text(f'{step*decim*i} / {Nfile}')
+                ht.set_text(f"{step*decim*i} / {Nfile}")
                 draw()
                 pause(0.1)
-# %%
+    # %%
     if outfn is None:
         return
 
-    with h5py.File(outfn, 'r') as f:
-        outdet = f['/detect'][:]
+    with h5py.File(outfn, "r") as f:
+        outdet = f["/detect"][:]
 
     fg = figure()
     ax = fg.gca()
-    ax.plot(indet, 'b', label='original')
-    ax.plot(outdet, 'r', label='patched')
-    ax.set_title(f'{outfn}  Auroral Detections')
+    ax.plot(indet, "b", label="original")
+    ax.plot(outdet, "r", label="patched")
+    ax.set_title(f"{outfn}  Auroral Detections")
     ax.legend()
 
-    outimg = outfn.with_suffix('.png')
-    print('saving', outimg)
+    outimg = outfn.with_suffix(".png")
+    print("saving", outimg)
 
-    fg.savefig(outimg, bbox_inches='tight', dpi=100)
+    fg.savefig(outimg, bbox_inches="tight", dpi=100)
 
 
 def main():
     p = ArgumentParser()
-    p.add_argument('fn', help='HDF5 file to manuall patch over (remove false detections due to sunrise)')
-    p.add_argument('-s', '--startstop', help='length 1 or 2 (start,stop) slice', nargs='+', type=int)
-    p.add_argument('-q', '--quiet', help='dont show preview movie', action='store_true')
-    p.add_argument('-vlim', help='preview brightness', nargs=2, type=int)
+    p.add_argument(
+        "fn",
+        help="HDF5 file to manuall patch over (remove false detections due to sunrise)",
+    )
+    p.add_argument(
+        "-s",
+        "--startstop",
+        help="length 1 or 2 (start,stop) slice",
+        nargs="+",
+        type=int,
+    )
+    p.add_argument("-q", "--quiet", help="dont show preview movie", action="store_true")
+    p.add_argument("-vlim", help="preview brightness", nargs=2, type=int)
     p = p.parse_args()
 
     if p.startstop is not None:
@@ -93,7 +104,7 @@ def main():
         elif len(p.startstop) == 2:
             slic = slice(p.startstop[0], p.startstop[1])
         else:
-            raise ValueError('start or start stop')
+            raise ValueError("start or start stop")
     else:
         slic = None
 
@@ -102,5 +113,5 @@ def main():
     show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

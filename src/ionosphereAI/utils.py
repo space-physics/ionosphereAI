@@ -1,9 +1,8 @@
 import numpy as np
-from typing import Tuple
 import logging
 
 
-def sixteen2eight(I: np.ndarray, Clim: Tuple[int, int]) -> np.ndarray:
+def sixteen2eight(img, Clim: tuple[int, int]):
     """
     scipy.misc.bytescale had bugs
 
@@ -13,12 +12,12 @@ def sixteen2eight(I: np.ndarray, Clim: Tuple[int, int]) -> np.ndarray:
     Clim: length 2 of tuple or numpy 1-D array specifying lowest and highest expected values in grayscale image
     Michael Hirsch, Ph.D.
     """
-    Q = normframe(I, Clim)
+    Q = normframe(img, Clim)
     Q *= 255  # stretch to [0,255] as a float
     return Q.round().astype(np.uint8)  # convert to uint8
 
 
-def normframe(I: np.ndarray, Clim: tuple) -> np.ndarray:
+def normframe(img, Clim: tuple):
     """
     inputs:
     -------
@@ -29,12 +28,12 @@ def normframe(I: np.ndarray, Clim: tuple) -> np.ndarray:
     Vmax = Clim[1]
 
     # stretch to [0,1]
-    return (I.astype(np.float32).clip(Vmin, Vmax) - Vmin) / (Vmax - Vmin)
+    return (img.astype(np.float32).clip(Vmin, Vmax) - Vmin) / (Vmax - Vmin)
 
 
-def saturation_check(frame: np.ndarray,
-                     minmaxcount: Tuple[int, int],
-                     minmax: Tuple[int, int] = (0, 255)) -> bool:
+def saturation_check(
+    frame, minmaxcount: tuple[int, int], minmax: tuple[int, int] = (0, 255)
+) -> bool:
     """
     Check for excessive saturation of 8-bit image
 
@@ -56,11 +55,11 @@ def saturation_check(frame: np.ndarray,
     bad = False
 
     if (frame == minmax[1]).sum() > minmaxcount[1]:
-        logging.warning('video saturated at 255')
+        logging.warning("video saturated at 255")
         bad = True
 
     if (frame == minmax[0]).sum() > minmaxcount[0]:
-        logging.warning('video saturated at 0')
+        logging.warning("video saturated at 0")
         bad = True
 
     return bad

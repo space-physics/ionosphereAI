@@ -1,7 +1,7 @@
 import logging
 import h5py
 import numpy as np
-from typing import Dict, Any, Sequence
+from typing import Any
 from pathlib import Path
 from scipy.signal import wiener
 from .getpassivefm import getfmradarframe
@@ -47,8 +47,8 @@ except ImportError as e:
 
 
 def setscale(fn: Path,
-             up: Dict[str, Any],
-             finf: Dict[str, Any]) -> Dict[str, Any]:
+             up: dict[str, Any],
+             finf: dict[str, Any]) -> dict[str, Any]:
     """
     if user has not set fixed upper/lower bounds for 16-8 bit conversion, do it automatically,
     since not specifying fixed contrast destroys the working of auto CV detection
@@ -82,8 +82,8 @@ def setscale(fn: Path,
 
 def samplepercentile(fn: Path,
                      pct: float,
-                     up: Dict[str, Any],
-                     finf: Dict[str, Any]) -> np.ndarray:
+                     up: dict[str, Any],
+                     finf: dict[str, Any]):
     """
     for 16-bit files mainly
     """
@@ -105,10 +105,10 @@ def samplepercentile(fn: Path,
 
 def get_frames(fn: Any,
                ifrm: int,
-               finf: Dict[str, Any],
-               up: Dict[str, Any],
-               svh: Dict[str, Any] = {}, *,
-               ifits: int = None) -> np.ndarray:
+               finf: dict[str, Any],
+               up: dict[str, Any],
+               svh: dict[str, Any] = {}, *,
+               ifits: int = None):
     """
     this function reads the reference frame too--which makes sense if you're
        only reading every Nth frame from the multi-TB file instead of every frame
@@ -172,7 +172,7 @@ def get_frames(fn: Any,
     return frame
 
 
-def read_dmc(fn: Path, ifrm: int, twoframe: bool, finf: Dict[str, Any]) -> np.ndarray:
+def read_dmc(fn: Path, ifrm: int, twoframe: bool, finf: dict[str, Any]):
     if getDMCframe is None:
         raise ImportError('pip install histutils')
 
@@ -186,7 +186,7 @@ def read_dmc(fn: Path, ifrm: int, twoframe: bool, finf: Dict[str, Any]) -> np.nd
     return frame
 
 
-def read_fits(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
+def read_fits(fn: Path, ifrm: int, twoframe: bool):
     """
     ifits not ifrm for fits!
     """
@@ -202,7 +202,7 @@ def read_fits(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
     return frame
 
 
-def read_h5fm(files: Sequence[Path], ifrm: int, twoframe: bool) -> np.ndarray:
+def read_h5fm(files: list[Path], ifrm: int, twoframe: bool):
     """
       one frame per file
     """
@@ -216,7 +216,7 @@ def read_h5fm(files: Sequence[Path], ifrm: int, twoframe: bool) -> np.ndarray:
     return frame
 
 
-def read_hdf(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
+def read_hdf(fn: Path, ifrm: int, twoframe: bool):
 
     with h5py.File(fn, 'r') as f:
         if twoframe:
@@ -228,7 +228,8 @@ def read_hdf(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
 
 
 def read_spool(fn: Path, ifrm: int, twoframe: bool,
-               finf: Dict[str, Any], zerocols: int) -> np.ndarray:
+               finf: dict[str, Any], zerocols: int):
+
     """
     Read only the first frame pair from each spool file,
     as each spool file is generally less than about 10 frames.
@@ -246,7 +247,7 @@ def read_spool(fn: Path, ifrm: int, twoframe: bool,
     return frame
 
 
-def read_cv2(h, twoframe: bool) -> np.ndarray:
+def read_cv2(h, twoframe: bool):
     """
     uses ImageIO to read video and cv2 to scale--could use non-cv2 method to scale.
 
@@ -273,7 +274,7 @@ def read_cv2(h, twoframe: bool) -> np.ndarray:
     return frame
 
 
-def read_tiff(fn: Path, ifrm: int, twoframe: bool) -> np.ndarray:
+def read_tiff(fn: Path, ifrm: int, twoframe: bool):
     """
     TODO: do we pass in ifrm or do we open a handle like read_cv2
     """
