@@ -2,6 +2,7 @@
 """
 used to patch "auroraldet.h5" that has false detections from clouds or sunrise
 """
+
 from pathlib import Path
 from shutil import copy2
 import h5py
@@ -17,9 +18,9 @@ def patchdet(infn, slic=None, vlim=None, quiet=False):
         plotdet(infn, vlim=vlim)
         return
 
-    assert isinstance(
-        slic, slice
-    ), "Must be a slice to patch file, or None to display contents"
+    assert isinstance(slic, slice), (
+        "Must be a slice to patch file, or None to display contents"
+    )
 
     # if outfn is None or (outfn.is_file() and outfn.samefile(infn)):
     outfn = infn.parent / (infn.stem + "_patched.h5")
@@ -58,7 +59,7 @@ def plotdet(infn, outfn=None, vlim=None, quiet=False):
 
             for i, I in enumerate(f["/preview"]):
                 h.set_data(I)
-                ht.set_text(f"{step*decim*i} / {Nfile}")
+                ht.set_text(f"{step * decim * i} / {Nfile}")
                 draw()
                 pause(0.1)
     # %%

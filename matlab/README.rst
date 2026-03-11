@@ -4,7 +4,7 @@ Copyright 2013 Michael Hirsch
 passive-fm-utils
 ======================
 
-Functions used with data from MIT Haystack Intercepted Signals for Ionospheric Science 
+Functions used with data from MIT Haystack Intercepted Signals for Ionospheric Science
 P. I. Frank Lind
 
 .. contents::
@@ -39,15 +39,15 @@ You will need ``wget``. This is built-in to every Linux system, on Cgywin under 
 Example Download Commands
 -------------------------
 ::
-  
+
   mkdir -p ~/data
-  
+
   wget --quota=10000m -r -np -nc -nH --cut-dirs=3 --random-wait --wait 0.5 --reject index.html* -e robots=off -P ~/data/ http://atlas.haystack.mit.edu/isis/fermi/events/2010-08-03/rx40rx51/
-  
+
   wget --quota=10000m -r -np -nc -nH --cut-dirs=3 --random-wait --wait 0.5 --reject index.html* -e robots=off -P ~/data/ http://atlas.haystack.mit.edu/isis/fermi/events/2010-08-13/rx40rx51/
-  
+
   wget --quota=10000m -r -np -nc -nH --cut-dirs=3 --random-wait --wait 0.5 --reject index.html* -e robots=off -P ~/data/ http://atlas.haystack.mit.edu/isis/fermi/events/2010-08-05/rx40rx51/
-  
+
   wget --quota=10000m -r -np -nc -nH --cut-dirs=3 --random-wait --wait 0.5 --reject index.html* -e robots=off -P ~/data/ http://atlas.haystack.mit.edu/isis/fermi/events/2010-08-04/rx40rx51/
 
 

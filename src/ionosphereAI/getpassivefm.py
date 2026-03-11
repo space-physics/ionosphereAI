@@ -1,8 +1,6 @@
-#!/usr/bin/env python
 import h5py
 from datetime import datetime as DT
 from numpy import log10, absolute, median, ascontiguousarray
-from pytz import UTC
 
 """
 Michael Hirsch
@@ -16,9 +14,7 @@ def getfmradarframe(fn):
         ambiguity = ascontiguousarray(f["/ambiguity/ambiguity"][:].T)
         range_km = f["/ambiguity/range_axis"][:] / 1e3
         velocity_mps = f["/ambiguity/velocity_axis"][:]
-        dtime = DT.utcfromtimestamp(f["/ambiguity"].attrs.get("utc_second")).replace(
-            tzinfo=UTC
-        )  # replace is required for tzaware
+        dtime = DT.fromtimestamp(f["/ambiguity"].attrs.get("utc_second"), DT.UTC)
         integration_time = f["/ambiguity"].attrs.get("integration_time")
 
     logamb = log10(absolute(ambiguity))

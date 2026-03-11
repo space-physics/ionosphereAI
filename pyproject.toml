@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ionosphereAI"
-version = "0.9.1"
 description = "detect ionospheric phenomena using machine learning algorithms"
 requires-python = ">=3.10"
 keywords = ["ionosphere", "aurora", "machine learning"]
@@ -20,17 +19,13 @@ dependencies = [
     "scipy",
     "pandas",
     "numpy",
-    "h5py"
+    "h5py",
+    "astropy"
 ]
-dynamic = ["readme"]
+dynamic = ["readme", "version"]
 
 [project.optional-dependencies]
-tests = [
-    "pytest",
-    "flake8",
-    "mypy",
-    "types-pytz"
-]
+tests = ["pytest", "mypy"]
 hist = ["histutils"]
 dmc = ["dmcutils"]
 plot = ["matplotlib"]
@@ -39,8 +34,9 @@ opencv = ["opencv-python"]
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
+version = {attr = "ionosphereAI.__version__"}
 
 [tool.mypy]
+files = ["."]
 ignore_missing_imports = true
-strict_optional = false
 allow_redefinition = true

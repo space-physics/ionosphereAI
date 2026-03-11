@@ -6,7 +6,7 @@ function data =RawPlayer0(dataFN,varargin)
 % RawPlayer0('~/data/2010-08-03/rx40/isis_rf_89.70_fm@1280877299.mat')
 %--------------
 % RawPlayer0('~/data/2010-08-03/rx51/isis_rf_103.50_fm@1280877299.mat'); %brief strong return at 10 sec.
-% RawPlayer0('~/data/2010-08-03/rx40/isis_rf_103.50_fm@1280877299.mat']; 
+% RawPlayer0('~/data/2010-08-03/rx40/isis_rf_103.50_fm@1280877299.mat'];
 %------------------
 % RawPlayer0('~/data/2013-11-20/mat/isis_rf_89.50_fm@1384979400.mat']; % NPR talk
 % RawPlayer0('~/data/2013-11-20/mat/isis_rf_106.70_fm@1384986598.mat']; % soft rock
@@ -33,23 +33,23 @@ switch dataExt
         maxSampToRead = 10e3; %arbitrary
         fid = fopen(dataFN,'r','l');
         if fid<1, error(['did not find ',dataFN]), end
-        
+
         %pre-allocation
         ind = 0;
-        dtmp(maxSampToRead,2) = nan; 
-        
+        dtmp(maxSampToRead,2) = nan;
+
         while ~feof(fid) && ind<=maxSampToRead
             ind = ind+1;
-            dtmp(ind,2) = fread(fid,1,'int16=>double',0,'l'); % Q 
+            dtmp(ind,2) = fread(fid,1,'int16=>double',0,'l'); % Q
             dtmp(ind,1) = fread(fid,1,'int16=>double',0,'l'); % I
             %dtmp = fread(fid,1,'int32=>int32',0,'l');
             %jtmp = dec2bin(dtmp,32);
             %stmp = [bin2dec(jtmp(17:end)), bin2dec(jtmp(1:16))]; %16-bit IQ packed as QI 32-bit (?)
-            
+
             if ~mod(ind,10000), display(['processing sample ',int2str(ind)]), end
         end
          data = dtmp(:,1) + 1j*dtmp(:,2);
-end 
+end
 display(['Using Sampling Frequency ',num2str(U.sampling_frequency),' Hz'])
 Ns = length(data);
 %% create FIR lowpass filter (to eliminate L-R and stereo carrier)
@@ -63,7 +63,7 @@ A = 1; %by def'n of FIR
 
     display(['Using ',int2str(FIRorder),'-tap LPF, with corner freq.: ',num2str(Fc/1e3),' kHz.'])
     data(:,1) = filter(B,A,data);
-else 
+else
     display('No LPF used.')
     data(:,1) = double(data);
 end
@@ -76,7 +76,7 @@ t(:,1) = (0:Ns-1)*Ts; %0:Ts:60-Ts;
 %% define data portions
 I = real(data);
 Q = imag(data);
-%% demodulation 
+%% demodulation
 %reference: Lyons Ch. 17
 switch U.diffMethod
     case 'forward' % forward difference: Two-point stencil
@@ -92,7 +92,7 @@ switch U.diffMethod
 end
 %%
 % normalize -- output data amplitude must be $\in$ [-1,1] or terrible distortion
-maxM = max(m);    
+maxM = max(m);
 m = m/maxM;
 
 %clip (ugly)
@@ -151,7 +151,7 @@ soundCardBits = 16;
 mDS = resample(m,p,q);
 
 p = audioplayer(mDS,soundCardSR,soundCardBits);
-else 
+else
 p = audioplayer(m,U.sampling_frequency);
 end
 playblocking(p)

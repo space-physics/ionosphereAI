@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 import pandas
 from typing import Any
-from datetime import datetime
+import datetime as dt
 import numpy as np
 
 try:
@@ -43,7 +43,7 @@ def svsetup(up: dict[str, Any], finf: dict[str, Any]) -> dict[str, Any]:
     pshow = up["pshow"]
 
     if savevideo:
-        logging.info(f'dumping video output to {up["odir"]}')
+        logging.info(f"dumping video output to {up['odir']}")
     svh = {"save": savevideo, "complvl": up["complvl"]}
     if savevideo == "tif":
         # complvl = 6 #0 is uncompressed
@@ -206,7 +206,7 @@ def setupof(U: dict[str, Any], finf: dict[str, Any]) -> tuple:
         except AttributeError as e:
             raise ImportError(f"GMG is part of opencv_contrib. {e}")
     else:
-        raise TypeError(f'unknown method {U["ofmethod"]}')
+        raise TypeError(f"unknown method {U['ofmethod']}")
 
     return lastflow, gmm
 
@@ -217,7 +217,6 @@ def setupfigs(
     # %% optical flow magnitude plot
 
     if "threscolor" in U["pshow"] and U.get("ofmethod") in {"hs", "farneback"}:
-
         fg = matplotlib.pylab.figure()
         axom = fg.gca()
         hiom = axom.imshow(
@@ -232,10 +231,10 @@ def setupfigs(
         U["iofm"] = hiom
     # %% stat plot
     try:
-        dt = [datetime.utcfromtimestamp(t) for t in finf["ut1"][:-1]]
+        time = [dt.datetime.fromtimestamp(t, dt.UTC) for t in finf["ut1"][:-1]]
         ut = finf["ut1"][:-1]
     except (TypeError, KeyError):
-        dt = ut = finf["frameind"][:-1]
+        time = ut = finf["frameind"][:-1]
 
     stat = pandas.DataFrame(index=ut, columns=["mean", "median", "variance", "detect"])
     stat["detect"] = np.zeros(finf["frameind"].size - 1, dtype=int)
@@ -243,7 +242,7 @@ def setupfigs(
         (finf["frameind"].size - 1, 3), dtype=float
     )
 
-    hpmn, hpmd, hpdt, fgdt = statplot(dt, stat, U, fn)
+    hpmn, hpmd, hpdt, fgdt = statplot(time, stat, U, fn)
 
     #    draw(); pause(0.001) #catch any plot bugs
 
@@ -252,7 +251,7 @@ def setupfigs(
     return U, stat
 
 
-def statplot(dt, stat: pandas.DataFrame, U: dict[str, Any], fn: Path):
+def statplot(time, stat: pandas.DataFrame, U: dict[str, Any], fn: Path):
 
     hpmn = None
     hpmd = None
@@ -266,7 +265,7 @@ def statplot(dt, stat: pandas.DataFrame, U: dict[str, Any], fn: Path):
         elif isinstance(x[0], (int, np.int64)):
             hpl = ax.plot(x, y, label=lbl)
             ax.set_xlabel("Spool File index # (row of index.h5)")
-        elif isinstance(x[0], (datetime, np.datetime64)):
+        elif isinstance(x[0], (dt.datetime, np.datetime64)):
             hpl = ax.plot(x, y, label=lbl)
             ax.set_xlabel("Time [UTC]")
         else:
@@ -275,7 +274,6 @@ def statplot(dt, stat: pandas.DataFrame, U: dict[str, Any], fn: Path):
         return hpl
 
     if "stat" in U["pshow"]:
-
         if U.get("ofmethod") in ("hs", "farneback"):
             Np = 2
             fg = matplotlib.pylab.figure(figsize=(12, 5))
@@ -284,8 +282,8 @@ def statplot(dt, stat: pandas.DataFrame, U: dict[str, Any], fn: Path):
             ax.set_xlabel("frame index #")
             ax.set_ylim((0, 0.1))
 
-            hpmn = _timelbl(ax, dt, stat["mean"], "mean")
-            hpmd = _timelbl(ax, dt, stat["median"], "median")
+            hpmn = _timelbl(ax, time, stat["mean"], "mean")
+            hpmd = _timelbl(ax, time, stat["median"], "median")
             ax.legend(loc="best")
         # %% detections
         else:
@@ -297,6 +295,6 @@ def statplot(dt, stat: pandas.DataFrame, U: dict[str, Any], fn: Path):
         ax.set_ylabel("number of detections")
         ax.set_ylim((0, 10))
 
-        hpdt = _timelbl(ax, dt, stat["detect"])
+        hpdt = _timelbl(ax, time, stat["detect"])
 
     return hpmn, hpmd, hpdt, fg

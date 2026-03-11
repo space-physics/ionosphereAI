@@ -5,15 +5,15 @@
 function skeltest(vidFN)
 
 %% user parameters
-if nargin<1, 
-    %vidFN = [getenv('HOME'),'/Prospectus/vid/X1387_032307_112005.36_full.avi']; 
+if nargin<1,
+    %vidFN = [getenv('HOME'),'/Prospectus/vid/X1387_032307_112005.36_full.avi'];
     vidFN = 'horizslide-vertbar-.avi';  %generate by RunGenOFtestPattern(0,'avi','horizslide','vertbar',128,256,256,0.5,0.5,1,8,5,3,35);
 end
 
 intThres = 0.22; %arbitrary, assumed video intensities \in [0,1]
 nSkel = 8; %arbitrary, number of skeleton iterations
 %% setup cv objects
-hv = VideoReader(vidFN); %just to get file parameters 
+hv = VideoReader(vidFN); %just to get file parameters
 nRow = get(hv,'Height');
 nCol = get(hv,'Width');
 
@@ -40,24 +40,24 @@ colormap('gray')
 colorbar
 %% do work
 while ~isDone(hv)
-    
+
     frame = step(hv); %get grayscale video frame
-    
+
     thresImg = false(nRow,nCol);
     thresImg(frame>intThres) = true; %create binary thresholded image %there are better ways to do this such as Otsu etc.
     set(hthr,'cdata',thresImg)
-    
+
     skelImg = bwmorph(thresImg,'skel',nSkel);
     set(hsk,'cdata',skelImg)
-    
+
     brnpts = bwmorph(skelImg,'branchpoints');
     endpts = bwmorph(skelImg,'endpoints');
-    
-    
-    
+
+
+
     drawnow
     pause(0.01)
-    
+
 end %while
 close(hv)
 end

@@ -2,9 +2,7 @@ import cv2
 import numpy as np
 
 
-def doblob(
-    img, blobdet, anno: bool = True
-) -> tuple:
+def doblob(img, blobdet, anno: bool = True) -> tuple:
     """
     img: can be RGB (MxNx3) or gray (MxN)
 

@@ -2,6 +2,7 @@
 """
 find minimum and maximum, stats in an HDF5 variable
 """
+
 from pathlib import Path
 import h5py
 import numpy as np
@@ -35,7 +36,7 @@ def main():
 
     prc = np.array([0.01, 0.05, 0.5, 0.95, 0.99])
     ptile = np.percentile(dat, prc)
-    print(f"for the {prc*100} percentiles")
+    print(f"for the {prc * 100} percentiles")
     print(ptile)
 
     if ptile[-1] - ptile[0] < 20:

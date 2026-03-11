@@ -5,7 +5,7 @@
 function GMMis(normImgs,UP,rangeKM,velocityMPS,utcDN) %#ok<*INUSD>
 %% user parameters
 
-if nargin<2, 
+if nargin<2,
     UP.doWienerFilt = false;
 end
 
@@ -33,7 +33,7 @@ hfdet = vision.ForegroundDetector(...
         'InitialVariance', (30/255)^2,... % initial standard deviation of 30/255
         'MinimumBackgroundRatio',0.9,...
         'NumGaussians',5);
-        
+
 % user tunes to fit arc sizes on video
 % e.g. 'MinimumBlobArea', 500, 'MaximumBlobArea', 8600, 'MaximumCount', 80
 hblob = vision.BlobAnalysis( ...
@@ -46,17 +46,17 @@ hblob = vision.BlobAnalysis( ...
                     'MaximumBlobArea', 8600, ...
                     'MaximumCount', 20,...
                     'ExcludeBorderBlobs',true);
-                
+
 % for taking mean of frame --> TODO BUG constantly outputting zero !?
 % hmean = vision.Mean('RunningMean',false,...
 %                     'Dimension','all',...
 %                     'ROIProcessing',false);
-                
+
 %make green bounding box handle (for final output)
 hshapeBbox = vision.ShapeInserter('BorderColor', 'Custom', ...
             'CustomBorderColor', [0 255 0]);
 
-% text handle to count number of "hits"                     
+% text handle to count number of "hits"
 htextCount = vision.TextInserter('Text', '%4d', 'Location',  [1 1], ...
                                'Color', [1 1 1], 'FontSize', 12);
 
@@ -83,9 +83,9 @@ hVRes = vision.VideoPlayer('Name', '(2) GMM Results', 'Position', pos);
 %    figure(50),clf(50)
 %    %cp = get(50,'pos'); cp(3) = cp(3) + 200;
 %    %set(50,'pos',cp)
-%    
+%
 %   % ylims = [11 11.5];%UP.clims;%[55 75];
-%    
+%
 %    haxpix(1) = axes('parent',50); %axes('parent',50,'units','normalized','pos',[0.075 0.075 0.405 0.85],'ylim',ylims);
 %    hppix = line(utcDN,diagPixVal,'parent',haxpix(1),'marker','.','markeredgecolor','r','displayName','(200,-200)');
 %    hpavg = line(utcDN,meanPixVal,'parent',haxpix(1),'color','k','linewidth',2,'marker','.','markeredgecolor','r','displayName','mean');
@@ -98,7 +98,7 @@ hVRes = vision.VideoPlayer('Name', '(2) GMM Results', 'Position', pos);
 %    display(['plotting pixel values from (row,col)=(',int2str(UP.pixRow),',',int2str(UP.pixCol),')'])
 %    grid on
 %    datetick
-%    
+%
 %    %haxpix(2) = axes('parent',50,'units','normalized','pos',[0.575 0.075 0.405 0.85],'ylim',ylims);
 %    %hpavg = line(utcDN,meanPixVal,'parent',haxpix(1),'marker','.','markeredgecolor','r');
 %    %xlabel('UTC time')
@@ -107,7 +107,7 @@ hVRes = vision.VideoPlayer('Name', '(2) GMM Results', 'Position', pos);
 %    %grid on
 %    %datetick
 % end
- 
+
 %% user filtering parameters
 line_row = 0; % Detects must be below this y-pixel
 bboxRatioThres = 0;
@@ -116,9 +116,9 @@ bboxRatioThres = 0;
 
  count = 0;
 for i = 1:nFrame
-    
+
 %    rawImg = Imgs(:,:,i);
-    
+
     grayImg = normImgs(:,:,i);
     RGBimg = gray2rgb(grayImg);
 
@@ -126,13 +126,13 @@ for i = 1:nFrame
 %         %diagPixVal(i) = grayImg(UP.pixRow,UP.pixCol);
 %         diagPixVal(i) = rawImg(UP.pixRow,UP.pixCol);
 %         set(hppix,'ydata',diagPixVal)
-%         
+%
 %         meanPixVal(i) = mean(rawImg(:));
 %         %meanPixVal(i) = mean(grayImg(:));
 %         %step(hmean,grayImg);
 %         set(hpavg,'ydata',meanPixVal)
-%     end        
-    
+%     end
+
     if UP.doWienerFilt
      grayImg = wiener2(grayImg,[8,8]); % (1.0) 2D Wiener filter (reduce noise)
     end
@@ -144,10 +144,10 @@ for i = 1:nFrame
 
     [outImg, count] = bboxCount(areaBbox,bbox,RGBimg,bboxRatioThres,line_row,...
                      count,hshapeBbox,htextCount); %count bounding boxes and  display
-    
+
   %  step(hVOrig, RGBimg);      % Original video
     set(hi(2),'cdata',RGBimg)
-    
+
     step(hVFg,   fg_image);    % Foreground
     step(hVRes,  outImg);      % Bounding boxes around objects
 

@@ -3,7 +3,7 @@ function Fx = central_diff( F, x )
 %
 % usage:    gradient = central_diff( F, x )
 %
-% inputs:   F - Values of a scalar function evaluated at x 
+% inputs:   F - Values of a scalar function evaluated at x
 %               to be differentiated with respect to x
 %           x - vector of monotonically increasing coordinates where F is evaluated,
 %               or a scalar for evenly spaced coordinates
@@ -25,12 +25,12 @@ function Fx = central_diff( F, x )
 %
 % Note:     MATLAB's gradient function is not second-order accurate
 %           for un-evenly spaced coordinates.
-%           This central_diff function uses the correct central difference 
-%           formula (for interior points) that is second-order accurate 
+%           This central_diff function uses the correct central difference
+%           formula (for interior points) that is second-order accurate
 %           for both evenly and un-evenly spaced coordinates.
 %           Tested under MATLAB versions 5.2, 5.3.1, and 6.0.
 %
-% Alternatively, you may patch MATLAB's gradient function by 
+% Alternatively, you may patch MATLAB's gradient function by
 % replacing the lines...
 %   % Take centered differences on interior points
 %   if n > 2
@@ -86,7 +86,7 @@ x  = x(:);
 if m==1
 	h = x;
 else
-	h = x(2) - x(1); 
+	h = x(2) - x(1);
 end
 Fx(1,:) = ( F(2,:) - F(1,:) ) / h;
 

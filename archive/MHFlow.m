@@ -10,20 +10,20 @@ gray1 = normFrame(data(:,:,1),16,clim);
 hof = vision.OpticalFlow('ReferenceFrameSource','Input port',...
                          'OutputValue','Horizontal and vertical components in complex form');
 
-ax(1) = subplot(1,3,1); im(1) = imagesc(gray1,[0,1]); 
+ax(1) = subplot(1,3,1); im(1) = imagesc(gray1,[0,1]);
 ax(2) = subplot(1,3,2); im(2) = imagesc(hsvimg,[0,1]);
-ax(3) = subplot(1,3,3); 
-                     
+ax(3) = subplot(1,3,3);
+
 for i = 2:nFrame
  gray2 = normFrame(data(:,:,i),16,clim);
- 
+
  uv = step(hof,gray2,gray1); %estimate optical flow for u,v
  u = real(uv);
  v = imag(uv); %uv must be complex!
 
  [ang,mag] = cart2pol(u,v);
  mag = mag / max(max(mag)); %normalize
- mag(mag>0.1) = 1; %clip 
+ mag(mag>0.1) = 1; %clip
  ang = mod(ang * 180/pi,360)/360; %normalize angle -- may not be quite right
  hsvimg(:,:,1) = ang;
  hsvimg(:,:,3) = 1; %mag <-- was having issue with dynamic range, but setting to 1 gets the job done
@@ -36,7 +36,7 @@ for i = 2:nFrame
  catch
      pause
  end
- 
+
  gray1 = gray2;
  drawnow
 end %for

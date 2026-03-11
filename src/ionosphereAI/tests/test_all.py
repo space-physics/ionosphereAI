@@ -1,22 +1,20 @@
-#!/usr/bin/env python
+import importlib.resources as ir
 import pytest
-import ionosphereAI as ia
-from pathlib import Path
 
-R = Path(__file__).parent
+import ionosphereAI as ia
 
 
 def test_parse_params(tmp_path):
     with pytest.raises(FileNotFoundError):
         ia.dio.get_sensor_config(tmp_path)
 
-    pfn = R.parent / "hst0.ini"
+    pfn = ir.files("ionosphereAI.tests.data")  / "hst0.ini"
     P = ia.dio.get_sensor_config(pfn)
     assert P.getint("main", "xpix") == 512
 
 
 def test_file_read(tmp_path):
-    fn = R / "data/testframes.DMCdata"
+    fn = ir.files("ionosphereAI.tests.data") / "testframes.DMCdata"
 
     with pytest.raises(FileNotFoundError):
         ia.dio.get_file_info(tmp_path, {})
@@ -30,7 +28,3 @@ def test_file_read(tmp_path):
     frame = ia.reader.get_frames(fn, ifrm=0, finf=finf, up=up)
     assert frame.ndim == 3
     assert frame.shape == (2, 512, 512)
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])

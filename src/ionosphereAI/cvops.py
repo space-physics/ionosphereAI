@@ -138,9 +138,9 @@ def dothres(
         #                hithres = np.inf
 
         elif up["thresmode"] == "runningmean":
-            raise NotImplementedError(f'{up["thresmode"]} not yet implemented')
+            raise NotImplementedError(f"{up['thresmode']} not yet implemented")
         else:
-            raise NotImplementedError(f'{up["thresmode"]} not yet implemented')
+            raise NotImplementedError(f"{up['thresmode']} not yet implemented")
 
         thres = ((ofmaggmm < hithres) & (ofmaggmm > lowthres)).astype(np.uint8) * 255
     else:
@@ -180,9 +180,7 @@ def dothres(
     return thres
 
 
-def dodespeck(
-    mot, medfiltsize: int, i: int, svh: dict[str, Any], up: dict[str, Any]
-):
+def dodespeck(mot, medfiltsize: int, i: int, svh: dict[str, Any], up: dict[str, Any]):
     """
     Despeckling algorithm
 

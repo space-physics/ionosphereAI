@@ -12,13 +12,13 @@
 % 0) process user input
 % 1) Load raw data from HDF5 or MAT files
 % 2) Plot raw data
-% 3) Machine Vision segmentation 
+% 3) Machine Vision segmentation
 % 4) Plot Machine Vision results
 %
 %
 % Example for data surrounding Radio Science 2013 Figure 13:
 % ISraw1('~/data/2010-08-03/rx40rx51/fm103.5/ambi','.h5',1280877299,1280877579,1,0,0,0)
-% 
+%
 % save the 2010-Aug-03 data for faster processing
 % ISraw1('~/data/2010-08-03/rx40rx51/fm103.5/ambi','.h5',[],[],0,0,1,0)
 %------------------------------------------------------------------------------------------
@@ -46,10 +46,10 @@ function [Imgs,UP,rangeKM,velocityMPS,utcDN,filenames] = ISraw1(dataDir,dataExt,
 clc
 %% Step 0: user parameters
 if nargin<1 || isempty(dataDir)
-    %dataDir = '~/data/annotated_data'; 
+    %dataDir = '~/data/annotated_data';
     %dataDir = '~/data/2010-08-03/rx40rx51/fm103.5/ambi';  %ionosphere + aircraft
-    %dataDir = '~/data/2010-08-03/rx40rx51/fm103.5/ambi'; 
-    %dataDir = '~/data/2010-08-13/rx40rx51/fm103.5/ambi'; 
+    %dataDir = '~/data/2010-08-03/rx40rx51/fm103.5/ambi';
+    %dataDir = '~/data/2010-08-13/rx40rx51/fm103.5/ambi';
     %dataDir = '~/data/2010-08-05/rx40rx51/fm103.5/ambi';
     dataDir =  '~/data/2013-11-20/rx50rx50/ambi';
 end
@@ -57,10 +57,10 @@ end
 if nargin<2 || isempty(dataExt), dataExt = '.h5'; end
 
 %will show frames back to Unix UTC epoch start (Jan 1 1970)
-if nargin<3 || isempty(startUTCsec), UP.startUTCsec = 0; else UP.startUTCsec = startUTCsec; end 
+if nargin<3 || isempty(startUTCsec), UP.startUTCsec = 0; else UP.startUTCsec = startUTCsec; end
 
-%will show frames up to 32-bit Unix UTC epoch end (Jan 19 2038) 
-if nargin<4 || isempty(stopUTCsec), UP.stopUTCsec = 2^31 - 1; else UP.stopUTCsec = stopUTCsec; end 
+%will show frames up to 32-bit Unix UTC epoch end (Jan 19 2038)
+if nargin<4 || isempty(stopUTCsec), UP.stopUTCsec = 2^31 - 1; else UP.stopUTCsec = stopUTCsec; end
 
 if nargin<5, UP.plotRaw = true; else UP.plotRaw = plotRaw; end
 if nargin<6, UP.plotMeans = true; else UP.plotMeans = plotMeans; end
@@ -80,9 +80,9 @@ h5fn = [dataDir,filesep,UP.dirQual,UP.fnStem,'.mat'];
 
 %% Step 1a: compute parameters
 if ~UP.loadH5
-    
+
 display(['Using filename regexp: ',UP.utcRegExp,' on ',int2str(nRawFiles),' files.'])
-j=0; 
+j=0;
 for i = 1:nRawFiles
 try %not the most efficient placing, but we want to keep going with next file on failure
 %% Step 1b: Load data
@@ -103,14 +103,14 @@ if UP.plotRaw
 %     figure(1)
 %     imagesc(rangeKM,velocityMPS,logamb)
 %         set(gca,'ydir','normal')
-%     colorbar 
+%     colorbar
 %     xlabel('Range [km]')
 %     ylabel('Velocity [m/s]')
     set(hg.trw,'string',['SCR: ',datestr(currUTC)])
     set(hg.imrw,'cdata',SCRdb)
 end %if plotRaw
 %% output variables
-Imgs(:,:,j) = SCRdb; 
+Imgs(:,:,j) = SCRdb;
 
 if UP.plotMeans
 meanRaw(j,1) = mean(logamb(:));
@@ -122,24 +122,24 @@ end %if
 
 %figure(99),imagesc(normImgs(:,:,j)),colorbar
  drawnow %necessary to update each looparound
-if ~mod(i,50), 
+if ~mod(i,50),
     display(['File ',int2str(i),'/',int2str(nRawFiles)])
 end
 
-catch err 
+catch err
     fprintf(['In file ',fn,' '])
-      % display(['raw plot failure on file: ',fn,'  i=',int2str(i),'  j=',int2str(j)]) 
+      % display(['raw plot failure on file: ',fn,'  i=',int2str(i),'  j=',int2str(j)])
        display(getReport(err,'extended'))
        %display([err.identifier,': ',err.message])
 end %try
-    
+
 end % for
 
 UP.clims = clims; %in case they were automatically set %FIXME
 
 if UP.saveH5
     display(['saving to MAT file: ',h5fn])
-    save(h5fn,'Imgs','rangeKM','velocityMPS','UP','utcDN')   
+    save(h5fn,'Imgs','rangeKM','velocityMPS','UP','utcDN')
 end %if saveH5
 
 %% cleanup
@@ -155,7 +155,7 @@ end
 if UP.plotRaw
    figure(hg.frw)
    title({[datestr(utcDN(1),'yyyy-mmm-dd'),' to ',datestr(utcDN(end),'yyyy-mmm-dd'),', int_time: ',num2str(integration_time),' sec.']},'interpreter','none')
-end 
+end
 else % load from HDF5 file
     display(['Loading prestored data from: ',h5fn])
    [Imgs,rangeKM,velocityMPS,UP,utcDN] = getH5(h5fn,UP);
@@ -171,7 +171,7 @@ rangeKM(BadRangeInd) = [];
 
 
 
-if UP.doGMM && exist('GMMis.m','file') 
+if UP.doGMM && exist('GMMis.m','file')
     Imgs = graytoUint8(imresize(Imgs,UP.rs),UP.clims);
     GMMis(Imgs,UP,rangeKM,velocityMPS,utcDN);
 else
@@ -195,7 +195,7 @@ UP.rs = 1; %scaling image size
 %----------- regexp -------------
 dirQualRegExp = '(?<=.*/)\d{4}-\d{2}-\d{2}(?=/.*)'; %gets just the date
 
-dirQual = regexp(dataDir,dirQualRegExp,'match','once'); 
+dirQual = regexp(dataDir,dirQualRegExp,'match','once');
 if isempty(dirQual)
     if ~isempty(regexp(dataDir,'annotated_data', 'once'))
         dirQual = 'annotated_data';
@@ -205,15 +205,15 @@ if isempty(dirQual)
 end
 switch dirQual
     case {'2010-08-03','annotated_data'}
-     UP.utcRegExp = '(?<=.*@)\d{10}(?=.h5)'; 
+     UP.utcRegExp = '(?<=.*@)\d{10}(?=.h5)';
      UP.fnStem = 'iax001_000';
-     UP.clims0 = [0,6]; 
+     UP.clims0 = [0,6];
     case {'2010-08-13','2010-08-05/'}
-     UP.utcRegExp = '(?<=.*_)\d{10}(?=_\d{3}.h5)'; 
+     UP.utcRegExp = '(?<=.*_)\d{10}(?=_\d{3}.h5)';
      UP.fnStem = 'iax_001';
-     UP.clims0 = [10,12.5]; 
+     UP.clims0 = [10,12.5];
     case {'2013-11-20'}
-     UP.utcRegExp = '(?<=.*@)\d{10}(?=.h5)'; 
+     UP.utcRegExp = '(?<=.*@)\d{10}(?=.h5)';
      UP.fnStem = 'iax001_001';
      UP.clims0 = [];
     otherwise, error(' sorry I don''t have the regexp for this date')
@@ -276,7 +276,7 @@ if UP.plotRaw
         hg.imrw = imagesc(rangeKM,velocityMPS,nan(UP.nCol,UP.nRow),UP.clims0);
     end
     set(gca,'ydir','normal')
-    colorbar 
+    colorbar
     xlabel('Range [km]')
     ylabel('Velocity [m/s]')
     hg.trw = title('');
@@ -291,7 +291,7 @@ xlabel('UTC time')
 ylabel('relative value')
 legend('show','location','best')
 title('Mean and Median of log10(ambiguity)')
-end 
+end
 else
     meanRaw =[];
     utcDN = [];

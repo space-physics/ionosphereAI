@@ -2,6 +2,7 @@
 """
 model for picking how many frames before/after detection to keep
 """
+
 import numpy as np
 
 # x = np.random.uniform(size=100)

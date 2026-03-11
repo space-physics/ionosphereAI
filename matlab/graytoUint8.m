@@ -6,7 +6,7 @@ if nargin<2
     range(2) = max(img(:)-range(1));
 end
 
-%{ 
+%{
 %old way, caused memory / out of memory spike!
     % normalize [0,1]
     norm01=(img-range(1)) ./ ( range(2) - range(1) );

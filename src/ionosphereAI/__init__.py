@@ -8,12 +8,12 @@ Passive radar added: Dec 2014
 This program detects aurora in multi-terabyte raw video data files
 Also used for the Haystack passive FM radar ionospheric activity detection
 """
+
 from typing import Any
 import logging
 from configparser import ConfigParser
 import h5py
-from datetime import datetime
-from pytz import UTC
+import datetime as dt
 import pandas
 from pathlib import Path
 from time import time
@@ -27,20 +27,16 @@ from .cvops import dooptflow, dothres, dodespeck, domorph, doblob
 from .cvsetup import setupkern, svsetup, svrelease, setupof, setupfigs, statplot
 from .connectedComponents import setupblob
 
-try:
-    import cv2
-except ImportError:
-    cv2 = None
+import cv2
 
-try:
-    from matplotlib.pylab import draw, pause, close
-except ImportError:
-    draw = pause = close = None
-#
+import matplotlib.pyplot as plt
+
 try:
     from histutils import setupimgh5
 except ImportError:
     setupimgh5 = None
+
+__version__ = "0.9.2"
 
 
 def loopaurorafiles(U: dict[str, Any]) -> pandas.DataFrame:
@@ -83,7 +79,7 @@ def loopaurorafiles(U: dict[str, Any]) -> pandas.DataFrame:
     U["close_width"] = P.getint("morph", "closewidth")
     U["close_height"] = P.getint("morph", "closeheight")
 
-    logging.info(f'found {U["nfile"]} files: {U["indir"]}')
+    logging.info(f"found {U['nfile']} files: {U['indir']}")
 
     # %% process files
     if P.get("main", "vidext") == ".dat":
@@ -93,45 +89,46 @@ def loopaurorafiles(U: dict[str, Any]) -> pandas.DataFrame:
         aurstat = pandas.DataFrame(columns=["mean", "median", "variance", "detect"])
         for file in files:  # iterate over files in list
             stat = procfiles(file, P, U)
-            aurstat = aurstat.append(stat)
+            aurstat = aurstat.append(stat)  # type: ignore[operator]
 
     if aurstat is None:
         logging.error("Auroral detection aborted")
-        return
+        return pandas.DataFrame()
     # %% sort,plot,save results for all files
 
     aurstat.sort_index(inplace=True)  # sort by time
     savestat(aurstat, U["detfn"], idir, U)
 
     if aurstat.index[0] > 1e9:  # ut1 instead of index
-        dt = [datetime.fromtimestamp(t, tz=UTC) for t in stat.index]
+        dt = [dt.datetime.fromtimestamp(t, tz=dt.UTC) for t in stat.index]
     else:
         dt = None
     # %% master detection plot
-    if draw is not None:
-        U["pshow"] += ["stat"]
-        fgst = statplot(dt, aurstat, U, U["odir"])[3]
-        draw()
-        pause(0.01)
-        fgst.savefig(U["detfn"].with_suffix(".png"), bbox_inches="tight", dpi=100)
-        fgst.savefig(U["detfn"].with_suffix(".svg"), bbox_inches="tight", dpi=100)
+    U["pshow"] += ["stat"]
+    fgst = statplot(dt, aurstat, U, U["odir"])[3]
+    plt.draw()
+    plt.pause(0.01)
+    fgst.savefig(U["detfn"].with_suffix(".png"), bbox_inches="tight", dpi=100)
+    fgst.savefig(U["detfn"].with_suffix(".svg"), bbox_inches="tight", dpi=100)
 
     return aurstat
 
 
 def procfiles(file: Path, P: ConfigParser, up: dict[str, Any]) -> pandas.DataFrame:
 
-    finf = get_file_info(file, up)  # type: ignore
+    stat = pandas.DataFrame()
+
+    finf = get_file_info(file, up)
 
     if finf["nframe"] < 100 and finf["reader"] != "spool":
-        logging.warning(f'SKIPPING {file} with only {finf["nframe"]} frames')
-        return
+        logging.warning(f"SKIPPING {file} with only {finf['nframe']} frames")
+        return stat
 
     try:
         up = setscale(file, up, finf)  # in case auto contrast per file
     except ValueError as e:
         logging.error(f"{file}  {e}\n")
-        return
+        return stat
 
     stat = procaurora(file, P, up, finf)
 
@@ -164,7 +161,7 @@ def procaurora(
     N = finf["frameind"][:-1]
     if len(N) == 0:
         logging.error(f"no images found to detect in {file}")
-        return
+        return pandas.DataFrame()
     # %% start main loop
 
     if finf["reader"] == "spool":
@@ -204,7 +201,9 @@ def procaurora(
         else:  # background/foreground
             mag = gmm.apply(frame)
         # %% threshold
-        thres = dothres(mag, stat["median"].iat[i], P, i, svh, U, gmm is not None)
+        thres = dothres(mag,
+                        stat["median"].iat[i],  # type: ignore[arg-type]
+                        P, i, svh, U, gmm is not None)
         # %% despeckle
         despeck = dodespeck(thres, P.getint("filter", "medfiltsize"), i, svh, U)
         # %% morphological ops
@@ -216,8 +215,8 @@ def procaurora(
         http://docs.opencv.org/modules/highgui/doc/user_interface.html
         """
         if U["pshow"]:
-            draw()
-            pause(0.01)
+            plt.draw()
+            plt.pause(0.01)
 
         if not i % U["previewdecim"]:
             j += 1
@@ -238,16 +237,16 @@ def procaurora(
             #                    assert not (f5['/preview'][j,...] == 0).all(),'preview all 0 frame'
 
             #                if U['verbose']:
-            #                    fgv = figure(1002)
+            #                    fgv = plt.figure(1002)
             #                    fgv.clf()
             #                    ax = fgv.gca()
             #                    hi = ax.imshow(preview)
             #                    ax.set_title(updatestr)
             #                    fgv.colorbar(hi,ax=ax)
-            #                    draw(); pause(0.001)
+            #                    plt.draw(); plt.pause(0.001)
 
             logging.info(
-                f'{U["framestep"]*i/N[-1]*100:.2f}% {stat["detect"].iloc[i-U["previewdecim"]:i].values}'
+                f"{U['framestep'] * i / N[-1] * 100:.2f}% {stat['detect'].iloc[i - U['previewdecim'] : i].values}"
             )
             saturation_check(frame[0, :, :], (4, 40))
 
@@ -262,7 +261,7 @@ def procaurora(
             if dobreak:
                 break
     # %% done looping this file  save results for this file
-    logging.info(f"{time()-tic:.1f} seconds to process {file}")
+    logging.info(f"{time() - tic:.1f} seconds to process {file}")
 
     if U["odir"]:
         detfn = Path(U["odir"]).expanduser() / (file.stem + "_detections.h5")
@@ -281,7 +280,6 @@ def procaurora(
         finally:
             svrelease(svh, U["savevideo"])
 
-    if draw is not None:
-        close("all")
+    plt.close("all")
 
     return stat

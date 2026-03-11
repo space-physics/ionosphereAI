@@ -4,18 +4,18 @@ function pp = CVis(Imgs,UP,rangeKM,velocityMPS,utcDN,CP) %#ok<*INUSD>
 % a playground for preliminary computer vision techniques using MIT haystack passive fm data.
 
 %% the simple things first
-% 
+%
 % # ROI: Commercial airliners < 15km ALTITUDE;  Ionosphere > 90 km ALTITUDE
 % problem--we get slant range with typical two-site configuration. Can 3D position be obtained with multiple
 % sites e.g. 4 sites? Hard to get adequate SCR at all 4 sites?
 % # INTENSITY(SCR): would have to be in conjunction with slant range
-% 
+%
 %% Consider aircraft
-% For a two-site configuration where only 
-% 
+% For a two-site configuration where only
+%
 % * Slant Range
 % * Doppler
-% 
+%
 % are available, how can we qualify aircraft?
 % how does radio horizon impact max range (must be in common view of TX and
 % both RX) when considering maximum 15km altitude of aircraft.
@@ -24,7 +24,7 @@ function pp = CVis(Imgs,UP,rangeKM,velocityMPS,utcDN,CP) %#ok<*INUSD>
 % observable scattering type)
 %
 %% for this assigment, need to know:
-% 
+%
 % # what governs viewing geometry limits
 % # what kind of background (clutter) variations must be tolerated
 % # what is a tolerable minimum SCR for XX% $P_d$ vs $P_{fa}$
@@ -70,17 +70,17 @@ utcDS = datestr(utcDN);
 h = makeFigs(Imgs,rangeKM,velocityMPS,UP,CP,nFrames);
 hJunk = [];
 for iFrm = 1:nFrames-1 %80:150
-    
+
     currImg = Imgs(:,:,iFrm);
-    
+
     if UP.doWienerFilt
      [currImg, NoisePwr(iFrm)] = wiener2(currImg,[5,5],NoisePwrEst); % 2D Wiener filter (reduce noise)
     end
-    
+
 % update raw img
     set(h.ir,'cdata',currImg)
     set(h.tr,'string',['SCR [dB] @ ',utcDS(iFrm,:),' UTC. Detections outlined in Green'])
-    
+
 % show per-frame histogram
 if UP.doFrameHist
      [nhist,histcent] = hist(currImg(:),CP.HistXbin);
@@ -99,9 +99,9 @@ end
 if UP.doGMM
 %% point detection
 % FIXME: should be its own option
-    
+
 %% GMM
-     GMMfg = step(h.FGdet, currImg); 
+     GMMfg = step(h.FGdet, currImg);
      set(h.ifg,'cdata',GMMfg)
 %% morphological
 %GMMfg = step(h.MorphOpen,GMMfg);  % morphological open
@@ -150,14 +150,14 @@ GMMccTF = false(nRow,nCol); %used for displaying connected component result
 
 end % if doGMM
     drawnow
-    
+
     %pause
-    
+
    if UP.doWriteVideo
        vwFrame = getframe(h.fr);
        writeVideo(h.vidWriter,vwFrame);
    end %if write video
-    
+
    if ~mod(iFrm,25), display(['Frame ',int2str(iFrm),'/',int2str(nFrames)]), end
 end %for
 
@@ -172,7 +172,7 @@ for ipp = 1:CP.Npp
     subplot(CP.Npp,1,ipp)
     [ppBinVal,ppBinCent] = hist(pp(:,ipp),NbinPMF);
     pmf = ppBinVal / sum(ppBinVal);
-    stairs(ppBinCent,pmf)   
+    stairs(ppBinCent,pmf)
     ylabel('pmf estimate')
     title(['R = ',num2str(CP.ppRangeVel(ipp,1)),' km, V = ',num2str(CP.ppRangeVel(ipp,2)),' m/s'])
 end %for
@@ -197,7 +197,7 @@ if UP.doWriteVideo
    h.vidWriter.Quality =   UP.writeVideoQuality;
    open(h.vidWriter);
 else
-   h.vidWriter = [];    
+   h.vidWriter = [];
 end
 
 %% setup point detector
@@ -208,19 +208,19 @@ h.kernLaplace = fspecial('laplacian',0.2);
 % Create a System object to detect foreground using Gaussian Mixture Models.
 if UP.doGMM
   % GMM
-  h.FGdet = vision.ForegroundDetector(... 
+  h.FGdet = vision.ForegroundDetector(...
         'AdaptLearningRate',true,...
         'LearningRate',0.01,... %alpha
         'NumTrainingFrames', 8, ...     % only 3 because of short video
         'InitialVariance', (30/255)^2,... % initial standard deviation of 30/255
         'MinimumBackgroundRatio',0.9,...
         'NumGaussians',3);
-  
+
   %Morphological opening
   %h.MorphOpen = vision.MorphologicalOpen('Neighborhood', strel('disk',2));
   %Morphological closing
-  %h.MorphClose = vision.MorphologicalClose('Neighborhood', strel('disk',5));  
-  
+  %h.MorphClose = vision.MorphologicalClose('Neighborhood', strel('disk',5));
+
   %blob (connected components) analysis
   h.blob = vision.BlobAnalysis( ...
                     'CentroidOutputPort', true, ...    % centroid of blob
@@ -232,14 +232,14 @@ if UP.doGMM
                     'MaximumBlobArea', CP.MaxConnected, ...
                     'MaximumCount', CP.MaxNumBlobs,...      % max # of blobs to compute
                     'ExcludeBorderBlobs',false); % don't allow blobs with 1 or more pixels on border
-    
+
 end
 
 
 %% setup plots
 display('initializing plots')
 % priming read
-currImg = Imgs(:,:,1); 
+currImg = Imgs(:,:,1);
 
 % raw image figure
 h.fr = figure(1); clf(1)
@@ -266,9 +266,9 @@ h.ah = axes('parent',h.fh);
  h.bh = stairs(histcent,nhist,'parent',h.ah);
  set(h.ah,'yscale','log','xlim',CP.HistXlim,'ylim',CP.HistYlim)
 end %if
- 
 
- 
+
+
 % GMM foreground figure
 if UP.doGMM
 
@@ -290,7 +290,7 @@ if UP.doGMM
     set(h.aErosion,'ydir','normal')
     colormap('gray')
 
-    
+
     h.fThrGMMcc = figure(6); clf(6)
     curp = get(gcf,'pos'); set(gcf,'pos',[curp(1),curp(2),520,640])
     h.aThrGMMcc = axes('parent',h.fThrGMMcc);

@@ -13,7 +13,7 @@ function PlotSCR(fn)
 plot_SCR(ambiguity,rangeKM,velocityMPS,t,fn)
 
 
-end 
+end
 
 function plot_SCR(ambiguity,rangeKM,velocityMPS,t,fn)
 % inputs:
