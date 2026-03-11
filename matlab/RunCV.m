@@ -1,25 +1,21 @@
 %% example
 % RunCV('~/data/2010-08-03/rx40rx51/fm103.5/ambi',1280875550,1280878249)
 
-function RunCV(datadir,varargin)
-%% user parameters
-
-p = inputParser;
-addOptional(p,'startUT',nan)
-addOptional(p,'stopUT',nan)
-addParamValue(p,'bits',16) %#ok<*NVREPL>
-parse(p,varargin{:})
-U = p.Results;
-
-%% load data
-if ~exist('Imgs','var')
-try
-    display('loading from MAT file')
-[Imgs,UP,rangeKM,velocityMPS,utcDN] = ISraw1(datadir,'.h5',U.startUT,U.stopUT,0,0,0,1,100);
-catch
-    display('saving new MAT file')
-    [Imgs,UP,rangeKM,velocityMPS,utcDN] = ISraw1(datadir,'.h5',U.startUT,U.stopUT,0,0,1,0,100);
+function pp = RunCV(datadir, startUT, stopUT, bits)
+arguments
+    datadir (1,1) string
+    startUT (1,1) datetime
+    stopUT (1,1) datetime
+    bits (1,1) {mustBeInteger} = 16
 end
+
+% load data
+try
+  disp('loading from MAT file')
+  [Imgs,UP,rangeKM,velocityMPS,utcDN] = ISraw1(datadir,'.h5',startUT,stopUT,0,0,0,1,100);
+catch
+  disp('saving new MAT file')
+  [Imgs,UP,rangeKM,velocityMPS,utcDN] = ISraw1(datadir,'.h5',startUT,stopUT,0,0,1,0,100);
 end
 %% user parameters
 UP.doFrameHist = false;
@@ -42,4 +38,5 @@ CP.ipp = 80:125;
 %% do work
 % Imgs = graytoUint8(imresize(Imgs,UP.rs),UP.clims);
 pp = CVis(Imgs,UP,rangeKM,velocityMPS,utcDN,CP);
-end %function
+
+end

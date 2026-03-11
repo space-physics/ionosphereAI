@@ -19,6 +19,6 @@ end
 uint8img = uint8(255.*(img-range(1)) ./ ( range(2) - range(1) ));
 
 %% check for clipping
-%if any(uint8img(:)==255), display('possible clipping to 255'), end
+%if any(uint8img(:)==255), disp('possible clipping to 255'), end
 
 end

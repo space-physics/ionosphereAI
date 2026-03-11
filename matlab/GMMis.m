@@ -21,7 +21,7 @@ ysize = 560 *  UP.rs;
 %% setup Machine Vision methods
 % get number of frames in video
 [nRow,nCol,nFrame] = size(normImgs);
-display(['Video has ',int2str(nFrame),' frames, and ',...
+disp(['Video has ',int2str(nFrame),' frames, and ',...
     int2str(nCol),'x',int2str(nRow),' pixels.'])
 
 
@@ -95,7 +95,7 @@ hVRes = vision.VideoPlayer('Name', '(2) GMM Results', 'Position', pos);
 %    %find pixel indicies
 %    UP.pixRow = findnearest(UP.pixVelocityMPS, velocityMPS);
 %    UP.pixCol = findnearest(UP.pixRangeKM,     rangeKM);
-%    display(['plotting pixel values from (row,col)=(',int2str(UP.pixRow),',',int2str(UP.pixCol),')'])
+%    disp(['plotting pixel values from (row,col)=(',int2str(UP.pixRow),',',int2str(UP.pixCol),')'])
 %    grid on
 %    datetick
 %

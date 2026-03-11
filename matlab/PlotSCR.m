@@ -19,7 +19,7 @@ function plot_SCR(ambiguity,rangeKM,velocityMPS,t,fn)
 % inputs:
 % t: utc second since Unix epoch
 
-T = datestr(datetime(1970,1,1,0,0,t));
+T = datetime(t, ConvertFrom='posixtime');
 
 absamg = abs(ambiguity./median(ambiguity(:)));
 
@@ -30,6 +30,6 @@ colorbar
 xlabel('Range [km]')
 ylabel('Velocity [m/s]')
 
-title({datestr(datetime(T)),fn,'Signal to Clutter Ratio [dB]'},'interpreter','none')
+title(string(T) + fn + " Signal to Clutter Ratio [dB]", 'interpreter', 'none')
 
 end

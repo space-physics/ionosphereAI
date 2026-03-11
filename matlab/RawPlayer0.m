@@ -46,11 +46,11 @@ switch dataExt
             %jtmp = dec2bin(dtmp,32);
             %stmp = [bin2dec(jtmp(17:end)), bin2dec(jtmp(1:16))]; %16-bit IQ packed as QI 32-bit (?)
 
-            if ~mod(ind,10000), display(['processing sample ',int2str(ind)]), end
+            if ~mod(ind,10000), disp(['processing sample ',int2str(ind)]), end
         end
          data = dtmp(:,1) + 1j*dtmp(:,2);
 end
-display(['Using Sampling Frequency ',num2str(U.sampling_frequency),' Hz'])
+disp(['Using Sampling Frequency ',num2str(U.sampling_frequency),' Hz'])
 Ns = length(data);
 %% create FIR lowpass filter (to eliminate L-R and stereo carrier)
 
@@ -61,10 +61,10 @@ Wn = Fc/U.sampling_frequency;
 B = fir1(FIRorder,Wn); %hamming window, lowpass by default for fir1()
 A = 1; %by def'n of FIR
 
-    display(['Using ',int2str(FIRorder),'-tap LPF, with corner freq.: ',num2str(Fc/1e3),' kHz.'])
+    disp(['Using ',int2str(FIRorder),'-tap LPF, with corner freq.: ',num2str(Fc/1e3),' kHz.'])
     data(:,1) = filter(B,A,data);
 else
-    display('No LPF used.')
+    disp('No LPF used.')
     data(:,1) = double(data);
 end
 
@@ -112,7 +112,7 @@ plot(t,Q)
 ylabel('Imag (Q) ampl.')
 
 if U.doLPF
-display('plotting')
+disp('plotting')
 figure(2),clf(2)
 freqz(B,A,512,'whole',U.sampling_frequency)
 title({dataFN,'FIR filter frequency response'},'interpreter','none')
@@ -141,7 +141,7 @@ title({dataFN,'Demodulated signal'},'interpreter','none')
 
 %%
 if U.doPlayAudio
-display('playing audio')
+disp('playing audio')
 
 if U.doResamplePB
 %resample audio to a managable frequency

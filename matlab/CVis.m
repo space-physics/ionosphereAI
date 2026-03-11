@@ -41,10 +41,10 @@ NoisePwrEst = []; % [] means wiener2 will estimate the noise power itself for ea
 
 
 %% compute parameters
-display(['Using only hits with more than ',int2str(CP.MinConnected),' pixels.'])
+disp(['Using only hits with more than ',int2str(CP.MinConnected),' pixels.'])
 % check if user has requested smaller minimum data extents and trim data
 % accordingly
-display(['Trimming data to Minimum Range of ',num2str(UP.RangeMinKM),' km.'])
+disp(['Trimming data to Minimum Range of ',num2str(UP.RangeMinKM),' km.'])
 BadRangeInd = rangeKM < UP.RangeMinKM;
 Imgs(:,BadRangeInd,:) = [];
 rangeKM(BadRangeInd) = [];
@@ -64,9 +64,6 @@ NoisePwr = NaN(nFrames,1);
 % let's get a sense of what relative intensities we're dealing with.
 
 
-%get date for each frame
-utcDS = datestr(utcDN);
-
 h = makeFigs(Imgs,rangeKM,velocityMPS,UP,CP,nFrames);
 hJunk = [];
 for iFrm = 1:nFrames-1 %80:150
@@ -79,7 +76,7 @@ for iFrm = 1:nFrames-1 %80:150
 
 % update raw img
     set(h.ir,'cdata',currImg)
-    set(h.tr,'string',['SCR [dB] @ ',utcDS(iFrm,:),' UTC. Detections outlined in Green'])
+    set(h.tr,'string',['SCR [dB] @ ',string(utcDN(iFrm)),' UTC. Detections outlined in Green'])
 
 % show per-frame histogram
 if UP.doFrameHist
@@ -158,7 +155,7 @@ end % if doGMM
        writeVideo(h.vidWriter,vwFrame);
    end %if write video
 
-   if ~mod(iFrm,25), display(['Frame ',int2str(iFrm),'/',int2str(nFrames)]), end
+   if ~mod(iFrm,25), disp(['Frame ',int2str(iFrm),'/',int2str(nFrames)]), end
 end %for
 
 if UP.doWriteVideo, close(h.vidWriter); end
@@ -188,7 +185,7 @@ ylabel('Est. Noise Pwr [dB]')
 end %function
 
 function h = makeFigs(Imgs,rangeKM,velocityMPS,UP,CP,nFrames)
-display('Creating Vision Toolbox Objects')
+disp('Creating Vision Toolbox Objects')
 %% handle for VideoWriter
 
 if UP.doWriteVideo
@@ -237,7 +234,7 @@ end
 
 
 %% setup plots
-display('initializing plots')
+disp('initializing plots')
 % priming read
 currImg = Imgs(:,:,1);
 

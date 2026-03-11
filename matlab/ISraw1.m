@@ -81,7 +81,7 @@ h5fn = [dataDir,filesep,UP.dirQual,UP.fnStem,'.mat'];
 %% Step 1a: compute parameters
 if ~UP.loadH5
 
-display(['Using filename regexp: ',UP.utcRegExp,' on ',int2str(nRawFiles),' files.'])
+disp(['Using filename regexp: ',UP.utcRegExp,' on ',int2str(nRawFiles),' files.'])
 j=0;
 for i = 1:nRawFiles
 try %not the most efficient placing, but we want to keep going with next file on failure
@@ -123,14 +123,14 @@ end %if
 %figure(99),imagesc(normImgs(:,:,j)),colorbar
  drawnow %necessary to update each looparound
 if ~mod(i,50),
-    display(['File ',int2str(i),'/',int2str(nRawFiles)])
+    disp(['File ',int2str(i),'/',int2str(nRawFiles)])
 end
 
 catch err
     fprintf(['In file ',fn,' '])
-      % display(['raw plot failure on file: ',fn,'  i=',int2str(i),'  j=',int2str(j)])
-       display(getReport(err,'extended'))
-       %display([err.identifier,': ',err.message])
+      % disp(['raw plot failure on file: ',fn,'  i=',int2str(i),'  j=',int2str(j)])
+       disp(getReport(err,'extended'))
+       %disp([err.identifier,': ',err.message])
 end %try
 
 end % for
@@ -138,7 +138,7 @@ end % for
 UP.clims = clims; %in case they were automatically set %FIXME
 
 if UP.saveH5
-    display(['saving to MAT file: ',h5fn])
+    disp(['saving to MAT file: ',h5fn])
     save(h5fn,'Imgs','rangeKM','velocityMPS','UP','utcDN')
 end %if saveH5
 
@@ -157,12 +157,12 @@ if UP.plotRaw
    title({[datestr(utcDN(1),'yyyy-mmm-dd'),' to ',datestr(utcDN(end),'yyyy-mmm-dd'),', int_time: ',num2str(integration_time),' sec.']},'interpreter','none')
 end
 else % load from HDF5 file
-    display(['Loading prestored data from: ',h5fn])
+    disp(['Loading prestored data from: ',h5fn])
    [Imgs,rangeKM,velocityMPS,UP,utcDN] = getH5(h5fn,UP);
 end %if loadH5
 
 %% truncate range extent
-display(['Using Minimum Range of ',num2str(UP.RangeMinKM),' km.'])
+disp(['Using Minimum Range of ',num2str(UP.RangeMinKM),' km.'])
 BadRangeInd = rangeKM < UP.RangeMinKM;
 Imgs(:,BadRangeInd,:) = [];
 rangeKM(BadRangeInd) = [];
@@ -175,7 +175,7 @@ if UP.doGMM && exist('GMMis.m','file')
     Imgs = graytoUint8(imresize(Imgs,UP.rs),UP.clims);
     GMMis(Imgs,UP,rangeKM,velocityMPS,utcDN);
 else
-    display('Skipping Machine Vision processing')
+    disp('Skipping Machine Vision processing')
 end
 
 if nargout==0, clear, end
@@ -221,7 +221,7 @@ end
 UP.dirQual = dirQual;
 
 %% get directory info
-display(['Listing directories in ',dataDir])
+disp(['Listing directories in ',dataDir])
 fullDir = [dataDir,filesep,UP.fnStem,'*',dataExt];
 files = dir(fullDir);
 filenames = {files.name};
@@ -240,14 +240,14 @@ if nRawFiles==0
     error(['I didn''t find any suitable files in your time range in directory/stem: ',dataDir,filesep,UP.fnStem])
 end % if nRawFIles==0
 
-display(['Using data from: ',datestr(utcDN(1),'yyyy-mmm-ddTHH:MM:ss'),' to ',datestr(utcDN(end),'yyyy-mmm-ddTHH:MM:ss')])
+disp(['Using data from: ',datestr(utcDN(1),'yyyy-mmm-ddTHH:MM:ss'),' to ',datestr(utcDN(end),'yyyy-mmm-ddTHH:MM:ss')])
 
 
 if ~UP.loadH5
 %% priming read
 % assuming all parameters stay the same for a given directory/fnStem pair
 fn = [dataDir,filesep,files(1).name];
-display(['Priming read from: ',fn])
+disp(['Priming read from: ',fn])
 
 [rangeKM,velocityMPS] = getFrame(fn,dataExt);
 

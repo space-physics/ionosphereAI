@@ -3,7 +3,7 @@ function [outImg,count] = bboxCount(areaBbox,bbox,RGBimg,bboxRatioThres,line_row
 outImg = RGBimg; %copy original RGB image for a final output image
 
 Idx = bbox(:,2) > line_row; % Select boxes which are in the ROI.
-    %if ~isempty(bbox), display(bbox), end
+    %if ~isempty(bbox), disp(bbox), end
 
     % Based on dimensions, exclude objects which are not feasible.
     % When the ratio between the area of the blob and the area of the bounding box

@@ -62,7 +62,7 @@ else
 	m = length(x);
 end
 Tflag = 0;
-if ndims(F)==2 && size(F,1)==1    % Treat row vector as a column vector
+if ismatrix(F) && size(F,1)==1    % Treat row vector as a column vector
    F = F.';
    Tflag = 1;
 end;
