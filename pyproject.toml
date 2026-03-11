@@ -40,3 +40,5 @@ version = {attr = "ionosphereAI.__version__"}
 files = ["."]
 ignore_missing_imports = true
 allow_redefinition = true
+install_types = true
+exclude = ["^build([/\\\\]|$)"]

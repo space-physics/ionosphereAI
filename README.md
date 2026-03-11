@@ -1,10 +1,8 @@
-[![image](https://zenodo.org/badge/DOI/10.5281/zenodo.168226.svg)](https://doi.org/10.5281/zenodo.168226)
-
-[![Build Status](https://travis-ci.org/space-physics/ionosphereAI.svg?branch=master)](https://travis-ci.org/space-physics/ionosphereAI)
-[![Coverage Status](https://coveralls.io/repos/github/space-physics/ionosphereAI/badge.svg?branch=master)](https://coveralls.io/github/space-physics/ionosphereAI?branch=master)
-[![Build status](https://ci.appveyor.com/api/projects/status/w2vi0awovp9e1t4r?svg=true)](https://ci.appveyor.com/project/scivision/ionosphereai)
-
 # Ionosphere AI
+
+[![image](https://zenodo.org/badge/DOI/10.5281/zenodo.168226.svg)](https://doi.org/10.5281/zenodo.168226)
+[![ci](https://github.com/space-physics/ionosphereAI/actions/workflows/ci.yml/badge.svg)](https://github.com/space-physics/ionosphereAI/actions/workflows/ci.yml)
+
 
 Machine learning and computer vision techniques for auroral video, passive FM radar, incoherent scatter radar and other geoscience data using collective behavior detection.
 The programs are OS/platform-agnostic.
