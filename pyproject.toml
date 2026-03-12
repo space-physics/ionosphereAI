@@ -20,7 +20,8 @@ dependencies = [
     "pandas",
     "numpy",
     "h5py",
-    "astropy"
+    "astropy",
+    "pyoptflow", "morecvutils"
 ]
 dynamic = ["readme", "version"]
 
@@ -29,7 +30,6 @@ tests = ["pytest", "mypy"]
 hist = ["histutils"]
 dmc = ["dmcutils"]
 plot = ["matplotlib"]
-cv = ["pyoptflow", "morecvutils"]
 opencv = ["opencv-python"]
 
 [tool.setuptools.dynamic]

@@ -37,61 +37,62 @@ def get_file_info(files: Path | list[Path], U: dict[str, Any]) -> dict[str, Any]
         files = [files]
     fn = files[0]
 
-    if fn.suffix.lower() == ".dmcdata":  # HIST
-        finf = read_dmc(fn, U)
-    elif fn.suffix.lower() == ".dat":  # Andor Solis spool file
-        finf = read_spool(fn, U, {})
-    elif fn.suffix.lower() in {".h5", ".hdf5"}:
-        finf = {}
-        try:  # can't read inside context
+    match fn.suffix.lower():
+        case ".dmcdata":  # HIST
+            finf = read_dmc(fn, U)
+        case ".dat":  # Andor Solis spool file
+            finf = read_spool(fn, U, {})
+        case ".h5" | ".hdf5":
+            finf = {}
+            try:  # can't read inside context
+                with h5py.File(fn, "r") as f:
+                    finf["flist"] = f["fn"][:]
+                # finf['flist'] = read_hdf(fn,'filetick')
+                if U["startstop"] is not None:
+                    finf["flist"] = finf["flist"][U["startstop"][0] : U["startstop"][1]]
+
+                logging.info(f"taking {len(finf['flist'])} files from index {fn}")
+            except KeyError:
+                pass
+            # %% determine if optical or passive radar
             with h5py.File(fn, "r") as f:
-                finf["flist"] = f["fn"][:]
-            # finf['flist'] = read_hdf(fn,'filetick')
-            if U["startstop"] is not None:
-                finf["flist"] = finf["flist"][U["startstop"][0] : U["startstop"][1]]
+                if "rawimg" in f:  # hst image/video file
+                    finf = {"reader": "h5vid"}
+                    finf["nframe"] = f["rawimg"].shape[0]
+                    finf["super_x"] = f["rawimg"].shape[2]
+                    finf["super_y"] = f["rawimg"].shape[1]
+                    # print('HDF5 video file detected {}'.format(fn))
+                elif "ambiguity" in f:  # Haystack passive FM radar file
+                    finf = {"reader": "h5fm"}
+                    finf["nframe"] = (
+                        1  # currently the passive radar uses one file per frame
+                    )
+                    range_km, vel_mps = getfmradarframe(fn)[
+                        :2
+                    ]  # assuming all frames are the same size
+                    finf["super_x"] = range_km.size
+                    finf["super_y"] = vel_mps.size
+                    # print('HDF5 passive FM radar file detected {}'.format(fn))
+                elif "ticks" in f:  # Andor Solis spool file index from dmcutils/Filetick.py
+                    finf = read_spool(fn, U, finf)
+                    finf["path"] = fn.parent
+                else:
+                    raise ValueError(f"{fn}: unknown input HDF5 file type")
 
-            logging.info(f"taking {len(finf['flist'])} files from index {fn}")
-        except KeyError:
-            pass
-        # %% determine if optical or passive radar
-        with h5py.File(fn, "r") as f:
-            if "rawimg" in f:  # hst image/video file
-                finf = {"reader": "h5vid"}
-                finf["nframe"] = f["rawimg"].shape[0]
-                finf["super_x"] = f["rawimg"].shape[2]
-                finf["super_y"] = f["rawimg"].shape[1]
-                # print('HDF5 video file detected {}'.format(fn))
-            elif "ambiguity" in f:  # Haystack passive FM radar file
-                finf = {"reader": "h5fm"}
-                finf["nframe"] = (
-                    1  # currently the passive radar uses one file per frame
-                )
-                range_km, vel_mps = getfmradarframe(fn)[
-                    :2
-                ]  # assuming all frames are the same size
-                finf["super_x"] = range_km.size
-                finf["super_y"] = vel_mps.size
-                # print('HDF5 passive FM radar file detected {}'.format(fn))
-            elif "ticks" in f:  # Andor Solis spool file index from dmcutils/Filetick.py
-                finf = read_spool(fn, U, finf)
-                finf["path"] = fn.parent
-            else:
-                raise ValueError(f"{fn}: unknown input HDF5 file type")
-
-        if "frameind" not in finf:
-            finf["frameind"] = np.arange(0, finf["nframe"], U["framestep"], dtype=int)
-    elif fn.suffix.lower() in (".fit", ".fits"):
-        if getNeoParam is None:
-            raise ImportError("pip install histutils")
-        finf = getNeoParam(fn, U["framestep"])
-        finf["reader"] = "fits"
-    elif fn.suffix.lower() in (".tif", ".tiff"):
-        if getNeoParam is None:
-            raise ImportError("pip install histutils")
-        finf = getNeoParam(fn, U["framestep"])
-        finf["reader"] = "tiff"
-    else:  # assume video file
-        finf = read_cv2(fn)
+            if "frameind" not in finf:
+                finf["frameind"] = np.arange(0, finf["nframe"], U["framestep"], dtype=int)
+        case ".fit" | ".fits":
+            if getNeoParam is None:
+                raise ImportError("pip install histutils")
+            finf = getNeoParam(fn, U["framestep"])
+            finf["reader"] = "fits"
+        case ".tif" | ".tiff":
+            if getNeoParam is None:
+                raise ImportError("pip install histutils")
+            finf = getNeoParam(fn, U["framestep"])
+            finf["reader"] = "tiff"
+        case _:  # assume video file
+            finf = read_cv2(fn)
 
     return finf
 

@@ -50,10 +50,10 @@ def loopaurorafiles(U: dict[str, Any]) -> pandas.DataFrame:
     elif idir.is_dir():
         files = sorted(idir.glob("*" + P.get("main", "vidext")))
     else:
-        raise FileNotFoundError(idir)
+        raise FileNotFoundError(f"{idir} is not a valid file or directory")
 
     if not files:
-        raise FileNotFoundError(U["indir"])
+        raise FileNotFoundError(f"No files found in {idir} with extension {P.get('main', 'vidext')}")
 
     U["nfile"] = len(files)
     U["zerocols"] = P.getint("main", "zerocols", fallback=0)
@@ -66,7 +66,7 @@ def loopaurorafiles(U: dict[str, Any]) -> pandas.DataFrame:
     U["minblobdist"] = P.getint("blob", "minblobdist")
     U["xy_pixel"] = (P.getint("main", "xpix"), P.getint("main", "ypix"))
     U["xy_bin"] = (P.getint("main", "xbin"), P.getint("main", "ybin"))
-    U["header_bytes"] = P.getint("main", "header_bytes")
+    U["header_bytes"] = P.getint("main", "header_bytes", fallback=None)
     U["twoframe"] = P.getboolean("main", "twoframe")
     U["ofmethod"] = P.get("main", "ofmethod").lower()
     U["rawlim"] = [P.getfloat("main", "cmin"), P.getfloat("main", "cmax")]

@@ -57,7 +57,7 @@ It is usually straightforward to adapt the program to ingest NetCDF, HDF5 and ma
 ## Install
 
 ```sh
-python -m pip install -e .[cv]
+python -m pip install -e ./ionosphereAI
 ```
 
 If you don't have OpenCV:
