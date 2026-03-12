@@ -25,12 +25,17 @@ except ImportError as e:
     logging.debug(e)
     spoolparam = None
 
+try:
+    import dascasi
+except ImportError as e:
+    logging.debug(e)
+
 import imageio
 
 SPOOLINI = "acquisitionmetadata.ini"  # for Solis spool files
 
 
-def get_file_info(files: Path | list[Path], U: dict[str, Any]) -> dict[str, Any]:
+def get_file_info(files: Path | list[Path], U: dict[str, Any], cam_type: str = "") -> dict[str, Any]:
 
     # keeping type hints consistent
     if isinstance(files, Path):
@@ -82,10 +87,15 @@ def get_file_info(files: Path | list[Path], U: dict[str, Any]) -> dict[str, Any]
             if "frameind" not in finf:
                 finf["frameind"] = np.arange(0, finf["nframe"], U["framestep"], dtype=int)
         case ".fit" | ".fits":
-            if getNeoParam is None:
-                raise ImportError("pip install histutils")
-            finf = getNeoParam(fn, U["framestep"])
-            finf["reader"] = "fits"
+            match cam_type:
+                case "DASC":
+                    finf = dascasi.read(fn, U["framestep"])
+                    finf["reader"] = "fits"
+                case "sCMOS":
+                    if getNeoParam is None:
+                        raise ImportError("pip install histutils")
+                    finf = getNeoParam(fn, U["framestep"])
+                    finf["reader"] = "fits"
         case ".tif" | ".tiff":
             if getNeoParam is None:
                 raise ImportError("pip install histutils")

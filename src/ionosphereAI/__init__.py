@@ -117,8 +117,9 @@ def loopaurorafiles(U: dict[str, Any]) -> pandas.DataFrame:
 def procfiles(file: Path, P: ConfigParser, up: dict[str, Any]) -> pandas.DataFrame:
 
     stat = pandas.DataFrame()
+    cam_type = P.get("main", "type")
 
-    finf = get_file_info(file, up)
+    finf = get_file_info(file, up, cam_type)
 
     if finf["nframe"] < 100 and finf["reader"] != "spool":
         logging.warning(f"SKIPPING {file} with only {finf['nframe']} frames")
