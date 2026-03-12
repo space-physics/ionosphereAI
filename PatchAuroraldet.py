@@ -57,8 +57,8 @@ def plotdet(infn, outfn=None, vlim=None, quiet=False):
             decim = f["/previewDecim"][()]
             step = f["/framestep"][()]
 
-            for i, I in enumerate(f["/preview"]):
-                h.set_data(I)
+            for i, img in enumerate(f["/preview"]):
+                h.set_data(img)
                 ht.set_text(f"{step * decim * i} / {Nfile}")
                 draw()
                 pause(0.1)

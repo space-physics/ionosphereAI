@@ -42,7 +42,7 @@ def write_index(d: Path, codedir: Path):
 def detect_aurora(d: Path, outdir: Path, codedir: Path):
     """use OpenCV and collective behavior detection to find Alfvenic aurora candidates"""
 
-    cmd = ["python", "Detect.py", str(d / INDEXFN), str(outdir / d.stem), CONF, "-k10"]
+    cmd = [sys.executable, "-m", "ionosphereAI.detect", str(d / INDEXFN), str(outdir / d.stem), CONF, "-k10"]
 
     print("**************\n", " ".join(cmd))
 
@@ -55,7 +55,7 @@ def extract_aurora(d: Path, outdir: Path, codedir: Path):
     """Write HDF5 file with detected auroral video"""
 
     cmd = [
-        "python",
+        sys.executable,
         "ConvertSpool2h5.py",
         str(d / INDEXFN),
         "-det",
@@ -77,7 +77,7 @@ def preview_extract(d: Path, outdir: Path, codedir: Path):
     """Create lossy AVI preview of extracted data"""
 
     cmd = [
-        "python",
+        sys.executable,
         "Convert_HDF5_to_AVI.py",
         str(outdir / d.stem / (d.stem + "extracted.h5")),
         str(outdir / d.stem / (d.stem + "extracted.avi")),

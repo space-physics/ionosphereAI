@@ -201,9 +201,15 @@ def procaurora(
         else:  # background/foreground
             mag = gmm.apply(frame)
         # %% threshold
-        thres = dothres(mag,
-                        stat["median"].iat[i],  # type: ignore[arg-type]
-                        P, i, svh, U, gmm is not None)
+        thres = dothres(
+            mag,
+            stat["median"].iat[i],  # type: ignore[arg-type]
+            P,
+            i,
+            svh,
+            U,
+            gmm is not None,
+        )
         # %% despeckle
         despeck = dodespeck(thres, P.getint("filter", "medfiltsize"), i, svh, U)
         # %% morphological ops

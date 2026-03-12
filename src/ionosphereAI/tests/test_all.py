@@ -8,7 +8,7 @@ def test_parse_params(tmp_path):
     with pytest.raises(FileNotFoundError):
         ia.dio.get_sensor_config(tmp_path)
 
-    pfn = ir.files("ionosphereAI.tests.data")  / "hst0.ini"
+    pfn = ir.files("ionosphereAI.tests.data") / "hst0.ini"
     P = ia.dio.get_sensor_config(pfn)
     assert P.getint("main", "xpix") == 512
 
