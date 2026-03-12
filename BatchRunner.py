@@ -29,6 +29,8 @@ def write_index(d: Path, codedir: Path):
 
     FIXME: windows feeds out spurious error codes even when program worked
            like -1073740777 or 3221226519
+
+    XXX: FileTick.py is at github.com/space-physics/dmcutils
     """
     cmd = ["python", "FileTick.py", str(d / "spool"), str(d / INDEXFN), "-s1296", "-z0"]
 
